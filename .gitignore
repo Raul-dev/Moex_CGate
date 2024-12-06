@@ -1,0 +1,17 @@
+.vs
+bin
+obj
+logs
+packages
+clickhouse-data
+grafana-data
+__pycache__
+*.user
+rootCA
+*.crt
+*.key
+*.pfx
+*.csr
+*.jfm
+*.dbmdl
+GenTestOutput.xml
