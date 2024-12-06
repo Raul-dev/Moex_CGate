@@ -1,0 +1,45 @@
+version: '3.8'
+services:
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: cgatemssql
+    restart: always
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=MyPassword321
+      - MSSQL_PID=Developer      
+    ports:
+      - 1434:1433
+    volumes:
+      - ccgatemssql:/var/opt/mssql      
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P MyPassword321 -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      retries: 10
+      start_period: 10s
+      timeout: 3s   
+
+  mssql.configurator:
+    image: ${DOCKER_REGISTRY-}mqmssql2022build
+    build:
+      context: .
+      dockerfile: images/mssql/Dockerfile    
+    user: root
+    volumes:
+      - ./images/mssql/dacpac:/dacpac
+    depends_on:
+      mssql:
+        condition: service_healthy
+    command: >
+      bash -c '
+      /opt/sqlpackage/sqlpackage /a:Publish /tsn:mssql /TargetEncryptConnection:False /tdn:CGate /tu:sa /tp:MyPassword321 /sf:/dacpac/CGate.dacpac /v:LinkSRVLog=LinkSRVLog;
+      echo "All done!";
+      '
+volumes:
+  ccgatemssql:
+    driver: local
+
+
+ 
+

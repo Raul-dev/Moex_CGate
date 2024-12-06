@@ -1,0 +1,6 @@
+services:
+  mq.webservice:
+    image: ${DOCKER_REGISTRY-}mqwebservice
+    build:
+      context: .
+      dockerfile: MQ.WebService/Dockerfile

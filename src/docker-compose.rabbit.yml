@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+
+  rabbit:
+    build:
+      context: ./images/Rabbit  
+#    image: rabbitmq:3.7-management
+#    image: rabbitmq:management
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      start_period: 5s
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped      
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+#    volumes:
+#      - ./images/Rabbit/rabbit_7526bb19600c_2024-11-27.json:/etc/rabbitmq/conf.d/definitions.json
+
+

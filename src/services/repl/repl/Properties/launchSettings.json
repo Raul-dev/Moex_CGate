@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "repl": {
+      "commandName": "Project",
+      "commandLineArgs": "2"
+    }
+  }
+}

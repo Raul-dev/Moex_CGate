@@ -1,0 +1,71 @@
+version: '2.2'
+services:
+
+  elasticsearch:
+    image: docker.io/bitnami/elasticsearch:8.5.3
+    container_name: elasticsearch
+    environment:
+      - http.cors.enabled=true
+      - http.cors.allow-origin=*
+      - http.cors.allow-methods=OPTIONS,HEAD,GET,POST,PUT,DELETE
+      - http.cors.allow-headers=X-Requested-With,X-Auth-Token,Content-Type,Content-Length,Authorization
+      - transport.host=127.0.0.1      
+      - cluster.name=docker-cluster
+      - bootstrap.memory_lock=true
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - data:/usr/share/elasticsearch/data
+    restart: always
+    ports:
+      - 9200:9200
+
+  logstash:
+    build: ./images/logstash
+    environment:
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - LOGSTASH_JDBC_URL=jdbc:sqlserver://host.docker.internal:1433;databaseName=CGate;integratedSecurity=false;encrypt=true;trustServerCertificate=true;
+      - LOGSTASH_JDBC_DRIVER=com.microsoft.sqlserver.jdbc.SQLServerDriver
+      - LOGSTASH_JDBC_DRIVER_JAR_LOCATION=/usr/share/logstash/logstash-core/lib/jars/mssql-jdbc.jar
+      - LOGSTASH_JDBC_USERNAME=CGateUser
+      - LOGSTASH_JDBC_PASSWORD=MyPassword321
+      - LOGSTASH_ELASTICSEARCH_HOST=http://elasticsearch:9200      
+    ports:
+#      - 5001:5001
+      - 9600:9600
+      - 5044:5044      
+    container_name: logstash
+    restart: always
+    depends_on:
+      - elasticsearch
+    volumes:
+      - ./images/logstash/config:/usr/share/logstash/pipeline
+
+  filebeat:
+    build:
+      context: ./images/filebeat
+    container_name: filebeat
+    volumes:
+      - ./services/mq/MQ/bin/Debug/logs:/src/logs
+    depends_on:
+      - elasticsearch
+      - kibana
+  
+  kibana:
+    image: docker.io/bitnami/kibana:8.5.3
+    environment:
+      SERVER_HOST: 0.0.0.0
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    container_name: kibana
+    depends_on:
+      - elasticsearch
+    ports:
+      - 5601:5601
+volumes:
+  data:
+    driver: local
+

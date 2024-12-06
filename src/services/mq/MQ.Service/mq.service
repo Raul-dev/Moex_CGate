@@ -1,0 +1,12 @@
+[Unit]
+Description=MQ Service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi/projects/MQ/publish/
+ExecStart=/home/pi/dotnet/dotnet /home/pi/projects/MQ/publish/MQ.Service.dll --alert 3
+KillSignal=SIGINT
+SyslogIdentifier=MQService
+
+[Install]
+WantedBy=multi-user.target

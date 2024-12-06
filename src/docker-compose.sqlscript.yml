@@ -1,0 +1,46 @@
+version: '3.8'
+services:
+
+  mssql:
+#    image: ${DOCKER_REGISTRY-}mqmssql2022
+#    build:
+#      context: .
+#      dockerfile: images/mssql/Dockerfile    
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: cgatemssql
+    restart: always
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=MyPassword321
+      - MSSQL_PID=Developer      
+    ports:
+      - 1434:1433
+    volumes:
+      - ccgatemssql:/var/opt/mssql      
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P MyPassword321 -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      retries: 10
+      start_period: 10s
+      timeout: 3s   
+
+  mssql.configurator:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    user: root
+    volumes:
+      - ./images/mssql/init:/docker-entrypoint-initdb.d
+    depends_on:
+      mssql:
+        condition: service_healthy
+    command: >
+      bash -c '
+      /opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P MyPassword321 -C -d master -i docker-entrypoint-initdb.d/init.sql;
+      echo "All done!";
+      '
+volumes:
+  ccgatemssql:
+    driver: local
+
+
+ 
+
