@@ -1,6 +1,6 @@
 Param (
     [parameter(Mandatory=$false)][string]$TargetServerName="localhost",
-    [parameter(Mandatory=$false)][string]$TargetDBname="cgate_uts_tmp", 
+    [parameter(Mandatory=$false)][string]$TargetDBname="CGate", 
     [parameter(Mandatory=$false)][string]$IsUpdate=$false
   )
 function Test-Administrator  
@@ -16,8 +16,8 @@ function Test-Administrator
 function MergeUser
 {
   Param (
-    [string]$lTargetDBname,
     [string]$lTargetServerName,
+    [string]$lTargetDBname,
     [string]$lSQLuser,
     [string]$lSQLpwd
     )
@@ -59,14 +59,14 @@ if($IsUpdate -eq $true){
     } catch {
     }
 }
-./dbdeploy -TargetServerName $TargetServerName -TargetDBname $TargetServerName  -PublishOnly $true -IsRebuild $true
+./dbdeploy -TargetServerName $TargetServerName -TargetDBname $TargetDBname -PublishOnly $true -IsRebuild $true
 if ($LASTEXITCODE -eq -1)
 {
   Set-Location $CurrentPath
 
   exit
 }
-$res = MergeUser $TargetServerName $TargetServerName "CGateUser" "MyPassword321"
+$res = MergeUser $TargetServerName $TargetDBname "CGateUser" "MyPassword321"
 IF ($LASTEXITCODE -ne 0 -or $res -ne 0){
     throw "Create user CGateUser failed."
 }
@@ -81,4 +81,4 @@ if($IsUpdate -eq $true){
 }
 
 Set-Location $CurrentPath
-#docker compose up
+docker compose up

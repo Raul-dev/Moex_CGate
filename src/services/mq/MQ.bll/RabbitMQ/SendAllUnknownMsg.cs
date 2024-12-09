@@ -15,6 +15,7 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.ComponentModel;
 using System.Security.AccessControl;
+using BenchmarkDotNet.Attributes;
 
 namespace MQ.bll.RabbitMQ
 {
@@ -40,6 +41,7 @@ namespace MQ.bll.RabbitMQ
             else
                 await MQProcess();
         }
+        [Benchmark]
         public async Task MQProcess()
         {
             List<MsgQueueItem> mq = dbHelper.GetMsgqueueItems();

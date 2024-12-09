@@ -18,7 +18,7 @@ DECLARE @metamap TABLE
 )
 INSERT @metamap ([metamap_id], [msg_key], [table_name], [metaadapter_id], [namespace], [namespace_ver], [etl_query], [import_query], [is_enable])
 VALUES
-(1, N'Unknown', 'msgqueue', 5, CAST(N'https://nevadwh.ru/CatalogObject.Unknown' AS varchar(255)), CAST('https://nevadwh.ru/CatalogObject.Unknown/version1' AS varchar(255)), NULL, NULL, 1),
+(1, N'Unknown', 'msgqueue', 5, CAST(N'https://nevacgate.ru/CatalogObject.Unknown' AS varchar(255)), CAST('https://nevacgate.ru/CatalogObject.Unknown/version1' AS varchar(255)), NULL, NULL, 1),
 (2, N'crs.orders_log', N'[crs].[orders_log_buffer]', 1, N'crs.orders_log', N'crs.orders_log/version2.17', N'[crs].[load_orders_log]', NULL, 1)
 
 IF EXISTS ( 

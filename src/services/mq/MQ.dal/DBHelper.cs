@@ -487,6 +487,7 @@ END CATCH
                }
                ).ToArray();
         }
+
         
         public async Task EfBulkInsert(string atrArray, long sessionId, Guid msgId) 
         {
@@ -494,7 +495,7 @@ END CATCH
                 await context.BulkInsertAsync(GetOrdersLogBuffer(atrArray, sessionId, msgId));
         }
  
-        [Benchmark]
+        
         public static List<OrdersLogBuffer> GetListOrdersLogBuffer(string atrArray, int uniqueId)
         {
             string[] subs = atrArray.Replace("[[", "").Replace("]]", "").Split("],[");

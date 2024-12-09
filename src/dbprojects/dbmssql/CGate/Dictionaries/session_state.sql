@@ -58,5 +58,9 @@ SELECT
 FROM sys.columns
 ORDER BY object_id, column_id
 
-EXEC sp_GenerationRandomArray 'crs', 'orders_log'
-EXEC sp_GenerationRandomArray 'crs', 'orders_log'
+DECLARE @I int = 0
+WHILE (@I < 100) BEGIN
+  EXEC sp_GenerationRandomArray 'crs', 'orders_log'
+  EXEC sp_GenerationRandomArray 'crs', 'orders_log'
+  SET @I = @I + 1
+END

@@ -1,0 +1,46 @@
+version: '3.4'
+services:
+  rabbit:
+    build:
+      context: ./images/Rabbit  
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      start_period: 5s
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped      
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+      
+  mq.webservice:
+    image: raulamailru/moexcgate-mq:0.0.1
+    build:
+      context: ./services/mq
+      dockerfile: MQ.WebService/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      #- ASPNETCORE_URLS=https://+:443;http://+:80
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=8081
+      - DataBaseSettings__ServerType=mssql 
+      - DataBaseSettings__ClientName=${MQ_CLIENTNAME:-client1}
+      - DataBaseSettings__DataBase=${MQ_DATABASE:-CGate}
+      - DataBaseSettings__User=${MQ_USER:-postgres}
+      - DataBaseSettings__Password=${MQ_PASSWORD:-postgres}
+      - Serilog__MinimumLevel__Default=Information
+    ports:
+      - "8090:8080"
+      - "8091:8081"
+    volumes:
+      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+      - ./logs:/logs   
+    depends_on:
+      rabbit:
+        condition: service_healthy
+

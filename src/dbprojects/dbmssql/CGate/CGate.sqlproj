@@ -118,6 +118,7 @@
     <Build Include="Security\CGateUser.sql" />
     <Build Include="Security\RoleMemberships.sql" />
     <Build Include="dbo\Functions\fn_GetBufferingDays.sql" />
+    <Build Include="dbo\Functions\fn_GetSettingInt.sql" />
   </ItemGroup>
   <ItemGroup>
     <SqlCmdVariable Include="LinkSRVLog">

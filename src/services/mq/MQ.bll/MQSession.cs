@@ -10,6 +10,7 @@ using MQ.bll.Common;
 using System.Collections.Generic;
 using Microsoft.Diagnostics.Runtime;
 using Microsoft.IdentityModel.Tokens;
+using BenchmarkDotNet.Attributes;
 
 namespace MQ.bll
 {
@@ -253,6 +254,7 @@ namespace MQ.bll
             return dbHelper.SaveSessionState((int)stateID, sessionid, datasourceid, errormsg);
         }
 
+        [Benchmark]
         public async Task SaveMsgToDataBase(IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body)
         {
             int messageTypeId = 1; //Тестируем  Bulk

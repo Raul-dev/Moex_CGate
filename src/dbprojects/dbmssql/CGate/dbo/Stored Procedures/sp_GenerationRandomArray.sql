@@ -1,9 +1,4 @@
-﻿--Moex_CGate
--- =============================================
--- Author:		<Author,,Name>
--- Create date: <Create Date,,>
--- Description:	<Description,,>
--- =============================================
+﻿
 /*TRUNCATE TABLE  [crs].[orders_log_buffer]
 TRUNCATE TABLE [dbo].[msgqueue] 
 SELECT * FROM [crs].[orders_log_buffer]
@@ -20,7 +15,7 @@ CREATE   PROCEDURE [dbo].[sp_GenerationRandomArray](
 AS
 BEGIN
 
-	SET NOCOUNT ON;
+  SET NOCOUNT ON;
   DECLARE @FullName varchar(256),
     @Array varchar(max),
     @ArrayItem varchar(max),
@@ -31,11 +26,14 @@ BEGIN
     @max_length int, 
     @Range varchar(200),
     @MsgCount int =1,
-    @MsgId uniqueidentifier
+    @MsgId uniqueidentifier,
+    @StrMsg varchar(100)
+
 
   SET @FullName = @SchemaName+'.'+@TableName
   SET @MsgCount = RAND() * 20 + 3
-  print @MsgCount
+  SET @StrMsg = 'Generated Orders in 1 message: ' + CAST(@MsgCount AS varchar(25))
+  EXEC audit.sp_Print @StrMsg
   WHILE @MsgCount > 0 BEGIN
     SELECT
       @column_id  = column_id, 

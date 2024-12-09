@@ -8,3 +8,4 @@ Update-Database -StartupProject "MQ.WebService" -Project "MQ.dal" -Context "Meta
 -Context "ApplicationDbContext"
 -StartupProject "EntryProject.Name" 
 -Project "MigrationProject.Name"
+
