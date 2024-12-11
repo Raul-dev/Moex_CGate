@@ -11,7 +11,6 @@ BEGIN
     EXECUTE sp_addlinkedserver @server = @server,  
                                @srvproduct = ' ',
                                @provider = 'SQLNCLI', 
-                               @datasrc = @@SERVERNAME, 
                                @catalog = @database
 END
 

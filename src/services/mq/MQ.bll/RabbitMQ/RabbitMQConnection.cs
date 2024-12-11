@@ -15,6 +15,7 @@ namespace MQ.bll.RabbitMQ
         private readonly IConnectionFactory _connectionFactory;
         private IConnection _connection;
         private bool _disposed;
+        private bool _isEvent;
         private readonly object sync_root = new object();
         private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
@@ -36,6 +37,7 @@ namespace MQ.bll.RabbitMQ
         public async Task CloseAsync()
         {
             await _connection.CloseAsync();
+            
         }
         public async Task<IChannel> CreateChannelAsync()
         {
@@ -54,7 +56,15 @@ namespace MQ.bll.RabbitMQ
             if (IsOpen)
                 _connection.CloseAsync();
             _disposed = true;
-            _connection.Dispose();
+            if (_isEvent)
+            {
+                _connection.ConnectionShutdownAsync -= OnConnectionShutdown;
+                _connection.CallbackExceptionAsync -= OnCallbackException;
+                _connection.ConnectionBlockedAsync -= OnConnectionBlocked;
+                _isEvent = false;
+            }
+            if(_connection != null)
+              _connection.Dispose();
         }
 
         public async Task<bool> TryConnect()
@@ -70,6 +80,7 @@ namespace MQ.bll.RabbitMQ
                     _connection.ConnectionShutdownAsync += OnConnectionShutdown;
                     _connection.CallbackExceptionAsync += OnCallbackException;
                     _connection.ConnectionBlockedAsync += OnConnectionBlocked;
+                    _isEvent = true;
                     return true;
                 }
                 else
@@ -78,9 +89,15 @@ namespace MQ.bll.RabbitMQ
                 }
 
             }
+            catch (Exception ex)
+            {
+                Log.Error("Rabbit connection error: {0}", ex.Message);
+                return false;
+            }
             finally
             {
                 _semaphore.Release();
+
             }
         }
 
@@ -99,7 +116,15 @@ namespace MQ.bll.RabbitMQ
         private async Task OnConnectionShutdown(object sender, ShutdownEventArgs reason)
         {
             if (_disposed) return;
-            await TryConnect();
+            
+            if (reason.ReplyText != "Goodbye")
+            {
+                Log.Error(reason.ToString());
+                await TryConnect();
+            }
+            else {
+                Log.Debug(reason.ToString());
+            }
         }
     }
 }

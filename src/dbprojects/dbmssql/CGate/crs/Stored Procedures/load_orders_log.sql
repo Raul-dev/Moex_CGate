@@ -57,10 +57,10 @@ BEGIN TRY
         EXEC [audit].[sp_log_Start] @AuditProcEnable = @AuditProcEnable, @ProcedureName = @ProcedureName, @ProcedureParams = @ProcedureParams, @LogID = @LogID OUTPUT
 
     INSERT INTO #LockedList
-    SELECT buffer_id, msg_id, [RefID], msgtype_id
+    SELECT TOP 500000 [buffer_id], [msg_id], [RefID], [msgtype_id]
     FROM [crs].[orders_log_buffer] b 
     WHERE b.[dt_update] = @MinDate
-    ORDER BY buffer_id
+    ORDER BY [buffer_id]
     
 
     SET @RowCount = @@ROWCOUNT;
@@ -73,9 +73,9 @@ BEGIN TRY
     END
 
     INSERT INTO #LockedListUniq
-    SELECT buffer_id = MAX(buffer_id), [RefID]
+    SELECT [buffer_id] = MAX([buffer_id]), [RefID]
     FROM #LockedList l
-    WHERE l.msgtype_id = 1 
+    WHERE l.[msgtype_id] = 1 
     GROUP BY [RefID]
     SET @RowCount = @@ROWCOUNT;
     
@@ -122,7 +122,7 @@ BEGIN TRY
         ,[private_amount_rest]
         ,[private_action]
       FROM #LockedListUniq L 
-      INNER JOIN [crs].[orders_log_buffer] b ON b.buffer_id = L.buffer_id
+      INNER JOIN [crs].[orders_log_buffer] b ON b.[buffer_id] = L.[buffer_id]
       CROSS APPLY (
         SELECT *
         FROM OPENJSON('['+b.msg+']','$')
@@ -138,7 +138,7 @@ BEGIN TRY
 	        [public_amount_rest] [bigint] '$[7]',
 	        [id_deal] [bigint] '$[8]',
 	        [xstatus] [bigint] '$[9]',
-          [xstatus2] [bigint] '$[10]',
+	        [xstatus2] [bigint] '$[10]',
 	        [price] [decimal](16, 5) '$[11]',
 	        [moment] varchar(50) '$[12]',
 	        [moment_ns] [decimal](20, 0) '$[13]',
@@ -295,7 +295,7 @@ BEGIN TRY
     UPDATE b SET
         dt_update = @UpdateDate
     FROM [crs].[orders_log_buffer] AS b
-    INNER JOIN #LockedList l ON l.buffer_id = b.buffer_id
+    INNER JOIN #LockedList l ON l.[buffer_id] = b.[buffer_id]
 
     EXEC [audit].[sp_log_Finish] @LogID = @LogID, @RowCount = @RowCount
 
@@ -305,13 +305,13 @@ BEGIN TRY
   BEGIN
       DELETE b
       FROM [crs].[orders_log_buffer] b
-      INNER JOIN #LockedList t ON b.buffer_id = t.buffer_id
+      INNER JOIN #LockedList t ON b.[buffer_id] = t.[buffer_id]
   END
    
   IF @BufferHistoryMode >= 2 AND NOT EXISTS (SELECT 1 FROM [crs].[orders_log_buffer] WHERE [is_error] = 1)
     DELETE b
     FROM [crs].[orders_log_buffer] b
-    WHERE DATEDIFF(DD, @UpdateDate, dt_update) > @BufferHistoryDays
+    WHERE DATEDIFF(DD, @UpdateDate, [dt_update]) > @BufferHistoryDays
 
 END TRY
 BEGIN CATCH
@@ -321,7 +321,7 @@ BEGIN CATCH
 
   DECLARE @err_session_id bigint;
   SET @err_session_id = ISNULL(@session_id, 0)
-  INSERT [dbo].[session_log] (session_id, [session_state_id], [error_message])
+  INSERT [dbo].[session_log] ([session_id], [session_state_id], [error_message])
   SELECT
     [session_id] = @err_session_id,
     [session_state_id] = 3,

@@ -13,6 +13,7 @@ using MQ.bll;
 using System.Threading;
 using Microsoft.EntityFrameworkCore.ChangeTracking.Internal;
 using MQ.bll.Kafka;
+//using BenchmarkDotNet.Running;
 // See https://aka.ms/new-console-template for more information
 
 class Program
@@ -54,7 +55,7 @@ class Program
                                   (SendMsgOptions opts) => SendMsgExecute(opts, configuration).Result,
                                   (GetMsgOptions opts) => GetMsgExecute(opts, configuration).Result,
                                   errs => 1);
-
+        //var summary = BenchmarkRunner.Run<Program>();
         Log.Logger.Information("MQ console App finished");
     }
 

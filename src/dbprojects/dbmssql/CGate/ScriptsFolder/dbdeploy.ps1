@@ -2,7 +2,7 @@
 Param (
     [parameter(Mandatory=$false)][string]$TargetServerName="localhost",
     [parameter(Mandatory=$false)][string]$TargetDBname="cgate_uts_tmp", 
-    [parameter(Mandatory=$false)][bool]$PublishOnly=$true,
+    [parameter(Mandatory=$false)][ValidateSet('Build','Deploy','DeployOnly')][string]$PublishMode='DeployOnly',
     [parameter(Mandatory=$false)][bool]$IsRebuild=$true,
     [parameter(Mandatory=$false)][string]$SqlPassword=""
   )
@@ -38,13 +38,15 @@ try{
         $Project=$VSProjectName+".sqlproj"
         Set-Location -Path $Projectpath"\"
 
-
         Write-Host ""
         Write-Host "=========================================================" -foregroundcolor green
-        Write-Host "Database: "$TargetDBname" Deployment" -foregroundcolor green
-        Write-Host "DB Server: "$TargetServerName -foregroundcolor green
+		Write-Host "DB Project PublishMode: "$PublishMode -foregroundcolor green
+		IF($PublishMode -eq "Deploy" -Or $PublishMode -eq "DeployOnly") {
+           Write-Host "Database: "$TargetDBname" Deployment" -foregroundcolor green
+           Write-Host "DB Server: "$TargetServerName -foregroundcolor green
+		}
         Write-Host "=========================================================" -foregroundcolor green
-    
+   
         $Projectname = $VSProjectName #$Project.Split(".")[0]
         $sourceFile =$Projectpath+"\bin\Release\"+$Projectname+".dacpac"
 
@@ -65,12 +67,17 @@ try{
              Write-Host "Skip build. "$VSProjectName".dacpac exists." -foregroundcolor green
         }
 
-        IF($PublishOnly -eq $false) {
+        IF($PublishMode -eq "Deploy") {
 			$res = DropDatabase $TargetDBname $TargetServerName $SQLuser $SQLpwd
 			IF ($LASTEXITCODE -ne 0 -or $res -ne 0){
 				throw "Drop database failed."
 			}
 		}
+		
+		IF($PublishMode -eq "Build" ) {
+			exit 0
+		}
+			
         Write-Host "Publish $($Projectname).dacpac"
         $sourceFile =$Projectpath+"\bin\Release\"+$Projectname+".dacpac"
         Write-Host $sourceFile

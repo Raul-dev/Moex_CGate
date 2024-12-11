@@ -266,7 +266,7 @@ namespace MQ.dal
                 var session_id = new SqlParameter("@session_id", sessionid);
                 var rowCount = new SqlParameter("@RowCount", iRowCountInt);
                 rowCount.Direction = ParameterDirection.Output;
-                var errMessage = new SqlParameter("@ErrorMessage", SqlDbType.NVarChar, 4000);
+                var errMessage = new SqlParameter("@ErrorMessage", SqlDbType.VarChar, 4000);
                 errMessage.Direction = ParameterDirection.Output;
                 MetastorageDbContext.Database.ExecuteSqlRaw(cmd, session_id, rowCount, errMessage);
                 //iRowCountInt = ConvertFromDBVal<int>(rowCount);

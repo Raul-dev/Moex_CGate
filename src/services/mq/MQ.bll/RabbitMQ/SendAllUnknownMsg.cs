@@ -16,6 +16,8 @@ using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.ComponentModel;
 using System.Security.AccessControl;
 using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Running;
+using Microsoft.IdentityModel.Tokens;
 
 namespace MQ.bll.RabbitMQ
 {
@@ -40,6 +42,8 @@ namespace MQ.bll.RabbitMQ
                 }
             else
                 await MQProcess();
+
+            //var summary = BenchmarkRunner.Run<SendAllUnknownMsg>();
         }
         [Benchmark]
         public async Task MQProcess()
@@ -49,8 +53,6 @@ namespace MQ.bll.RabbitMQ
             string ErrorMsg = "";
             try
             {
-                
-
                 var factory = new ConnectionFactory();
                 factory.UserName = rabbitMQSettings.UserName;
                 factory.Password = rabbitMQSettings.UserPassword;
@@ -65,18 +67,23 @@ namespace MQ.bll.RabbitMQ
                 var queueName = rabbitMQSettings.DefaultQueue;
 
                 using var mqConnection = new RabbitMQConnection(factory);
-                await mqConnection.TryConnect();
+                if(await mqConnection.TryConnect())
                 {
                     Log.Information("Start sending messages.");
                     using var channel = await mqConnection.CreateChannelAsync();
                     {
                         await channel.QueueBindAsync(queueName, rabbitMQSettings.Exchange, "*", arguments: new Dictionary<string, object>());
                         await channel.QueueUnbindAsync("notification-queue", rabbitMQSettings.Exchange, "*", new Dictionary<string, object>());
-                        Log.Information(@$"We are starting to add {mq.Count} messages to the RabitMQ.");
+                        Log.Information(@$"We are starting to send {mq.Count} messages to the RabbitMQ.");
                         foreach (var item in mq)
                         {
-                            
-                            byte[] messageBodyBytes = Encoding.UTF8.GetBytes(item.Msg?? throw new ArgumentNullException() );
+
+                            if (item.Msg.IsNullOrEmpty())
+                            {
+                                Log.Warning("Null MsgOrder={0}, MsgKey={1}.", item.MsgOrder, item.MsgKey);
+                                continue;
+                            }
+                            byte[] messageBodyBytes = Encoding.UTF8.GetBytes(item.Msg?? throw new ArgumentNullException());
                             BasicProperties props = new BasicProperties();
                             props.ContentType = "text/plain";
                             props.MessageId = Guid.NewGuid().ToString();
@@ -84,7 +91,7 @@ namespace MQ.bll.RabbitMQ
                             props.DeliveryMode = DeliveryModes.Persistent;
                             await channel.BasicPublishAsync<BasicProperties>(rabbitMQSettings.Exchange,routingKey: item.MsgKey??"", mandatory: true, props, messageBodyBytes);
                             iCount++;
-                            if (iCount % 1000 == 0)
+                            if (iCount % 223 == 0)
                             {
                                 Log.Information(@$"Send {iCount} messages.");
                             }
@@ -94,8 +101,9 @@ namespace MQ.bll.RabbitMQ
                             }
                         }
                         Log.Information(@$"Send {iCount} messages.");
-
+                        await Task.WhenAll(channel.CloseAsync(), mqConnection.CloseAsync());
                     }
+
                 }
             }
             catch (Exception ex)

@@ -1,8 +1,19 @@
+# By default: ./start.ps1
+# This script build and deploy database CGate to local MSSQL server
+# Run Rabbit docker container and MQ service docker container
+#
+# Parameters:
+# $IsDockerSql=$true - Run docker MSSQL server container with database CGate from \images\mssql\dacpac\CGate.dacpac
+#
+# Send test messages FROM table [CGate].[dbo].[msgqueue] to Rabbit by command:
+# .\services\mq\MQ\bin\Release\net9.0\MQ.exe SendMsg -d CGate -t mssql
+
 Param (
-    [parameter(Mandatory=$false)][string]$TargetServerName="localhost",
-    [parameter(Mandatory=$false)][string]$TargetDBname="CGate", 
-    [parameter(Mandatory=$false)][string]$IsUpdate=$false
+    [parameter(Mandatory=$false)][bool]$IsUpdate=$false,
+	[parameter(Mandatory=$false)][bool]$IsDockerSql=$false,
+	[parameter(Mandatory=$false)][bool]$IsRecreateDockerContainer=$true
   )
+  
 function Test-Administrator  
 {  
     [OutputType([bool])]
@@ -11,6 +22,17 @@ function Test-Administrator
         [Security.Principal.WindowsPrincipal]$user = [Security.Principal.WindowsIdentity]::GetCurrent();
         return $user.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator);
     }
+}
+
+function Test-Docker
+{  
+    [OutputType([bool])]
+    param()
+	if((docker ps 2>&1) -match '^(?!error)'){
+     Write-Host "Docker is running"
+	 return $true
+    }
+	return $false
 }
 
 function MergeUser
@@ -40,45 +62,94 @@ function MergeUser
     }
 }
 
-if(-not $IsUpdate) {
-    if(-not (Test-Administrator))
-    {
-        # TODO: define proper exit codes for the given errors 
-        Write-Error "This script must be executed as Administrator.";
-        exit 1;
-    }
-}
+#if(-not $IsUpdate) {
+#    if(-not (Test-Administrator))
+#    {
+#        Write-Error "This script must be executed as Administrator.";
+#        exit 1;
+#    }
+#}
+try{
+	$CurrentPath = Get-Location
+	if(-Not (Test-Docker)){
+		throw "DOCKER is not running. Visit and download https://docs.docker.com/docker-for-windows/install/ "
+	}
+	$TargetServerName="localhost";
+    $TargetDBname="CGate";
+	$ErrorActionPreference = "Stop";
+	
+	Set-Location "./dbprojects/dbmssql/CGate/ScriptsFolder"
 
-$ErrorActionPreference = "Stop";
-$CurrentPath = Get-Location
-Set-Location "./dbprojects/dbmssql/CGate/ScriptsFolder"
+	if($IsUpdate -eq $true){
+		try{
+			Invoke-RestMethod  -Uri http://localhost:8090/api/Home/Stop -ErrorAction SilentlyContinue
+		} catch {
+		}
+	}
+	
+	if(!(Test-Path  .\services\mq\MQ\bin\Release\net9.0\MQ.exe)){
+		dotnet build .\services\mq\MQ\MQ.csproj -c Release
+	}
+	
+	if ($IsDockerSql ) {
+		./dbdeploy -TargetServerName $TargetServerName -TargetDBname $TargetDBname -PublishMode "Build" -IsRebuild $true
+	} else {
+	    ./dbdeploy -TargetServerName $TargetServerName -TargetDBname $TargetDBname -PublishMode "DeployOnly" -IsRebuild $true
+	}
+	
+	if ($LASTEXITCODE -eq -1)
+	{
+	  Set-Location $CurrentPath
+	  exit
+	}
+	Set-Location $CurrentPath
+	Copy-Item -Path .\dbprojects\dbmssql\CGate\bin\Release\*.* -Destination .\images\mssql\dacpac\ -Force
+	if (-Not $IsDockerSql ) {
+		$res = MergeUser $TargetServerName $TargetDBname "CGateUser" "MyPassword321"
+		IF ($LASTEXITCODE -ne 0 -or $res -ne 0){
+			throw "Create user CGateUser failed."
+		}
+		Set-Location $CurrentPath
+	}
 
-if($IsUpdate -eq $true){
-    try{
-        Invoke-RestMethod  -Uri http://localhost:8090/api/Home/Stop -ErrorAction SilentlyContinue
-    } catch {
-    }
-}
-./dbdeploy -TargetServerName $TargetServerName -TargetDBname $TargetDBname -PublishOnly $true -IsRebuild $true
-if ($LASTEXITCODE -eq -1)
-{
-  Set-Location $CurrentPath
+	if($IsUpdate -eq $true){
+		try{
+			Invoke-RestMethod  -Uri http://localhost:8090/api/Home/Start -ErrorAction SilentlyContinue
+		} catch {
+		}
+		exit
+	}
 
-  exit
+	Set-Location $CurrentPath
+	if ($IsRecreateDockerContainer){
+	    docker compose -f docker-compose.sqldacpac.yml down -v
+		docker compose down -v
+	}
+	if (-Not $IsDockerSql ) {
+		
+		docker compose up
+	} else {
+		
+		docker compose -f docker-compose.sqldacpac.yml up -d
+		do {
+			Start-Sleep -Seconds 10
+			docker logs --tail 20 cgatemssql
+		} while((docker inspect -f '{{.State.Health.Status}}' cgatemssql) -eq "unhealthy" )
+		#MSSQL server IP
+		#docker inspect -f "{{.NetworkSettings.IPAddress}}" cgatemssql
+		
+		docker compose --env-file .env.sqlimage up 
+	
+	}
+} catch {
+  
+  Write-Host "An error occurred:" -fore red
+  Write-Host $_ -fore red
+  Write-Host "Stack:"
+  Write-Host $_.ScriptStackTrace
+  $ExitCode = -1
 }
-$res = MergeUser $TargetServerName $TargetDBname "CGateUser" "MyPassword321"
-IF ($LASTEXITCODE -ne 0 -or $res -ne 0){
-    throw "Create user CGateUser failed."
-}
-Set-Location $CurrentPath
-
-if($IsUpdate -eq $true){
-    try{
-        Invoke-RestMethod  -Uri http://localhost:8090/api/Home/Start -ErrorAction SilentlyContinue
-    } catch {
-    }
-    exit
-}
-
-Set-Location $CurrentPath
-docker compose up
+finally {
+	Set-Location -Path $CurrentPath
+	exit $ExitCode
+}	

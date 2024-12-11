@@ -54,13 +54,12 @@ SELECT
     object_id = object_id, 
     system_type_id = system_type_id, 
     max_length = max_length, 
-    [Range] = '1,1000'
+    [Range] = CASE WHEN name = 'private_order_id' THEN '1,10000000' ELSE '1,100000' END
 FROM sys.columns
 ORDER BY object_id, column_id
 
 DECLARE @I int = 0
 WHILE (@I < 100) BEGIN
-  EXEC sp_GenerationRandomArray 'crs', 'orders_log'
   EXEC sp_GenerationRandomArray 'crs', 'orders_log'
   SET @I = @I + 1
 END

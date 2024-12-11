@@ -157,7 +157,7 @@ namespace MQ.bll
                     ts = DateTime.Now - dt;
                     if (!errorMessage.IsNullOrEmpty())
                     {
-                        Log.Error("Call {0};  count= {1}", ms.ProcessQuery, cnt, errorMessage);
+                        Log.Error("Call {0}; count= {1}, Error: {2}", ms.ProcessQuery, cnt, errorMessage);
                     }
                     else
                         Log.Information("Call {0}; count={1} ms={2}", ms.ProcessQuery, cnt, (int)ts.TotalMilliseconds);
@@ -171,7 +171,7 @@ namespace MQ.bll
                         ts = DateTime.Now - dt;
                         if (!errorMessage.IsNullOrEmpty())
                         {
-                            Log.Error("Call {0};  count= {1}", kvp.Value.ProcessQuery, cnt, errorMessage);
+                            Log.Error("Call {0}; count= {1}, Error: {2}", kvp.Value.ProcessQuery, cnt, errorMessage);
                         }
                         else
                             Log.Information("Call {0}; count={1} ms={2}", kvp.Value.ProcessQuery, cnt, (int)ts.TotalMilliseconds);
