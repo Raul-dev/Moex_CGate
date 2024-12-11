@@ -7,7 +7,6 @@
 Если поток сообщений маленький и скорость их записи в базу выше частоты их поступления, то достаточно простой архитектуры:
 ![простая архитектура сохранения ордеров moex в базе](./doc/schemaSimple.png)
 
-
 Эта архитектура пишет поступившие сообщения сразу в базу в конечную таблицу ордеров. Запись 1го сообщения составляет 1-2 секунды в зависимости от размера таблицы.
 
 Для сравнения:
@@ -63,7 +62,7 @@ Install-Module VSSetup -Scope AllUsers
 Отправка в RabbitMQ тестовых сообщений:
 
 ```
-.\services\mq\MQ\bin\Debug\net9.0\MQ.exe SendMsg -d CGate -t mssql
+.\services\mq\MQ\bin\Release\net9.0\MQ.exe SendMsg -d CGate -t mssql
 ```
 
 Debug in Visual Studio 2022:

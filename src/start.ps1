@@ -62,13 +62,6 @@ function MergeUser
     }
 }
 
-#if(-not $IsUpdate) {
-#    if(-not (Test-Administrator))
-#    {
-#        Write-Error "This script must be executed as Administrator.";
-#        exit 1;
-#    }
-#}
 try{
 	$CurrentPath = Get-Location
 	if(-Not (Test-Docker)){
@@ -78,7 +71,6 @@ try{
     $TargetDBname="CGate";
 	$ErrorActionPreference = "Stop";
 	
-	Set-Location "./dbprojects/dbmssql/CGate/ScriptsFolder"
 
 	if($IsUpdate -eq $true){
 		try{
@@ -86,11 +78,14 @@ try{
 		} catch {
 		}
 	}
-	
-	if(!(Test-Path  .\services\mq\MQ\bin\Release\net9.0\MQ.exe)){
+
+	Set-Location $CurrentPath
+	if(-Not (Test-Path  .\services\mq\MQ\bin\Release\net9.0\MQ.exe)){
 		dotnet build .\services\mq\MQ\MQ.csproj -c Release
 	}
-	
+
+	Set-Location "./dbprojects/dbmssql/CGate/ScriptsFolder"
+
 	if ($IsDockerSql ) {
 		./dbdeploy -TargetServerName $TargetServerName -TargetDBname $TargetDBname -PublishMode "Build" -IsRebuild $true
 	} else {
