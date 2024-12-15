@@ -18,31 +18,14 @@ using MQ.bll.Kafka;
 
 class Program
 {
-
-    public static async Task<int> Main(string[] args)
-    {
-
-        CancellationTokenSource cts = new CancellationTokenSource();
-
-        System.Console.CancelKeyPress += (s, e) =>
-        {
-            e.Cancel = true;
-            cts.Cancel();
-        };
-
-        await MainAsync(args, cts.Token); 
-        return 0;
-    }
     
-    
-    static async Task MainAsync(string[] args, CancellationToken token)
+    static async Task Main(string[] args) 
     {
         // Build a config object, using env vars and JSON providers.
         IConfiguration configuration = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json")
             .AddEnvironmentVariables()
             .Build();
-
 
         Log.Logger = new LoggerConfiguration()
             .ReadFrom.Configuration(configuration)
@@ -70,8 +53,8 @@ class Program
         options.InitBllOption(bo);
 
         IQueueService snd = options.IsKafka ?? false ? new KafkaService(bo, configuration) : new RabbitService(bo, configuration);
-
-        await snd.SendAllMessages();
+        CancellationTokenSource cts = new CancellationTokenSource();
+        await snd.SendAllMessages(cts);
 
         return 0;
     }

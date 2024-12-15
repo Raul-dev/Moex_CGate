@@ -23,7 +23,7 @@ public partial class MetastorageContext : DbContext
 
     public virtual DbSet<Metamap> Metamaps { get; set; }
 
-    public virtual DbSet<Msgqueue> Msgqueues { get; set; }
+    public virtual DbSet<MsgQueue> MsgQueues { get; set; }
     public virtual DbSet<OrdersLogBuffer> OrdersLogBuffers { get; set; }
     
 

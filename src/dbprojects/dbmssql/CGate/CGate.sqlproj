@@ -24,8 +24,8 @@
     <IncludeCompositeObjects>True</IncludeCompositeObjects>
     <TargetDatabaseSet>True</TargetDatabaseSet>
     <DefaultCollation>Cyrillic_General_CI_AS</DefaultCollation>
-    <ReadCommittedSnapshot>True</ReadCommittedSnapshot>
-    <AllowSnapshotIsolation>False</AllowSnapshotIsolation>
+    <ReadCommittedSnapshot>False</ReadCommittedSnapshot>
+    <AllowSnapshotIsolation>True</AllowSnapshotIsolation>
     <Recovery>SIMPLE</Recovery>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -78,6 +78,7 @@
     <Folder Include="audit\Stored Procedures\" />
     <Folder Include="Security\" />
     <Folder Include="Dictionaries" />
+    <Folder Include="audit\Functions" />
   </ItemGroup>
   <ItemGroup>
     <Build Include="dbo\Tables\Setting.sql" />
@@ -119,6 +120,8 @@
     <Build Include="Security\RoleMemberships.sql" />
     <Build Include="dbo\Functions\fn_GetBufferingDays.sql" />
     <Build Include="dbo\Functions\fn_GetSettingInt.sql" />
+    <Build Include="audit\Functions\fn_log_IsLnk.sql" />
+    <Build Include="crs\Stored Procedures\load_orders_log_array.sql" />
   </ItemGroup>
   <ItemGroup>
     <SqlCmdVariable Include="LinkSRVLog">

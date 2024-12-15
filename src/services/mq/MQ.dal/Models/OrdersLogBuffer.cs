@@ -7,8 +7,9 @@ namespace MQ.dal.Models;
 
 
 [Table("orders_log_buffer", Schema = "crs")]
-public partial class OrdersLogBuffer
+public partial class OrdersLogBuffer : MessageBuffer
 {
+/*
     [Key]
     [Column("buffer_id")]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
@@ -35,5 +36,5 @@ public partial class OrdersLogBuffer
     [Column("dt_update")]
     [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
     public DateTime UpdateDate { get; set; }
-
+*/
 }

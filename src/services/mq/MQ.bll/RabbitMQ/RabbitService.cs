@@ -23,13 +23,13 @@ namespace MQ.bll.RabbitMQ
         public async Task GetAllMessages(CancellationTokenSource cts)
         {
             var funcClass = new ReceiveAllMessages(Bo, Configuration, cts.Token);
-            await funcClass.ProcessLauncher();
+            await funcClass.ProcessLauncherConsoleAsync();
         }
 
-        public async Task SendAllMessages()
+        public async Task SendAllMessages(CancellationTokenSource cts)
         {
  
-            var funcClass = new SendAllUnknownMsg(Bo, Configuration);
+            var funcClass = new SendAllUnknownMsg(Bo, Configuration, cts.Token);
             await funcClass.ProcessLauncher();
         }
     }

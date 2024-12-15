@@ -5,8 +5,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MQ.dal.Models;
 
-[Table("msgqueue")]
-public partial class MsgQueue
+public partial class MessageBuffer
 {
     [Key]
     [Column("buffer_id")]
@@ -22,10 +21,17 @@ public partial class MsgQueue
     [Column("msg")]
     public string? Msg { get; set; }
 
-    [Column("msg_key")]
-    [MaxLength(128)]
-    public string? MsgKey { get; set; }
+    [Column("msgtype_id")]
+    public int? MsgTypeId { get; set; }
+
+    [Column("is_error")]
+    public bool IsError { get; set; }
 
     [Column("dt_create")]
+    public DateTime CreateDate { get; set; }
+
+    [Column("dt_update")]
+    [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
     public DateTime UpdateDate { get; set; }
+
 }

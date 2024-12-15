@@ -15,9 +15,11 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.ComponentModel;
 using System.Security.AccessControl;
-using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Running;
+//using BenchmarkDotNet.Attributes;
+//using BenchmarkDotNet.Running;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.CodeAnalysis.Text;
+using System.Threading.Channels;
 
 namespace MQ.bll.RabbitMQ
 {
@@ -26,9 +28,14 @@ namespace MQ.bll.RabbitMQ
         RabbitMQSettings rabbitMQSettings;
         BllOption option;
         DBHelper dbHelper;
-        public SendAllUnknownMsg(BllOption bllOption, IConfiguration configuration)
+        CancellationToken cancellationToken;
+
+
+
+        public SendAllUnknownMsg(BllOption bllOption, IConfiguration configuration, CancellationToken cancellationToken)
         {
             option = bllOption;
+            this.cancellationToken = cancellationToken;
             rabbitMQSettings = configuration.GetRequiredSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>() ?? throw new Exception("Нет конфига") ;
             dbHelper = new DBHelper(option.ServerName, option.DatabaseName, option.Port, option.ServerType, option.User, option.Password);
         }
@@ -45,7 +52,7 @@ namespace MQ.bll.RabbitMQ
 
             //var summary = BenchmarkRunner.Run<SendAllUnknownMsg>();
         }
-        [Benchmark]
+        
         public async Task MQProcess()
         {
             List<MsgQueueItem> mq = dbHelper.GetMsgqueueItems();
@@ -72,8 +79,9 @@ namespace MQ.bll.RabbitMQ
                     Log.Information("Start sending messages.");
                     using var channel = await mqConnection.CreateChannelAsync();
                     {
-                        await channel.QueueBindAsync(queueName, rabbitMQSettings.Exchange, "*", arguments: new Dictionary<string, object>());
-                        await channel.QueueUnbindAsync("notification-queue", rabbitMQSettings.Exchange, "*", new Dictionary<string, object>());
+                        
+                        await channel.InitSetup(option, rabbitMQSettings.Exchange, rabbitMQSettings.DefaultQueue, cancellationToken, null, false);
+
                         Log.Information(@$"We are starting to send {mq.Count} messages to the RabbitMQ.");
                         foreach (var item in mq)
                         {
@@ -83,15 +91,9 @@ namespace MQ.bll.RabbitMQ
                                 Log.Warning("Null MsgOrder={0}, MsgKey={1}.", item.MsgOrder, item.MsgKey);
                                 continue;
                             }
-                            byte[] messageBodyBytes = Encoding.UTF8.GetBytes(item.Msg?? throw new ArgumentNullException());
-                            BasicProperties props = new BasicProperties();
-                            props.ContentType = "text/plain";
-                            props.MessageId = Guid.NewGuid().ToString();
-                            props.Type = item.MsgKey;
-                            props.DeliveryMode = DeliveryModes.Persistent;
-                            await channel.BasicPublishAsync<BasicProperties>(rabbitMQSettings.Exchange,routingKey: item.MsgKey??"", mandatory: true, props, messageBodyBytes);
+                            await channel.PublishMessageAsync(item.MsgKey??"", item.Msg?? throw new ArgumentNullException());
                             iCount++;
-                            if (iCount % 223 == 0)
+                            if (iCount % 1000 == 0)
                             {
                                 Log.Information(@$"Send {iCount} messages.");
                             }

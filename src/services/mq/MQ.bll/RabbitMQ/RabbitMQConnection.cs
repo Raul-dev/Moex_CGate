@@ -37,16 +37,24 @@ namespace MQ.bll.RabbitMQ
         public async Task CloseAsync()
         {
             await _connection.CloseAsync();
-            
+            if (_isEvent)
+            {
+                _connection.ConnectionShutdownAsync -= OnConnectionShutdown;
+                _connection.CallbackExceptionAsync -= OnCallbackException;
+                _connection.ConnectionBlockedAsync -= OnConnectionBlocked;
+                _isEvent = false;
+            }
+
         }
-        public async Task<IChannel> CreateChannelAsync()
+        public async Task<RabbitMQChannel> CreateChannelAsync()
         {
             if (!IsOpen)
             {
                 throw new InvalidOperationException("No RabbitMQ connections are available to perform this action");
             }
+            IChannel ch = await _connection.CreateChannelAsync();
 
-            return await _connection.CreateChannelAsync();
+            return new RabbitMQChannel(ch);
         }
 
         public void Dispose()

@@ -91,7 +91,7 @@ public class KafkaService : IQueueService
         consumer.Close();
         Log.Information(@$"Recive {iCount} messages.");
     }
-    public async Task SendAllMessages()
+    public async Task SendAllMessages(CancellationTokenSource cts  )
     {
         var server = $"{KafkaSettings.Host}:{KafkaSettings.Port}";
         var config = new ProducerConfig

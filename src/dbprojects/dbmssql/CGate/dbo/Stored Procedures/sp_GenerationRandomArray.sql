@@ -33,7 +33,7 @@ BEGIN
 
   SET @FullName = @SchemaName+'.'+@TableName
   SET @MsgCount = RAND() * 20 + 3
-  SET @StrMsg = 'Generated Orders in 1 message: ' + CAST(@MsgCount AS varchar(25))
+  SET @StrMsg = 'Generated 1 message with ' + CAST(@MsgCount AS varchar(25)) + ' Orders.'
   EXEC audit.sp_Print @StrMsg
 
   WHILE @MsgCount > 0 BEGIN

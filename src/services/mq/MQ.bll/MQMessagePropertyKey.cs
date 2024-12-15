@@ -12,25 +12,35 @@ using System.ComponentModel;
 using System.Threading;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using MQ.bll.Common;
+using System.Collections;
+using System.Security.Cryptography;
+using Microsoft.Diagnostics.Runtime.Utilities;
+using NetTopologySuite.Operation.Buffer;
+using static MongoDB.Driver.WriteConcern;
 
 namespace MQ.bll
 {
 
     public class MQMessagePropertyKey
     {
-
-        CancellationToken cancellationToken;
         public string MessagePropertyKey;
         public string TableName;
         public string ProcessQuery;
-        long sessionId;
-        DBHelper dbHelper;
-        MongoHelper mongoHelper;
-        Thread loadThread;
-        BllOption option;
+        public IQueueChannel MQChanel { get; set; }
+        protected BllOption option;
+        protected CancellationToken cancellationToken;
+        protected long sessionId;
+        protected DBHelper dbHelper;
+        protected MongoHelper mongoHelper;
+        private Thread _loadThread;
+        private long _incomingMessagesCounter = 0; // DB saved msg for trigger load procedures
         private object _incomingMessagesCounterLock = new();
-        private long _incomingMessagesCounter = 0;
-        //messagereservedCollection
+        private int _messageCurentQueue = 0;
+        private object _messageCurentQueueLock = new();
+
+        //private Queue<MessageBuffer>[] _messageBufferQueue = new Queue<MessageBuffer>[2];
+        private Queue<object>[] _messageBufferQueue = new Queue<object>[2];
+        private Queue<ulong>[] _messageOffsetIdQueue = new Queue<ulong>[2];
 
         public void IncreaseIncomingMessagesCounter()
         {
@@ -64,31 +74,34 @@ namespace MQ.bll
             sessionId = sessionid;
             ProcessQuery = processQuery;
 
-
-            // ThreadPool.QueueUserWorkItem(new WaitCallback(kvp.Value.EtlThread), cancellationToken.Token);
+            _messageBufferQueue[0] = new Queue<object>();
+            _messageBufferQueue[1] = new Queue<object>();
+            _messageOffsetIdQueue[0] = new Queue<ulong>();
+            _messageOffsetIdQueue[1] = new Queue<ulong>();
         }
 
-        /*
-        private void SaveMsgToDataBase(Msg m)
-        {
-            Msgqueue mu = new Msgqueue { SessionId = sessionId, MsgId = new Guid(m.message.BasicProperties.MessageId),  Msg = Encoding.UTF8.GetString(m.message.Body.ToArray()), MsgKey = m.message.BasicProperties.Type, UpdateDate = m.RecivedDate };
-
-            dbHelper.SaveMsgToDataBase(MessagePropertyKey, TableName, mu);
- 
-        }
-        */
-        public void CleanProcess()
+         public void CleanProcess()
         {
             Log.Information($@"Abort thread {ProcessQuery}");
-            if (loadThread != null)
-                if (loadThread.IsAlive)
-                    loadThread.Abort();
-            //cancellationToken.Cancel();
+            if (_loadThread != null)
+                if (_loadThread.IsAlive)
+                {
+                    _loadThread.Abort();
+                    /*
+                    if(!cancellationToken.IsCancellationRequested )
+                        CancellationTokenSource.CreateLinkedTokenSource(cancellationToken).Cancel();
+                    while (_loadThread.IsAlive)
+                    {
+                        Task.Delay(100);
+                        Log.Information($@"Wait thread finished {ProcessQuery}");
+                    }
+                    */
+                }
         }
 
         public void StartEtlThread(object? sender)
         {
-            if (loadThread == null)
+            if (_loadThread == null)
             {
                 Thread thread = new Thread(EtlThread);
                 thread.Name = MessagePropertyKey;
@@ -96,18 +109,18 @@ namespace MQ.bll
                     MessagePropertyKey != "Справочник.адаптер_СхемыДанных")
                 {
                     thread.Start(cancellationToken);
-                    loadThread = thread;
+                    _loadThread = thread;
                 }
             }
             else
             {
-                if (!loadThread.IsAlive)
+                if (!_loadThread.IsAlive)
                 {
 
                     Thread thread = new Thread(EtlThread);
                     thread.Name = MessagePropertyKey;
                     thread.Start(cancellationToken);
-                    loadThread = thread;
+                    _loadThread = thread;
                 }
 
             }
@@ -117,9 +130,13 @@ namespace MQ.bll
             if (sender is null)
                 return;
             CancellationToken token = (CancellationToken)sender;
+            long bufferId = 0;
+            long oldBufferId = -1; // Start procedures on the start
             int hash = Thread.CurrentThread.GetHashCode();
-            Log.Debug("Start Thread name {0} hash {1}", MessagePropertyKey, hash);
+            Log.Debug("Start Load Thread name: {0}, hash: {1}", MessagePropertyKey, hash);
             int i = 0;
+            long cnt = 0;
+            string errorMessage;
             //For Debug
             //if(MessagePropertyKey == "key")
             //{
@@ -133,7 +150,7 @@ namespace MQ.bll
                     Log.Debug("Thread hash {0}, In iteration {1}, cancellation has been requested...", hash, i);
                     break;
                 }
-
+                
                 try
                 {
                     if (dbHelper == null)
@@ -142,41 +159,125 @@ namespace MQ.bll
                     if (mongoHelper == null && option.MongoEnable)
                         mongoHelper = new MongoHelper(option.MongoUrl, option.MongoUser, option.MongoPassword, option.MongoDatabase);
 
-                    long cnt = 0;
+                    
                     if (option.MongoEnable && mongoHelper != null)
                         cnt = mongoHelper.SaveCollectionToDB(sessionId, MessagePropertyKey, dbHelper, TableName, ProcessQuery, token);
                     else
-                        if (ProcessQuery.IsNullOrEmpty() == false)
+                        if (cnt != 200000 && ProcessQuery.IsNullOrEmpty() == false)
                           cnt = GetIncomingMessagesCounter();
-
-                    if (cnt > 0 && ProcessQuery.IsNullOrEmpty() == false)
+                    
+                    if ((oldBufferId == -1 || cnt > 0)  && ProcessQuery.IsNullOrEmpty() == false)
                     {
-                        string errorMessage;
+                        
                         DateTime dt = DateTime.Now;
                         ResetIncomingMessagesCounter();
-                        cnt = dbHelper.EtlLoadProcess(sessionId, ProcessQuery, out errorMessage);
+                        cnt = dbHelper.EtlLoadProcess(sessionId, ProcessQuery, oldBufferId, out errorMessage, out bufferId);
+                        
                         TimeSpan ts = DateTime.Now - dt;
                         if (!errorMessage.IsNullOrEmpty())
                         {
                             Log.Error("Call {0}; count={1}, Error: {2}", ProcessQuery, cnt, errorMessage);
                         }
                         else
-                            Log.Information("Call {0}; count={1} ms={2}", ProcessQuery, cnt, (int)ts.TotalMilliseconds);
+                            Log.Information("Call {0}; count={1}; ms={2}; StartBufferId={3}", ProcessQuery, cnt, (int)ts.TotalMilliseconds, oldBufferId);
+                        oldBufferId = (bufferId == -1) ? 0 : bufferId;
                     }
                 }
                 catch (Exception ex)
                 {
                     Log.Error("{0} thread error: {1}.", MessagePropertyKey, ex.Message);
 
-                    dbHelper = null;
-
-                    mongoHelper = null;
                 }
-    
-                token.WaitHandle.WaitOne(1000);
+                if (cnt != 200000) // TOP 200000 , нужно повторить процедуру без паузы
+                    token.WaitHandle.WaitOne(1000);
                 i++;
             }
         }
+
+        public async Task SendMsgToLocalQueue(ulong offsetId, IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body)
+        {
+
+            var buff = (MessagePropertyKey == "Unknown") ? (object)new MsgQueue
+            {
+                SessionId = sessionId,
+                MsgId = new Guid(basicProperties.MessageId),
+                Msg = Encoding.UTF8.GetString(body.ToArray()),
+                MsgKey = MessagePropertyKey,
+                UpdateDate = DateTime.Now
+            } :
+            (object) new OrdersLogBuffer
+            {
+                SessionId = sessionId,
+                MsgId = new Guid(basicProperties.MessageId),
+                Msg = Encoding.UTF8.GetString(body.ToArray()),
+                MsgTypeId = 1,
+                IsError = false,
+                CreateDate = DateTime.Now,
+                UpdateDate = new DateTime(1900, 1, 1)
+            };
+
+            lock (_messageCurentQueueLock)
+            {
+                _messageBufferQueue[_messageCurentQueue].Enqueue(buff);
+                _messageOffsetIdQueue[_messageCurentQueue].Enqueue(offsetId);
+            }
+            
+        }
+
+        public void SaveMsgToDataBaseBulk(DBHelper dbHelper)
+        {
+            int cnt = _messageBufferQueue[_messageCurentQueue].Count;
+            if (cnt == 0)
+                return;
+            int prevMessageCurentList = 0;
+            lock (_messageCurentQueueLock)
+            {
+                prevMessageCurentList = _messageCurentQueue;
+                if (prevMessageCurentList == 0)
+                    _messageCurentQueue = 1;
+                if (prevMessageCurentList == 1)
+                    _messageCurentQueue = 0;
+            }
+   
+            int i = 0;
+            var buff = _messageBufferQueue[prevMessageCurentList].ToArray();
+            bool res = dbHelper.EfBulkInsertBufferAsync(MessagePropertyKey, buff).Result;
+
+            _messageBufferQueue[prevMessageCurentList].Clear();
+            if(res)
+                IncreaseIncomingMessagesCounter();
+            
+            foreach (var offsetId in _messageOffsetIdQueue[prevMessageCurentList]){
+                if (MQChanel != null && MQChanel.IsOpen)
+                {
+                    //Log.Debug("Confirm message Tag: {0} ,prevMessageCurentList {1}", offsetId, prevMessageCurentList);
+                    if(res)
+                        MQChanel.ConfirmMessageAsync(offsetId).Wait();
+                    else
+                        MQChanel.RejectMessageAsync(offsetId).Wait();   
+                }
+            }
+            _messageOffsetIdQueue[prevMessageCurentList].Clear();
+            if (!res) //Сбрасываем все сообщения назад в очередь
+            {
+                lock (_messageCurentQueueLock)
+                {
+                    foreach (var offsetId in _messageOffsetIdQueue[_messageCurentQueue])
+                    {
+                        if (MQChanel != null && MQChanel.IsOpen)
+                        {
+                            MQChanel.RejectMessageAsync(offsetId).Wait();
+                        }
+                    }
+                    _messageBufferQueue[_messageCurentQueue].Clear();
+                    _messageOffsetIdQueue[_messageCurentQueue].Clear();
+
+                }
+            }
+
+
+        }
+
     }
 
 }

@@ -1,51 +1,20 @@
-﻿using BenchmarkDotNet.Attributes;
+﻿
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Client;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using MQ.dal.Models;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using Microsoft.EntityFrameworkCore.Migrations.Operations;
 using Microsoft.Data.SqlClient;
 using RabbitMQ.Client;
-using System.Diagnostics.CodeAnalysis;
-using System.Security.Cryptography;
 using Npgsql;
 using System.Data;
 using Microsoft.Data.Sqlite;
 using ClickHouse.EntityFrameworkCore.Extensions;
 using ClickHouse.Client.ADO.Parameters;
-using System.Reflection.Metadata;
-using static System.Net.Mime.MediaTypeNames;
-using System.Runtime.CompilerServices;
-using static MQ.dal.DBHelper;
-using static MongoDB.Driver.WriteConcern;
-using MongoDB.Bson;
-using Microsoft.VisualBasic;
-using static Azure.Core.HttpHeader;
-using static System.Net.WebRequestMethods;
 using Mono.TextTemplating;
-using System.ComponentModel;
-using System.Reflection;
-using System.Security.AccessControl;
 using Microsoft.IdentityModel.Tokens;
-//using Amazon.Auth.AccessControlPolicy;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.Extensions.Configuration;
-using NodaTime.Text;
-using System.Collections;
-using Humanizer.Configuration;
-using NodaTime;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.Extensions.Options;
 using EFCore.BulkExtensions;
+using Serilog;
+//using static MongoDB.Driver.WriteConcern;
+//using MongoDB.Bson;
 //using ClickHouse.Client.ADO.Parameters;
 
 namespace MQ.dal
@@ -57,11 +26,11 @@ namespace MQ.dal
         public string? TableName { set; get; }
     }
 
-
     public class DBHelper
     {
         MetastorageContext MetastorageDbContext;
         SqlServerType ServerType;
+        object LockObjSaveMsgToDataBase = new object();
         DbContextOptionsBuilder<MetastorageContext> OptionsBuilder;
         public DBHelper(string server, string databasename, int port = 1433, SqlServerType type = SqlServerType.mssql, string user = "", string pwd = "")
         {
@@ -100,11 +69,12 @@ namespace MQ.dal
 
             var v = from c in MetastorageDbContext.Metamaps
                     select c;
+            
             foreach (var obj in v)
             {
-                Console.WriteLine($" {obj.TableName}, {obj.Namespace} ");
-                
+                Log.Information ($"MsgKey: {obj.MsgKey}, TableName: {obj.TableName}, Procedure: {obj.EtlQuery ?? ""}, IsLoad: {obj.IsEnable}");
             }
+            
         }
 
 
@@ -119,7 +89,7 @@ namespace MQ.dal
         }
         public List<MsgQueueItem> GetMsgqueueItems()
         {
-            var v = from r in MetastorageDbContext.Msgqueues
+            var v = from r in MetastorageDbContext.MsgQueues
                     orderby r.SessionId, r.BufferId
                     select new MsgQueueItem()
                     {
@@ -166,7 +136,7 @@ namespace MQ.dal
             if (ServerType == SqlServerType.mssql)
             {
                 var session_id = new SqlParameter("@session_id",System.Data.SqlDbType.BigInt);
-                session_id.Value = (sessionid == null) ? DBNull.Value : (int)sessionid;
+                session_id.Value = (sessionid == null) ? DBNull.Value : (long)sessionid;
                 var data_source_id = new SqlParameter("@data_source_id", datasourceid);
                 var session_state_id = new SqlParameter("@session_state_id", stateid);
                 var error_message = new SqlParameter("@error_message", errormsg);
@@ -255,22 +225,34 @@ namespace MQ.dal
                 return (T)((SqlParameter)obj).Value;
             }
         }
-        public int EtlLoadProcess(long sessionid, string processQuery, out string errorMessage)
+        public int EtlLoadProcess(long sessionid, string processQuery,long inBufferId, out string errorMessage, out long lBufferId)
         {
             int iRowCountInt = 0;
+            lBufferId = 0;
+            
             errorMessage = "";
             if (processQuery.IsNullOrEmpty()) return 0;
             if (ServerType == SqlServerType.mssql)
             {
-                string cmd = @$"EXEC {processQuery} @session_id = @session_id, @RowCount = @RowCount OUTPUT, @ErrorMessage = @ErrorMessage OUTPUT";
-                var session_id = new SqlParameter("@session_id", sessionid);
+                string cmd = @$"EXEC {processQuery} @SessionId = @SessionId, @RowCount = @RowCount OUTPUT, @BufferId = @BufferId OUTPUT, @ErrorMessage = @ErrorMessage OUTPUT";
+                var session_id = new SqlParameter("@SessionId", sessionid);
                 var rowCount = new SqlParameter("@RowCount", iRowCountInt);
                 rowCount.Direction = ParameterDirection.Output;
+                var bufferId = new SqlParameter("@BufferId", SqlDbType.BigInt);
+                bufferId.Direction = ParameterDirection.InputOutput;
+                bufferId.Value = inBufferId;
                 var errMessage = new SqlParameter("@ErrorMessage", SqlDbType.VarChar, 4000);
                 errMessage.Direction = ParameterDirection.Output;
-                MetastorageDbContext.Database.ExecuteSqlRaw(cmd, session_id, rowCount, errMessage);
-                //iRowCountInt = ConvertFromDBVal<int>(rowCount);
-                //errorMessage = ConvertFromDBVal<string>(errMessage);
+                MetastorageDbContext.Database.SetCommandTimeout(30 * 60); // value in seconds
+                //using (var txn = MetastorageDbContext.Database.BeginTransaction(IsolationLevel.Snapshot))
+                //{
+                MetastorageDbContext.Database.ExecuteSqlRawAsync(cmd, session_id, rowCount, bufferId, errMessage).Wait();
+                //txn.Commit();
+                //}
+                //System.Int32' to type 'System.Int64
+                //lBufferId = (long)((bufferId == null || bufferId.Value == DBNull.Value) ? 0 : bufferId.Value);
+                lBufferId = ((bufferId == null || bufferId.Value == DBNull.Value) ? 0 : Convert.ToInt64(bufferId.Value));
+                
                 iRowCountInt = (int)((rowCount == null || rowCount.Value == DBNull.Value) ? 0 : rowCount.Value);
                 errorMessage = (string)((errMessage == null || errMessage.Value == DBNull.Value) ? "" : errMessage.Value);
 
@@ -282,6 +264,8 @@ namespace MQ.dal
                 
                 var par_rowcount = new NpgsqlParameter("par_rowcount", iRowCountInt);
                 par_rowcount.Direction = ParameterDirection.InputOutput;
+
+                
                 MetastorageDbContext.Database.ExecuteSqlRaw(cmd, par_session_id, par_rowcount);
                 iRowCountInt = (int)par_rowcount.Value;
             }
@@ -325,9 +309,58 @@ END CATCH
         public void SaveMsgToDataBase(long sessionId, string tableName, string messageId, string body, string messageKey, int messageTypeId)
         {
             string cmd = "";
+            lock (LockObjSaveMsgToDataBase)
+            {
+                if (ServerType == SqlServerType.mssql)
+                {//4100 msg в сек c удалением в одну таблицу 
+
+                    if (tableName.Contains("msgqueue"))
+                        cmd = @$"INSERT {tableName} ([session_id], [msg_id], [msg], [msg_key])
+                                        VALUES ({sessionId}, @msg_id, @msg, @msgKey);";
+                    else
+                        cmd = @$"INSERT {tableName} ([session_id],[msg_id],[msg], [msgtype_id])
+                                        VALUES ({sessionId}, @msg_id, @msg, @msgtype_id);";
+
+                    var msgId = new SqlParameter("@msg_id", new Guid(messageId));
+                    var msg = new SqlParameter("@msg", body);
+                    var msgKey = new SqlParameter("@msgKey", messageKey);
+                    var msgtype_id = new SqlParameter("@msgtype_id", messageTypeId);
+
+                    MetastorageDbContext.Database.ExecuteSqlRaw(cmd, msgId, msg, msgKey, msgtype_id);
+                    //MetastorageDbContext.Database.ExecuteSqlRawAsync(cmd, msgId, msg, msgKey, msgtype_id);
+
+                }
+                else if (ServerType == SqlServerType.psql)
+                {
+                    /*
+                    500 msg в сек
+                    SELECT count(*),
+                    EXTRACT(EPOCH FROM max(dt_create)),
+                    EXTRACT(EPOCH FROM min(dt_create)),
+                    count(*) / (EXTRACT(EPOCH FROM max(dt_create)) - EXTRACT(EPOCH FROM min(dt_create)))
+                    FROM msgqueue
+                    */
+                    if (tableName == "msgqueue")
+                        cmd = @$"INSERT INTO {tableName} (session_id, msg_id, msg, msg_key)
+                                        VALUES ({sessionId}, @msg_id, @msg, @msgKey);";
+                    else
+                        cmd = @$"INSERT INTO {tableName} (session_id, msg_id, msg)
+                                        VALUES ({sessionId}, @msg_id, @msg);";
+                    var msgId = new NpgsqlParameter("msg_id", new Guid(messageId));
+                    var msg = new NpgsqlParameter("msg", body);
+                    var msgkey = new NpgsqlParameter("msgkey", messageKey);
+                    MetastorageDbContext.Database.ExecuteSqlRaw(cmd, msgId, msg, msgkey);
+                }
+                else
+                    throw new Exception($"SaveMsgToDataBase not supported for {SqlServerTypeHelper.GetString(ServerType)}");
+            }
+        }
+        public async Task SaveMsgToDataBaseAsync(long sessionId, string tableName, string messageId, string body, string messageKey, int messageTypeId)
+        {
+            string cmd = "";
             if (ServerType == SqlServerType.mssql)
-            {//3100 msg в сек c удалением в одну таблицу и по потокам в разные
-                
+            {   //3600 msg в сек без удаления и в одну таблицу
+                //600 msg в сек c удалением и в разные таблицы
                 if (tableName.Contains("msgqueue"))
                     cmd = @$"INSERT {tableName} ([session_id], [msg_id], [msg], [msg_key])
                                         VALUES ({sessionId}, @msg_id, @msg, @msgKey);";
@@ -338,52 +371,7 @@ END CATCH
                 var msgId = new SqlParameter("@msg_id", new Guid(messageId));
                 var msg = new SqlParameter("@msg", body);
                 var msgKey = new SqlParameter("@msgKey", messageKey);
-                var msgtype_id = new SqlParameter("@msgtype_id", messageTypeId);
-                
-
-                MetastorageDbContext.Database.ExecuteSqlRaw(cmd, msgId, msg, msgKey, msgtype_id);
-
-            }
-            else if (ServerType == SqlServerType.psql)
-            {
-                /*
-                500 msg в сек
-                SELECT count(*),
-                EXTRACT(EPOCH FROM max(dt_create)),
-                EXTRACT(EPOCH FROM min(dt_create)),
-                count(*) / (EXTRACT(EPOCH FROM max(dt_create)) - EXTRACT(EPOCH FROM min(dt_create)))
-                FROM msgqueue
-                */
-                if (tableName == "msgqueue")
-                    cmd = @$"INSERT INTO {tableName} (session_id, msg_id, msg, msg_key)
-                                        VALUES ({sessionId}, @msg_id, @msg, @msgKey);";
-                else
-                    cmd = @$"INSERT INTO {tableName} (session_id, msg_id, msg)
-                                        VALUES ({sessionId}, @msg_id, @msg);";
-                var msgId = new NpgsqlParameter("msg_id", new Guid(messageId));
-                var msg = new NpgsqlParameter("msg", body);
-                var msgkey = new NpgsqlParameter("msgkey", messageKey);
-                MetastorageDbContext.Database.ExecuteSqlRaw(cmd, msgId, msg, msgkey);
-            }
-            else
-                throw new Exception($"SaveMsgToDataBase not supported for {SqlServerTypeHelper.GetString(ServerType)}");
-        }
-        public async Task SaveMsgToDataBaseAsync(int sessionId, string tableName, string messageId, string xdto, string messageKey)
-        {
-            string cmd = "";
-            if (ServerType == SqlServerType.mssql)
-            {   //900 msg в сек без удаления и в одну таблицу
-                //600 msg в сек c удалением и в разные таблицы
-                if (tableName.Contains("msgqueue"))
-                    cmd = @$"INSERT {tableName} ([session_id], [msg_id], [msg], [msg_key])
-                                        VALUES ({sessionId}, @msg_id, @msg, @msgKey);";
-                else
-                    cmd = @$"INSERT {tableName} ([session_id],[msg_id],[msg])
-                                        VALUES ({sessionId}, @msg_id, @msg);";
-
-                var msgId = new SqlParameter("@msg_id", new Guid(messageId));
-                var msg = new SqlParameter("@msg", xdto);
-                var msgKey = new SqlParameter("@msgKey", messageKey);
+                var msgtype_id = new SqlParameter("@msgtype_id", messageTypeId); 
 
                 await MetastorageDbContext.Database.ExecuteSqlRawAsync(cmd, msgId, msg, msgKey);
 
@@ -473,6 +461,7 @@ END CATCH
 
         public OrdersLogBuffer[] GetOrdersLogBuffer(string atrArray, long sessionId, Guid msgId)
         {
+            //MessageTypeId = 1 - Array mode
             string[] subs = atrArray.Replace("[[", "").Replace("]]", "").Split("],[");
             return Enumerable.Range(0, subs.Length)
                .Select(x => new OrdersLogBuffer
@@ -488,8 +477,49 @@ END CATCH
                ).ToArray();
         }
 
-        
-        public async Task EfBulkInsert(string atrArray, long sessionId, Guid msgId) 
+        public async Task<bool> EfBulkInsertMsgQueueAsync(MsgQueue[] msgQueueBuffer)
+        {
+            using var context = new MetastorageContext(OptionsBuilder.Options);
+            await context.BulkInsertAsync(msgQueueBuffer);
+            return true;
+        }
+        public async Task<bool> EfBulkInsertBufferAsync(string messagePropertyKey, object[] objArray)
+        {
+            try 
+            { 
+                if (objArray != null)
+                {
+                    using var context = new MetastorageContext(OptionsBuilder.Options);
+                    switch (messagePropertyKey)
+                    {
+                        // TODO копирование надо переделать 
+                        case "Unknown":
+                            var i = objArray.Length;
+                            MsgQueue[] destinationArray = new MsgQueue[objArray.Length]; //;new List<MsgQueue>(objArray.Length).ToArray();
+                            Array.Copy(objArray, destinationArray, objArray.Length);
+                            await context.BulkInsertAsync(destinationArray);
+                            break;
+                        case "crs.orders_log":
+                            var y = objArray.Length;
+                            OrdersLogBuffer[] orders_logArray = new OrdersLogBuffer[objArray.Length];
+                            Array.Copy(objArray, orders_logArray, objArray.Length);
+                            await context.BulkInsertAsync(orders_logArray);
+                            
+                            break;
+                        default:
+                            throw new Exception($@"Unknown table key {messagePropertyKey}.");
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Bulk insert Error for {messagePropertyKey}: {ex.Message}");
+                return false;
+            }
+}
+
+        public async Task EfBulkInsertAsync(string atrArray, long sessionId, Guid msgId) 
         {
                 using var context = new MetastorageContext(OptionsBuilder.Options);
                 await context.BulkInsertAsync(GetOrdersLogBuffer(atrArray, sessionId, msgId));

@@ -45,7 +45,7 @@ public class KafkaSimpleService : IQueueService
         consumer.Close();
     }
 
-    public async Task SendAllMessages()
+    public async Task SendAllMessages(CancellationTokenSource cts)
     {
         var server = $"{KafkaSettings.Host}:{KafkaSettings.Port}";
         var config = new ProducerConfig

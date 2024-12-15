@@ -31,3 +31,16 @@ https://stackoverflow.com/questions/20513530/how-to-publish-dacpac-file-to-a-sql
 sqlcmd -S localhost -U sa -P fff -C -d master -i CGate.publish.sql;
 docker-compose -f docker-compose.sql.yml up
 docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=yourStrong(!)Password" -p 1443:1433 -d mcr.microsoft.com/mssql/server:2022-latest
+
+TRANSACTION ISOLATION LEVEL READ COMMITTED
+--Performance buffer
+SELECT CONVERT(DATETIME2(0) , dt_create) [Time],  count(DISTINCT msg_id) [Messages], count(*) [Orders], min(dt_create), max(dt_create)
+FROM [crs].[orders_log_buffer]
+GROUP BY  CONVERT(DATETIME2(0), dt_create)
+ORDER BY 1
+
+--Performance Load
+SELECT CONVERT(DATETIME2(0) , dt_update) [Time],  count(DISTINCT msg_id) [Messages], count(*) [Orders], min(dt_update), max(dt_update)
+FROM [crs].[orders_log_buffer]
+GROUP BY  CONVERT(DATETIME2(0), dt_update)
+ORDER BY 1

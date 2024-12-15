@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using Microsoft.Diagnostics.Runtime;
 using Microsoft.IdentityModel.Tokens;
 using BenchmarkDotNet.Attributes;
+using System.Threading.Channels;
 
 namespace MQ.bll
 {
@@ -95,6 +96,16 @@ namespace MQ.bll
             MQMessagePropertyKeyList.Clear();
         }
 
+        public MQMessagePropertyKey? GetMQMessagePropertyKey(string messagePropertyKey = "")
+        {
+            MQMessagePropertyKey? ms = null;
+            bool keyres = MQMessagePropertyKeyList.TryGetValue(messagePropertyKey, out ms);
+            if (!keyres)
+            {
+                MQMessagePropertyKeyList.TryGetValue("Unknown", out ms);
+            }
+            return ms;
+        }
         public string GetTableName(string messagePropertyKey = "")
         {
 
@@ -103,11 +114,7 @@ namespace MQ.bll
                 return "msgqueue";
             if (messagePropertyKey.Length != 0 && messagePropertyKey != "All")
             {
-                bool keyres = MQMessagePropertyKeyList.TryGetValue(messagePropertyKey, out ms);
-                if (!keyres)
-                {
-                    MQMessagePropertyKeyList.TryGetValue("Unknown", out ms);
-                }
+                ms = GetMQMessagePropertyKey(messagePropertyKey);
             }
             if (ms == null) throw new Exception(@"messagePropertyKey = {messagePropertyKey} Not found.");
             return ms.TableName;
@@ -120,11 +127,7 @@ namespace MQ.bll
                 return null;
             if (messagePropertyKey.Length != 0 && messagePropertyKey != "All")
             {
-                bool keyres = MQMessagePropertyKeyList.TryGetValue(messagePropertyKey, out ms);
-                if (!keyres)
-                {
-                    MQMessagePropertyKeyList.TryGetValue("Unknown", out ms);
-                }
+                ms = GetMQMessagePropertyKey(messagePropertyKey);
             }
             if (ms == null) throw new Exception("Empty QueueList");
             return ms.ProcessQuery;
@@ -141,19 +144,15 @@ namespace MQ.bll
 
                 long cnt;
                 string errorMessage;
+                long oldBufferId = 0, bufferId = 0;
                 TimeSpan ts;
                 DateTime dt;
                 if (messagePropertyKey.Length != 0 && messagePropertyKey != "All")
                 {
-                    MQMessagePropertyKey? ms = null;
-                    bool keyres = MQMessagePropertyKeyList.TryGetValue(messagePropertyKey, out ms);
-                    if (!keyres)
-                    {
-                        MQMessagePropertyKeyList.TryGetValue("Unknown", out ms);
-                    }
+                    MQMessagePropertyKey? ms = GetMQMessagePropertyKey(messagePropertyKey);
                     if (ms == null) throw new Exception(@"Not found messagePropertyKey = {messagePropertyKey}.");
                     dt = DateTime.Now;
-                    cnt = dbHelper.EtlLoadProcess(sessionId, ms.ProcessQuery, out errorMessage);
+                    cnt = dbHelper.EtlLoadProcess(sessionId, ms.ProcessQuery, oldBufferId, out errorMessage, out bufferId);
                     ts = DateTime.Now - dt;
                     if (!errorMessage.IsNullOrEmpty())
                     {
@@ -167,7 +166,8 @@ namespace MQ.bll
                     foreach (KeyValuePair<string, MQMessagePropertyKey> kvp in MQMessagePropertyKeyList)
                     {
                         dt = DateTime.Now;
-                        cnt = dbHelper.EtlLoadProcess(sessionId, kvp.Value.ProcessQuery, out errorMessage);
+                        oldBufferId = 0;
+                        cnt = dbHelper.EtlLoadProcess(sessionId, kvp.Value.ProcessQuery, oldBufferId, out errorMessage, out bufferId);
                         ts = DateTime.Now - dt;
                         if (!errorMessage.IsNullOrEmpty())
                         {
@@ -196,12 +196,7 @@ namespace MQ.bll
 
                 if (messagePropertyKey.Length != 0 && messagePropertyKey != "All")
                 {
-                    MQMessagePropertyKey? ms = null;
-                    bool keyres = MQMessagePropertyKeyList.TryGetValue(messagePropertyKey, out ms);
-                    if (!keyres)
-                    {
-                        MQMessagePropertyKeyList.TryGetValue("Unknown", out ms);
-                    }
+                    MQMessagePropertyKey? ms = GetMQMessagePropertyKey(messagePropertyKey);
                     if (ms == null) throw new Exception(@"Not found messagePropertyKey = {messagePropertyKey}.");
                     ms.StartEtlThread(cancellationToken);
                 }
@@ -254,60 +249,109 @@ namespace MQ.bll
             return dbHelper.SaveSessionState((int)stateID, sessionid, datasourceid, errormsg);
         }
 
-        [Benchmark]
-        public async Task SaveMsgToDataBase(IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body)
+        public void SetChannel(IQueueChannel channel)
         {
-            int messageTypeId = 1; //Тестируем  Bulk
-            if (option.MongoEnable)
+            foreach (KeyValuePair<string, MQMessagePropertyKey> kvp in MQMessagePropertyKeyList)
             {
-                throw new InvalidOperationException("There Mongo not supported yet");
+                kvp.Value.MQChanel = channel;
             }
-            
-            messageTypeId = basicProperties.ContentType == "xmlfile" ? 2 : 1;
-            Log.Debug($@"sessionId {sessionId}, basicProperties.Type {basicProperties.Type}, Table {GetTableName(basicProperties.Type)}, messageTypeId {messageTypeId.ToString()} .");
+        }
+        public async Task SaveMsgToDataBaseAsync(IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body)
+        {
 
-            MQMessagePropertyKey? ms = null;
-            bool keyres = MQMessagePropertyKeyList.TryGetValue(basicProperties.Type, out ms);
-            if (!keyres)
-            {
-                MQMessagePropertyKeyList.TryGetValue("Unknown", out ms);
-            }
+            int messageTypeId = 1; //Тестируем  Bulk запись, парсинг процедурой load_orders_log
+            messageTypeId = 2; //Тестируем Array парсинг процедурой load_orders_log_array
+            
+            //Log.Debug($@"sessionId {sessionId}, basicProperties.Type {basicProperties.Type}, Table {GetTableName(basicProperties.Type)}, messageTypeId {messageTypeId.ToString()} .");
+
+            MQMessagePropertyKey? ms = GetMQMessagePropertyKey(basicProperties.Type?? "Unknown");
             if (ms == null)
                 return;
-
+#pragma warning disable CS8604 // Possible null reference argument.
             if (messageTypeId == 1)
             {
                 string str = Encoding.UTF8.GetString(body.ToArray());
-#pragma warning disable CS8604 // Possible null reference argument.
-                await dbHelper.EfBulkInsert(str, sessionId, new Guid(basicProperties.MessageId) );
-#pragma warning restore CS8604 // Possible null reference argument.
+
+                await dbHelper.EfBulkInsertAsync(str, sessionId, new Guid(basicProperties.MessageId) );
+
                 ms.IncreaseIncomingMessagesCounter();
             }
             if (messageTypeId == 2)
             {
-                dbHelper.SaveMsgToDataBase(sessionId, GetTableName(basicProperties.Type) ?? "msgqueue", basicProperties.MessageId, Encoding.UTF8.GetString(body.ToArray()), basicProperties.Type, messageTypeId);
+                //dbHelper.SaveMsgToDataBase(sessionId, GetTableName(basicProperties.Type) ?? "msgqueue", basicProperties.MessageId, Encoding.UTF8.GetString(body.ToArray()), basicProperties.Type, messageTypeId);
+                //Async метод медленнее на 20%
+                Task task = dbHelper.SaveMsgToDataBaseAsync(sessionId, GetTableName(basicProperties.Type) ?? "msgqueue", basicProperties.MessageId, Encoding.UTF8.GetString(body.ToArray()), basicProperties.Type, messageTypeId);
+                //todo
                 ms.IncreaseIncomingMessagesCounter();
             }
+#pragma warning restore CS8604 // Possible null reference argument.
 
         }
-        public void SaveMsgToDataBase(BasicGetResult mqmsg)
+        
+        public void SaveMsgToDataBase(IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body)
+        //public void SaveMsgToDataBase(BasicGetResult mqmsg)
         {
+            /*
             if (option.MongoEnable)
             {
-                MQMessagePropertyKey? ms = null;
-                bool keyres = MQMessagePropertyKeyList.TryGetValue(mqmsg.BasicProperties.Type, out ms);
-                if (!keyres)
-                {
-                    MQMessagePropertyKeyList.TryGetValue("Unknown", out ms);
-                }
-
+                MQMessagePropertyKey? ms = GetMQMessagePropertyKey(basicProperties.Type?? "Unknown");
+                
                 mongoHelper.Save(mqmsg, ms?.MessagePropertyKey ?? "Unknown");
             }
+            
             else
             {
                 int messageTypeId = mqmsg.BasicProperties.ContentType == "xmlfile" ? 2 : 1;
                 dbHelper.SaveMsgToDataBase(sessionId, GetTableName(mqmsg.BasicProperties.Type) ?? "msgqueue", mqmsg.BasicProperties.MessageId, Encoding.UTF8.GetString(mqmsg.Body.ToArray()), mqmsg.BasicProperties.Type, messageTypeId);
             }
+            */
+            int messageTypeId = 1; //Тестируем  Bulk запись, парсинг процедурой load_orders_log
+            messageTypeId = 2; //Тестируем Array парсинг процедурой load_orders_log_array
+
+            //Log.Debug($@"sessionId {sessionId}, basicProperties.Type {basicProperties.Type}, Table {GetTableName(basicProperties.Type)}, messageTypeId {messageTypeId.ToString()} .");
+
+            MQMessagePropertyKey? ms = GetMQMessagePropertyKey(basicProperties.Type ?? "Unknown");
+            
+            if (ms == null)
+                return;
+#pragma warning disable CS8604 // Possible null reference argument.
+            if (messageTypeId == 1)
+            {
+                string str = Encoding.UTF8.GetString(body.ToArray());
+
+                dbHelper.EfBulkInsertAsync(str, sessionId, new Guid(basicProperties.MessageId)).RunSynchronously();
+
+                ms.IncreaseIncomingMessagesCounter();
+            }
+            if (messageTypeId == 2)
+            {
+                dbHelper.SaveMsgToDataBase(sessionId, GetTableName(basicProperties.Type) ?? "msgqueue", basicProperties.MessageId, Encoding.UTF8.GetString(body.ToArray()), basicProperties.Type, messageTypeId);
+                //Async метод медленнее на 20%
+                //dbHelper.SaveMsgToDataBaseAsync(sessionId, GetTableName(basicProperties.Type) ?? "msgqueue", basicProperties.MessageId, Encoding.UTF8.GetString(body.ToArray()), basicProperties.Type, messageTypeId);
+                //todo
+                ms.IncreaseIncomingMessagesCounter();
+            }
+#pragma warning restore CS8604 // Possible null reference argument.
+
         }
+
+        public async Task SendMsgToLocalQueue(ulong offsetId, IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body)
+        {
+            MQMessagePropertyKey? ms = GetMQMessagePropertyKey(basicProperties.Type ?? "Unknown") ;
+
+            if (ms == null)
+                return;
+            await ms.SendMsgToLocalQueue(offsetId, basicProperties, body);
+        }
+        public void SaveMsgToDataBaseBulk()
+        {
+            foreach (KeyValuePair<string, MQMessagePropertyKey> kvp in MQMessagePropertyKeyList)
+            {
+                kvp.Value.SaveMsgToDataBaseBulk(dbHelper);
+                //await kvp.Value.mqChanel.ConfirmMessageAsync(offsetId);
+
+            }
+        }
+
     }
 }

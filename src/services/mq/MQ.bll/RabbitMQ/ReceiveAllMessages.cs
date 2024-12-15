@@ -20,6 +20,9 @@ using System.Threading.Channels;
 using MongoDB.Driver.Core.Bindings;
 using System.Diagnostics;
 using MQ.dal.Models;
+using Microsoft.CodeAnalysis.Text;
+using Microsoft.IdentityModel.Tokens;
+using static MQ.dal.DBHelper;
 
 namespace MQ.bll.RabbitMQ
 {
@@ -28,13 +31,12 @@ namespace MQ.bll.RabbitMQ
         CancellationToken cancellationToken;
         RabbitMQSettings? rabbitMQSettings;
         MQSession rabbitMQSession;
-        AsyncEventingBasicConsumer mqConsumer;
-        IChannel? mqChannel = null;
+        //IChannel? mqChannel = null;
+        RabbitMQChannel mqChannel;
         //IConnection?
         RabbitMQConnection? mqConnection = null;
         ConnectionFactory? mqFactory = null;
-
-        string? ConsumeTag;
+        Thread _bulkThread;
         BllOption option;
 
         public ReceiveAllMessages(BllOption bllOption, IConfiguration configuration, CancellationToken cancellationToken)
@@ -69,7 +71,7 @@ namespace MQ.bll.RabbitMQ
         }
 
 
-        public async Task ProcessLauncher()
+        public async Task ProcessLauncherConsoleAsync()
         {
             rabbitMQSession = new MQSession(option, cancellationToken);
             long sessionId = rabbitMQSession.StartSessionProcessing();
@@ -88,6 +90,56 @@ namespace MQ.bll.RabbitMQ
             }
             return;
         }
+        public void StartBulkThread()
+        {
+            if (_bulkThread == null)
+            {
+                _bulkThread = new Thread(BulkThread);
+                _bulkThread.Name = "BulkThread";
+            }
+
+            if (!_bulkThread.IsAlive)
+            {
+                _bulkThread.Start(cancellationToken);
+                
+            }
+        }
+        public void BulkThread(object? sender)
+        {
+            if (sender is null)
+                return;
+            CancellationToken token = (CancellationToken)sender;
+            int hash = Thread.CurrentThread.GetHashCode();
+            Log.Debug("Start Bulk Thread hash {0}", hash);
+            int i = 0;
+            //For Debug
+            //if(MessagePropertyKey == "key")
+            //{
+            //    int h = 0;
+            //    h++;
+            //}
+            while (true)
+            {
+                if (token.IsCancellationRequested)
+                {
+                    Log.Debug("Bulk Thread hash, In iteration {1}, cancellation has been requested...", hash, i);
+                    break;
+                }
+
+                try
+                {
+                    rabbitMQSession.SaveMsgToDataBaseBulk();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("Bulk thread error: {0}.", ex.Message);
+                   
+                }
+
+                token.WaitHandle.WaitOne(1000);
+                i++;
+            }
+        }
         public async Task<string> InitFactory()
         {
             mqFactory = new ConnectionFactory();
@@ -96,7 +148,7 @@ namespace MQ.bll.RabbitMQ
             mqFactory.VirtualHost = rabbitMQSettings.VirtualHost;
             mqFactory.HostName = rabbitMQSettings.Host;
             mqFactory.Port = int.Parse(rabbitMQSettings.Port);
-            string queueName = rabbitMQSettings.DefaultQueue;
+            
             if (rabbitMQSession.SessionMode == SessionModeEnum.BufferOnly ||
                 rabbitMQSession.SessionMode == SessionModeEnum.FullMode ||
                 rabbitMQSession.SessionMode == SessionModeEnum.WhileGet
@@ -110,11 +162,15 @@ namespace MQ.bll.RabbitMQ
                 if (rabbitMQSession.SessionMode != SessionModeEnum.WhileGet)
                 {
                     Log.Debug($@"Starting ConsumerSubscription creation.");
-                    await ConsumerSubscription(queueName);
-                }
+                    await mqChannel.InitSetup(option, rabbitMQSettings.Exchange, rabbitMQSettings.DefaultQueue, cancellationToken, rabbitMQSession, true);
+                    if(option.IsMultipleMessages)
+                        StartBulkThread();
+                } else
+                    await mqChannel.InitSetup(option, rabbitMQSettings.Exchange, rabbitMQSettings.DefaultQueue, cancellationToken, rabbitMQSession, false);
+
             }
 
-            return queueName;
+            return rabbitMQSettings.DefaultQueue;
         }
         public async Task<int>  MQProcess()
         {
@@ -130,19 +186,21 @@ namespace MQ.bll.RabbitMQ
                         //Test load procedures
                         rabbitMQSession.RunEtlLoadProcedure("All");
                         uint msgcnt = 0; // for Debug Mode
-                        msgcnt = await mqChannel.MessageCountAsync(queueName);
+                        msgcnt = await mqChannel.MessageCountAsync();
 
                         if (msgcnt > 0)
                             Log.Debug("Start get from queue. Rabbit Messages Count: {0}", msgcnt);
                         for (uint i = 0; i < msgcnt; i++)
                         {
-                            BasicGetResult message = await mqChannel.BasicGetAsync(queueName, false);
+                            //BasicGetResult message = await mqChannel.BasicGetAsync(queueName, false);
+                            BasicGetResult message = await mqChannel.GetMessageAsync();
                             if (message != null)
                             {
 
                                 rabbitMQSession.SaveMsgToDataBase(message.BasicProperties , message.Body);
                                 if (option.IsConfirmMsgAndRemoveFromQueue)
-                                    await mqChannel.BasicAckAsync(message.DeliveryTag, true);
+                                    //await mqChannel.BasicAckAsync(message.DeliveryTag, true);
+                                    await mqChannel.ConfirmMessageAsync(message.DeliveryTag);
                             }
                         }
                         if (msgcnt > 0)
@@ -181,7 +239,6 @@ namespace MQ.bll.RabbitMQ
 
             if (mqChannel != null)
             {
-                ConsumerUnSubscription();
                 mqChannel.Dispose();
                 mqChannel = null;
             }
@@ -195,84 +252,6 @@ namespace MQ.bll.RabbitMQ
                 mqConnection = null;
             }
             mqFactory = null;
-        }
-
-        async Task ConsumerSubscription(string queueName)
-        {
-            Log.Debug($"ConsumerSubscription +OnReceivedMessageHandler {queueName}");
-            if (mqChannel != null)
-            {
-                await mqChannel.QueueDeclarePassiveAsync(queueName);
-                await mqChannel.BasicQosAsync(0, 20000, false);
-                mqConsumer = new AsyncEventingBasicConsumer(mqChannel);
-
-                mqConsumer.ReceivedAsync += OnReceivedMessageHandler;
-                mqConsumer.UnregisteredAsync += OnCancel;
-                ConsumeTag = await mqChannel.BasicConsumeAsync(queue: queueName, autoAck: false, consumer: mqConsumer);
-            }
-        }
-
-
-
-        void ConsumerUnSubscription()
-        {
-            try
-            {
-                if (ConsumeTag != null)
-                {
-                    if (mqChannel.IsOpen)
-                        mqChannel.BasicCancelAsync(ConsumeTag);
-                    
-
-                    //mqConsumer.ConsumerCancelled -= OnCancel;
-                    mqConsumer.ReceivedAsync -= OnReceivedMessageHandler;
-                    ConsumeTag = null;
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error($"ConsumerUnSubscription: {ex.Message}");
-            }
-        }
-
-        private Task OnCancel(object sender, ConsumerEventArgs @event)
-        {
-            if (cancellationToken.IsCancellationRequested == true)
-                return Task.CompletedTask;
-            Log.Debug(@$"OnCancel MQ Consumer: {((AsyncEventingBasicConsumer)sender).ShutdownReason}");
-            return Task.CompletedTask;
-        }
-
-        async Task OnReceivedMessageHandler(object sender, BasicDeliverEventArgs ea)
-        {
-            if (cancellationToken.IsCancellationRequested == true) return;
-            Log.Debug(@$"Received Message {ea.BasicProperties.Type} cancellationToken.IsCancellationRequested: {cancellationToken.IsCancellationRequested}");
-            AsyncEventingBasicConsumer cons = (AsyncEventingBasicConsumer)sender;
-            IChannel ch = cons.Channel;
-            try
-            {
-
-                rabbitMQSession.SaveMsgToDataBase(ea.BasicProperties, ea.Body);
-                Log.Debug(@$"Saved message to DB");
-                if (option.IsConfirmMsgAndRemoveFromQueue)
-                {
-                    await ch.BasicAckAsync(ea.DeliveryTag, true);
-                    Log.Debug(@$"Removed message tag {ea.DeliveryTag} fom RabbitMQ");
-                }
-            } 
-            catch (Exception ex)
-            {
-                Log.Debug(@$"OnReceivedMessage err: {ex.Message}");
-                await ch.BasicRejectAsync(deliveryTag: ea.DeliveryTag, requeue: true);
-
-            }
-            finally
-            {
-
-            }
-            // return Task.CompletedTask;
-            
-            
         }
     }
 }

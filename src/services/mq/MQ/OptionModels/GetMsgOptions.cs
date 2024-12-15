@@ -10,7 +10,7 @@ namespace MQ.OptionModels
     public class GetMsgOptions : BaseOptions
     {
 
-        [Option('r', "Confirm Msg and remove it from RabbitMQ Queue.", Required = false, Default = false, HelpText = "IsRemoveFromQueue.")]
+        [Option('r', "Confirm Msg and remove it from RabbitMQ Queue.", Required = false, Default = true, HelpText = "IsRemoveFromQueue.")]
         public bool? IsConfirmMsgAndRemoveFromQueue { get; set; }
 
         [Option('g', "Get session mode.", Required = false, Default = "FullMode", HelpText = "Get session mode. bufferonly, whileget, etlonly")]

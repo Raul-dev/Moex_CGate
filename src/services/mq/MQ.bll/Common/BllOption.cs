@@ -34,6 +34,7 @@ namespace MQ.bll.Common
         public int PauseMs { get; set; }
 
         public bool IsKafka { get; set; }
+        public bool IsMultipleMessages { get; set; } = true;
 
         //Mongo
         public bool MongoEnable { get; set; } = false;
