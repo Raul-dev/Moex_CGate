@@ -30,14 +30,15 @@ namespace MQ.bll
     }
     public class MQSession
     {
+        public SessionModeEnum SessionMode;
         // Create the token source.
         CancellationToken cancellationToken;
         DBHelper dbHelper;
         MongoHelper mongoHelper;
         BllOption option;
-        public SessionModeEnum SessionMode;
+        
         long sessionId;
-        //bool IsConfirmMsgAndRemoveFromQueue;
+        
         Dictionary<string, MQMessagePropertyKey> MQMessagePropertyKeyList;
         public MQSession(BllOption option, CancellationToken cancellationToken)
         {
@@ -256,6 +257,7 @@ namespace MQ.bll
                 kvp.Value.MQChanel = channel;
             }
         }
+/*
         public async Task SaveMsgToDataBaseAsync(IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body)
         {
 
@@ -288,47 +290,31 @@ namespace MQ.bll
 
         }
         
-        public void SaveMsgToDataBase(IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body)
-        //public void SaveMsgToDataBase(BasicGetResult mqmsg)
+        public void SaveMsgToDataBase(IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body) {
+            SaveMsgToDataBase( basicProperties.MessageId, Encoding.UTF8.GetString(body.ToArray()), basicProperties.Type);
+        }
+*/
+        public void SaveMsgToDataBase( string messageId, string body, string messageKey)
         {
-            /*
-            if (option.MongoEnable)
-            {
-                MQMessagePropertyKey? ms = GetMQMessagePropertyKey(basicProperties.Type?? "Unknown");
-                
-                mongoHelper.Save(mqmsg, ms?.MessagePropertyKey ?? "Unknown");
-            }
-            
-            else
-            {
-                int messageTypeId = mqmsg.BasicProperties.ContentType == "xmlfile" ? 2 : 1;
-                dbHelper.SaveMsgToDataBase(sessionId, GetTableName(mqmsg.BasicProperties.Type) ?? "msgqueue", mqmsg.BasicProperties.MessageId, Encoding.UTF8.GetString(mqmsg.Body.ToArray()), mqmsg.BasicProperties.Type, messageTypeId);
-            }
-            */
+            string tableName = GetTableName(messageKey) ?? "msgqueue";
             int messageTypeId = 1; //Тестируем  Bulk запись, парсинг процедурой load_orders_log
             messageTypeId = 2; //Тестируем Array парсинг процедурой load_orders_log_array
 
             //Log.Debug($@"sessionId {sessionId}, basicProperties.Type {basicProperties.Type}, Table {GetTableName(basicProperties.Type)}, messageTypeId {messageTypeId.ToString()} .");
 
-            MQMessagePropertyKey? ms = GetMQMessagePropertyKey(basicProperties.Type ?? "Unknown");
+            MQMessagePropertyKey? ms = GetMQMessagePropertyKey(messageKey ?? "Unknown");
             
             if (ms == null)
                 return;
 #pragma warning disable CS8604 // Possible null reference argument.
             if (messageTypeId == 1)
             {
-                string str = Encoding.UTF8.GetString(body.ToArray());
-
-                dbHelper.EfBulkInsertAsync(str, sessionId, new Guid(basicProperties.MessageId)).RunSynchronously();
-
+                dbHelper.EfBulkInsertAsync(body, sessionId, new Guid(messageId)).RunSynchronously();
                 ms.IncreaseIncomingMessagesCounter();
             }
             if (messageTypeId == 2)
             {
-                dbHelper.SaveMsgToDataBase(sessionId, GetTableName(basicProperties.Type) ?? "msgqueue", basicProperties.MessageId, Encoding.UTF8.GetString(body.ToArray()), basicProperties.Type, messageTypeId);
-                //Async метод медленнее на 20%
-                //dbHelper.SaveMsgToDataBaseAsync(sessionId, GetTableName(basicProperties.Type) ?? "msgqueue", basicProperties.MessageId, Encoding.UTF8.GetString(body.ToArray()), basicProperties.Type, messageTypeId);
-                //todo
+                dbHelper.SaveMsgToDataBase(sessionId, GetTableName(messageKey) ?? "msgqueue", messageId, body, messageKey, messageTypeId);
                 ms.IncreaseIncomingMessagesCounter();
             }
 #pragma warning restore CS8604 // Possible null reference argument.
@@ -348,8 +334,7 @@ namespace MQ.bll
             foreach (KeyValuePair<string, MQMessagePropertyKey> kvp in MQMessagePropertyKeyList)
             {
                 kvp.Value.SaveMsgToDataBaseBulk(dbHelper);
-                //await kvp.Value.mqChanel.ConfirmMessageAsync(offsetId);
-
+ 
             }
         }
 

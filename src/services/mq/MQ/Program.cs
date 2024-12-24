@@ -50,23 +50,22 @@ class Program
     static async Task<int> SendMsgExecute(SendMsgOptions options, IConfiguration configuration)
     {
         BllOption bo = new BllOption();
-        options.InitBllOption(bo);
+        options.InitBllOption(bo, configuration);
 
-        IQueueService snd = options.IsKafka ?? false ? new KafkaService(bo, configuration) : new RabbitService(bo, configuration);
         CancellationTokenSource cts = new CancellationTokenSource();
-        await snd.SendAllMessages(cts);
+        MQ.bll.SendAllUnknownMsg snd = new MQ.bll.SendAllUnknownMsg(bo, configuration, cts.Token);
+        await snd.ProcessLauncher();
 
         return 0;
     }
     static async Task<int> GetMsgExecute(GetMsgOptions options, IConfiguration configuration)
     {
         BllOption bo = new BllOption();
-        options.InitBllOption(bo);
+        options.InitBllOption(bo, configuration);
 
         CancellationTokenSource cts = new CancellationTokenSource();
-        IQueueService snd = options.IsKafka ?? false ? new KafkaService(bo, configuration) : new RabbitService(bo, configuration);
-        await snd.GetAllMessages(cts);
-
+        var snd = new ReceiveAllMessages(bo, configuration, cts.Token);
+        await snd.ProcessLauncherConsoleAsync();
         return 0;
     }
 

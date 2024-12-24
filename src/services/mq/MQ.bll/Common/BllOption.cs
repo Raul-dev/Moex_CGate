@@ -35,6 +35,8 @@ namespace MQ.bll.Common
 
         public bool IsKafka { get; set; }
         public bool IsMultipleMessages { get; set; } = true;
+        public KafkaSettings KafkaServSettings { get; set; }
+        public RabbitMQSettings RabbitMQServSettings { get; set; }
 
         //Mongo
         public bool MongoEnable { get; set; } = false;

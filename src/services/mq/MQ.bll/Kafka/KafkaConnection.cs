@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 using Serilog;
 using MQ.bll.Common;
 
-namespace MQ.bll.RabbitMQ
+namespace MQ.bll.Kafka
 {
-    class RabbitMQConnection : IDisposable
+    class KafkaConnection : IDisposable
     {
         private readonly IConnectionFactory _connectionFactory;
         private IConnection _connection;
@@ -21,18 +21,11 @@ namespace MQ.bll.RabbitMQ
         private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
-        public RabbitMQConnection(RabbitMQSettings rabbitMQSettings)
+        public KafkaConnection(KafkaSettings KafkaSettings)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
         {
-            var factory = new ConnectionFactory();
-            factory.UserName = rabbitMQSettings.UserName;
-            factory.Password = rabbitMQSettings.UserPassword;
-            factory.VirtualHost = rabbitMQSettings.VirtualHost;
-            factory.HostName = rabbitMQSettings.Host;
-            factory.Port = int.Parse(rabbitMQSettings.Port);
-            factory.RequestedConnectionTimeout = TimeSpan.FromSeconds(200);
-
-            _connectionFactory = factory;
+            //_connectionFactory = new ConnectionFactory();
+            //_connectionFactory = connectionFactory;
         }
 
         public bool IsOpen
@@ -48,14 +41,14 @@ namespace MQ.bll.RabbitMQ
             await _connection.CloseAsync();
             if (_isEvent)
             {
-                _connection.ConnectionShutdownAsync -= OnConnectionShutdown;
-                _connection.CallbackExceptionAsync -= OnCallbackException;
-                _connection.ConnectionBlockedAsync -= OnConnectionBlocked;
+//                _connection.ConnectionShutdownAsync -= OnConnectionShutdown;
+//                _connection.CallbackExceptionAsync -= OnCallbackException;
+//                _connection.ConnectionBlockedAsync -= OnConnectionBlocked;
                 _isEvent = false;
             }
 
         }
-        public async Task<IChannel> CreateChannelAsync()
+        public async Task<KafkaChannel> CreateChannelAsync()
         {
             if (!IsOpen)
             {
@@ -63,7 +56,7 @@ namespace MQ.bll.RabbitMQ
             }
             IChannel ch = await _connection.CreateChannelAsync();
 
-            return ch;
+            return new KafkaChannel(ch);
         }
 
         public void Dispose()
@@ -75,9 +68,7 @@ namespace MQ.bll.RabbitMQ
             _disposed = true;
             if (_isEvent)
             {
-                _connection.ConnectionShutdownAsync -= OnConnectionShutdown;
-                _connection.CallbackExceptionAsync -= OnCallbackException;
-                _connection.ConnectionBlockedAsync -= OnConnectionBlocked;
+
                 _isEvent = false;
             }
             if(_connection != null)
@@ -94,9 +85,9 @@ namespace MQ.bll.RabbitMQ
                 if (IsOpen)
                 {
                     Log.Debug("A RabbitMQ connection has been created.");
-                    _connection.ConnectionShutdownAsync += OnConnectionShutdown;
-                    _connection.CallbackExceptionAsync += OnCallbackException;
-                    _connection.ConnectionBlockedAsync += OnConnectionBlocked;
+                    //_connection.ConnectionShutdownAsync += OnConnectionShutdown;
+                    //_connection.CallbackExceptionAsync += OnCallbackException;
+                    //_connection.ConnectionBlockedAsync += OnConnectionBlocked;
                     _isEvent = true;
                     return true;
                 }
@@ -108,7 +99,7 @@ namespace MQ.bll.RabbitMQ
             }
             catch (Exception ex)
             {
-                Log.Error("Rabbit connection error: {0}", ex.Message);
+                Log.Error("Kafka connection error: {0}", ex.Message);
                 return false;
             }
             finally
@@ -117,7 +108,7 @@ namespace MQ.bll.RabbitMQ
 
             }
         }
-
+        /*
         private async Task OnConnectionBlocked(object sender, ConnectionBlockedEventArgs e)
         {
             if (_disposed) return;
@@ -143,5 +134,6 @@ namespace MQ.bll.RabbitMQ
                 Log.Debug(reason.ToString());
             }
         }
+*/
     }
 }

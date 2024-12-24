@@ -1,4 +1,5 @@
 ﻿using CommandLine;
+using Microsoft.Extensions.Configuration;
 using MQ.bll.Common;
 using MQ.dal;
 using Serilog;
@@ -26,9 +27,9 @@ namespace MQ.OptionModels
         public string Password { get; set; }
 
         [Option('k', "is kafka.", Required = false, Default = false, HelpText = "is kafka? if not it is rabbit.")]
-        public bool? IsKafka { get; set; }
+        public bool IsKafka { get; set; }
 
-        public virtual void InitBllOption(BllOption blloption)
+        public virtual void InitBllOption(BllOption blloption, IConfiguration configuration)
         {
 
             blloption.ServerName = ServerName;
@@ -53,7 +54,7 @@ namespace MQ.OptionModels
                 blloption.User = User;
 
             blloption.Password = Password;
-            blloption.IsKafka = IsKafka??false;
+            blloption.IsKafka = IsKafka;
         }
     }
 }

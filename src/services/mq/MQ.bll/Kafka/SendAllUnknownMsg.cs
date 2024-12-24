@@ -1,31 +1,18 @@
 ﻿using RabbitMQ.Client;
-using RabbitMQ.Client.Events;
+
 using Serilog;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using MQ.bll.Common;
 using Microsoft.Extensions.Configuration;
 using MQ.dal;
 using static MQ.dal.DBHelper;
-using Microsoft.VisualBasic;
-using System.Reflection;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using System.ComponentModel;
-using System.Security.AccessControl;
-//using BenchmarkDotNet.Attributes;
-//using BenchmarkDotNet.Running;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.CodeAnalysis.Text;
-using System.Threading.Channels;
 
-namespace MQ.bll.RabbitMQ
+namespace MQ.bll.Kafka
 {
     public class SendAllUnknownMsg
     {
-        RabbitMQSettings rabbitMQSettings;
+        //RabbitMQSettings rabbitMQSettings;
+        public KafkaSettings KafkaSettings { get; }
         BllOption option;
         DBHelper dbHelper;
         CancellationToken cancellationToken;
@@ -36,7 +23,11 @@ namespace MQ.bll.RabbitMQ
         {
             option = bllOption;
             this.cancellationToken = cancellationToken;
-            rabbitMQSettings = configuration.GetRequiredSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>() ?? throw new Exception("Нет конфига") ;
+            
+            var readSettings = configuration.GetRequiredSection(nameof(KafkaSettings)).Get<KafkaSettings>();
+            if (readSettings == null) throw new ArgumentException(nameof(KafkaSettings));
+            KafkaSettings = readSettings;
+
             dbHelper = new DBHelper(option.ServerName, option.DatabaseName, option.Port, option.ServerType, option.User, option.Password);
         }
         public async Task ProcessLauncher()
@@ -60,27 +51,20 @@ namespace MQ.bll.RabbitMQ
             string ErrorMsg = "";
             try
             {
-                var factory = new ConnectionFactory();
-                factory.UserName = rabbitMQSettings.UserName;
-                factory.Password = rabbitMQSettings.UserPassword;
-                factory.VirtualHost = rabbitMQSettings.VirtualHost;
-                factory.HostName = rabbitMQSettings.Host;
-                factory.Port = int.Parse(rabbitMQSettings.Port);
-                factory.RequestedConnectionTimeout = TimeSpan.FromSeconds(200) ;
-                
+
                 Random rnd = new Random();
 
                 int iCount = 0;
-                var queueName = rabbitMQSettings.DefaultQueue;
+                //var queueName = rabbitMQSettings.DefaultQueue;
 
-                using var mqConnection = new RabbitMQConnection(factory);
+                using var mqConnection = new KafkaConnection(KafkaSettings);
                 if(await mqConnection.TryConnect())
                 {
                     Log.Information("Start sending messages.");
                     using var channel = await mqConnection.CreateChannelAsync();
                     {
                         
-                        await channel.InitSetup(option, rabbitMQSettings.Exchange, rabbitMQSettings.DefaultQueue, cancellationToken, null, false);
+                        //await channel.InitSetup(option, KafkaSettings, cancellationToken, null, false);
 
                         Log.Information(@$"We are starting to send {mq.Count} messages to the RabbitMQ.");
                         foreach (var item in mq)

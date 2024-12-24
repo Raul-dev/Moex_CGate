@@ -9,6 +9,8 @@ https://habr.com/ru/articles/277177/
 [Benchmark]
 https://habr.com/ru/companies/fuse8/articles/803885/
 
+Ручное подтверждение сообщения в Kafka
+https://habr.com/ru/articles/808975/
 '''
 .\services\mq\MQ\bin\Debug\net9.0
 //отправляем сообщения из SQL in Rabbit
@@ -19,6 +21,7 @@ https://habr.com/ru/companies/fuse8/articles/803885/
 
 /For kafka
 ./MQ.exe SendMsg -d CGate -t mssql -k $true -i 0 -a 200
+.\services\mq\MQ\bin\Debug\net9.0\MQ.exe SendMsg -d CGate -t mssql -k $true -i 0 -a 200
 
 //For Rabbit в SQL
 .\services\mq\MQ\bin\Debug\net9.0\MQ.exe GetMsg -d CGate -t mssql 
@@ -33,6 +36,9 @@ for VS debug command (сообщения забираются в цикле): Ge
 docker-compose -f docker-compose.rabbit.yml up
 http://localhost:15672
 docker-compose build
+docker-compose -f docker-compose.kafka.yml up
+http://localhost:9000
+http://localhost:8082
 
  SELECT * FROM [dbo].[msgqueue]  
  TRUNCATE TABLE [dbo].[msgqueue]  

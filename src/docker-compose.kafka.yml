@@ -24,6 +24,13 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+#for detail description see "Resources" section in this article
+#type of acknowledgment mode
+#spring.kafka.listener.ack-mode=MANUAL_IMMEDIATE
+#property that turns off auto commit
+#spring.kafka.consumer.enable-auto-commit=false
+      SPRING_KAFKA_LISTENER_ACK-MODE: MANUAL_IMMEDIATE
+      SPRING_KAFKA_CONSUMER_ENABLE-AUTO-COMMIT: false
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1

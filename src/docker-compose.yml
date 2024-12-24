@@ -44,4 +44,10 @@ services:
     depends_on:
       rabbit:
         condition: service_healthy
+        
+  zipkin:
+    image: ghcr.io/openzipkin/zipkin
+    ports:
+        # Port used for the Zipkin UI and HTTP Api
+      - 9411:9411            
 

@@ -257,7 +257,8 @@ namespace MQ.bll
                         MQChanel.RejectMessageAsync(offsetId).Wait();   
                 }
             }
-            _messageOffsetIdQueue[prevMessageCurentList].Clear();
+            if (MQChanel != null && MQChanel.IsOpen)
+                _messageOffsetIdQueue[prevMessageCurentList].Clear();
             if (!res) //Сбрасываем все сообщения назад в очередь
             {
                 lock (_messageCurentQueueLock)

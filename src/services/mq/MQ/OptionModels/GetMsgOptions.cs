@@ -1,4 +1,5 @@
 ﻿using CommandLine;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using MQ.bll;
 using MQ.bll.Common;
@@ -16,9 +17,9 @@ namespace MQ.OptionModels
         [Option('g', "Get session mode.", Required = false, Default = "FullMode", HelpText = "Get session mode. bufferonly, whileget, etlonly")]
         public string SessionMode { get; set; } = "FullMode";
 
-        public override void InitBllOption(BllOption blloption)
+        public override void InitBllOption(BllOption blloption, IConfiguration configuration)
         {
-            base.InitBllOption(blloption);
+            base.InitBllOption(blloption, configuration);
             blloption.Verb = BllOptionVerb.Json;
             
             blloption.IsConfirmMsgAndRemoveFromQueue = IsConfirmMsgAndRemoveFromQueue ?? false;
@@ -37,6 +38,8 @@ namespace MQ.OptionModels
                     blloption.SessionMode = SessionModeEnum.FullMode;
                     break;
             }
+            blloption.RabbitMQServSettings = configuration.GetRequiredSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>() ?? throw new Exception("Have not config RabbitMQSettings");
+            blloption.KafkaServSettings = configuration.GetRequiredSection(nameof(KafkaSettings)).Get<KafkaSettings>() ?? throw new Exception("Have not config KafkaSettings");
         }
     }
 }

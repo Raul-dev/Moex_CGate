@@ -8,16 +8,22 @@ namespace MQ.bll.RabbitMQ
 {
     public class RabbitMQChannel : IQueueChannel
     {
-
+        BllOption option;
+        MQSession _MQSession;
+        RabbitMQConnection _connection;
         IChannel _channel;
         string _queueName;
         bool _disposed;
         string _exchange;
         CancellationToken _cancellationToken;
-        MQSession rabbitMQSession;
         AsyncEventingBasicConsumer mqConsumer;
         string? ConsumeTag;
-        BllOption option;
+        
+
+        public RabbitMQChannel(BllOption option)
+        {
+            this.option = option;
+        }
         public RabbitMQChannel(IChannel channel)
         {
             this._channel = channel;
@@ -31,22 +37,25 @@ namespace MQ.bll.RabbitMQ
             _channel.Dispose();
             _disposed = false;
         }
-        public async Task InitSetup(BllOption option, string exchange, string queueName, CancellationToken cancellationToken, MQSession? rabbitMQSession = null, bool isConsumerSubscription = false)
+        public async Task InitSetup( CancellationToken cancellationToken, MQSession? mqSession = null, bool isSend = true, bool isSubscription = false)
         {
-            this._exchange = exchange;
-            this._queueName = queueName;
+            this._exchange = option.RabbitMQServSettings.Exchange;
+            this._queueName = option.RabbitMQServSettings.DefaultQueue;
             this._cancellationToken = cancellationToken;
-            this.rabbitMQSession = rabbitMQSession;
+            _MQSession = mqSession;
+            _connection = new RabbitMQConnection(option.RabbitMQServSettings);
+            await _connection.TryConnect();
+            _channel = await _connection.CreateChannelAsync();
+            if (isSend)
+            {
+                await _channel.QueueBindAsync(_queueName, _exchange, "*", arguments: new Dictionary<string, object>());
+            }
 
-            this.option = option;
-            await _channel.QueueBindAsync(queueName, exchange, "*", arguments: new Dictionary<string, object>());
-            //await channel.QueueUnbindAsync("notification-queue", rabbitMQSettings.Exchange, "*", new Dictionary<string, object>());
-
-            if (isConsumerSubscription) 
+            if(isSubscription)
                 await ConsumerSubscription(_queueName);
-            if (rabbitMQSession != null)
-                rabbitMQSession.SetChannel(this);
+
         }
+        
         public async Task<uint> MessageCountAsync()
         {
             return await _channel.MessageCountAsync(_queueName);
@@ -55,7 +64,7 @@ namespace MQ.bll.RabbitMQ
         {
             return await _channel.BasicGetAsync(_queueName, false);
         }
-        //item.MsgKey,item.msg rabbitMQSettings.Exchange
+        
         public async Task PublishMessageAsync(string msgKey, string msg)
         {
 
@@ -76,6 +85,7 @@ namespace MQ.bll.RabbitMQ
         }
         public async Task CloseAsync()
         {
+            await _connection.CloseAsync();
             await _channel.CloseAsync();
             ConsumerUnSubscription();
 
@@ -146,13 +156,15 @@ namespace MQ.bll.RabbitMQ
                 if (!option.IsMultipleMessages)
                 {
                     // Save single messages to DB 2787 msg/s
-                    rabbitMQSession.SaveMsgToDataBase(ea.BasicProperties, ea.Body);
+                    _MQSession.SaveMsgToDataBase(ea.BasicProperties.MessageId, Encoding.UTF8.GetString(ea.Body.ToArray()), ea.BasicProperties.Type);
+                    
                     if (option.IsConfirmMsgAndRemoveFromQueue)
                     {
                         await ch.BasicAckAsync(ea.DeliveryTag, false);
                     }
                 }else
-                    await rabbitMQSession.SendMsgToLocalQueue(ea.DeliveryTag, ea.BasicProperties, ea.Body);
+                    // Save multiple messages to DB 6900 msg/s
+                    await _MQSession.SendMsgToLocalQueue(ea.DeliveryTag, ea.BasicProperties, ea.Body);
 
             }
             catch (Exception ex)

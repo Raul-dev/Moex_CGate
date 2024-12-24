@@ -10,6 +10,7 @@ namespace MQ.bll
     public interface IQueueChannel: IDisposable
     {
         public bool IsOpen { get; }
+        Task InitSetup(CancellationToken cancellationToken, MQSession? mqSession = null, bool isSend = true, bool isSubscription = false);
         Task CloseAsync();
         Task<uint> MessageCountAsync();
         Task<BasicGetResult> GetMessageAsync();
