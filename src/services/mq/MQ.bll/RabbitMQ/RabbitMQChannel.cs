@@ -3,6 +3,7 @@ using RabbitMQ.Client;
 using System.Text;
 using MQ.bll.Common;
 using Serilog;
+using Confluent.Kafka;
 
 namespace MQ.bll.RabbitMQ
 {
@@ -56,7 +57,7 @@ namespace MQ.bll.RabbitMQ
 
         }
         
-        public async Task<uint> MessageCountAsync()
+        public async Task<long> MessageCountAsync()
         {
             return await _channel.MessageCountAsync(_queueName);
         }
@@ -64,7 +65,11 @@ namespace MQ.bll.RabbitMQ
         {
             return await _channel.BasicGetAsync(_queueName, false);
         }
-        
+        //kafka metod
+        public void Acknowledge(TopicPartitionOffset bagData)
+        {
+
+        }
         public async Task PublishMessageAsync(string msgKey, string msg)
         {
 
@@ -164,7 +169,7 @@ namespace MQ.bll.RabbitMQ
                     }
                 }else
                     // Save multiple messages to DB 6900 msg/s
-                    await _MQSession.SendMsgToLocalQueue(ea.DeliveryTag, ea.BasicProperties, ea.Body);
+                    await _MQSession.SendMsgToLocalQueue(ea.DeliveryTag, ea.BasicProperties.MessageId!, Encoding.UTF8.GetString(ea.Body.ToArray()), ea.BasicProperties.Type! );
 
             }
             catch (Exception ex)

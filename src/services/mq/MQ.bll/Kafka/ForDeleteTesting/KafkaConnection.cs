@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using Serilog;
 using MQ.bll.Common;
 
-namespace MQ.bll.Kafka
+namespace MQ.bll.Kafka.ForDeleteTesting
 {
     class KafkaConnection : IDisposable
     {
@@ -35,15 +35,15 @@ namespace MQ.bll.Kafka
                 return _connection != null && _connection.IsOpen && !_disposed;
             }
         }
-        
+
         public async Task CloseAsync()
         {
             await _connection.CloseAsync();
             if (_isEvent)
             {
-//                _connection.ConnectionShutdownAsync -= OnConnectionShutdown;
-//                _connection.CallbackExceptionAsync -= OnCallbackException;
-//                _connection.ConnectionBlockedAsync -= OnConnectionBlocked;
+                //                _connection.ConnectionShutdownAsync -= OnConnectionShutdown;
+                //                _connection.CallbackExceptionAsync -= OnCallbackException;
+                //                _connection.ConnectionBlockedAsync -= OnConnectionBlocked;
                 _isEvent = false;
             }
 
@@ -52,7 +52,7 @@ namespace MQ.bll.Kafka
         {
             if (!IsOpen)
             {
-                throw new InvalidOperationException("No RabbitMQ connections are available to perform this action");
+                throw new InvalidOperationException("No Kafka connections are available to perform this action");
             }
             IChannel ch = await _connection.CreateChannelAsync();
 
@@ -71,8 +71,8 @@ namespace MQ.bll.Kafka
 
                 _isEvent = false;
             }
-            if(_connection != null)
-              _connection.Dispose();
+            if (_connection != null)
+                _connection.Dispose();
         }
 
         public async Task<bool> TryConnect()

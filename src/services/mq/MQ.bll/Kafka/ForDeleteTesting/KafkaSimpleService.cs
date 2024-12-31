@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 using MQ.bll.Common;
 using Serilog;
 
-namespace MQ.bll.Kafka;
+namespace MQ.bll.Kafka.ForDeleteTesting;
 
 public class KafkaSimpleService : IQueueService
 {

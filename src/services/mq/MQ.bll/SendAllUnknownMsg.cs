@@ -1,25 +1,9 @@
-﻿using RabbitMQ.Client;
-using RabbitMQ.Client.Events;
-using Serilog;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Serilog;
 using MQ.bll.Common;
 using Microsoft.Extensions.Configuration;
 using MQ.dal;
 using static MQ.dal.DBHelper;
-using Microsoft.VisualBasic;
-using System.Reflection;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using System.ComponentModel;
-using System.Security.AccessControl;
-//using BenchmarkDotNet.Attributes;
-//using BenchmarkDotNet.Running;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.CodeAnalysis.Text;
-using System.Threading.Channels;
 using MQ.bll.Kafka;
 using MQ.bll.RabbitMQ;
 
@@ -56,8 +40,8 @@ namespace MQ.bll
         public async Task MQProcess()
         {
             List<MsgQueueItem> mq = dbHelper.GetMsgqueueItems();
-
-            string ErrorMsg = "";
+            Log.Warning($"{mq.Count}");
+           string ErrorMsg = "";
             IQueueChannel channel;
             try
             {
@@ -71,15 +55,15 @@ namespace MQ.bll
                 Log.Information(@$"We are starting to send {mq.Count} messages to the MQ.");
                 foreach (var item in mq)
                 {
-
+                    //Log.Information("MsgOrder={0}, MsgKey={1} MsgLen={2}.", item.MsgOrder, item.MsgKey, item.Msg!.Length);
                     if (item.Msg.IsNullOrEmpty())
                     {
                         Log.Warning("Null MsgOrder={0}, MsgKey={1}.", item.MsgOrder, item.MsgKey);
                         continue;
                     }
-                    await channel.PublishMessageAsync(item.MsgKey ?? "", item.Msg ?? throw new ArgumentNullException());
+                    await channel.PublishMessageAsync(item.MsgKey!, item.Msg!);
                     iCount++;
-                    if (iCount % 1000 == 0)
+                    if (iCount % 10000 == 0)
                     {
                         Log.Information(@$"Send {iCount} messages.");
                     }
@@ -89,6 +73,9 @@ namespace MQ.bll
                     }
                 }
                 Log.Information(@$"Send {iCount} messages.");
+                var count = await channel.MessageCountAsync();
+                Log.Information(@$"MQ total mesages {count} .");
+                
                 await channel.CloseAsync();
             }
             catch (Exception ex)

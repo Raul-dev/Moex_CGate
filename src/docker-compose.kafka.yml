@@ -1,75 +1,67 @@
 version: '3'
+
 services:
+ 
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
+    hostname: zookeeper
+    container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - '2181:2181'
+    volumes:
+      - ./zoo/data:/var/lib/zookeeper/data
+      - ./zoo/log:/var/lib/zookeeper/log
 
   kafka:
-    image: confluentinc/cp-kafka:latest
+    image: confluentinc/cp-enterprise-kafka:latest
     hostname: kafka
     container_name: kafka
     depends_on:
       - zookeeper
     ports:
-      - '9092:9092'
-      - '9997:9997'
-      - '29092:29092'      
+      - "9092:9092"
+      - "9101:9101"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-#for detail description see "Resources" section in this article
-#type of acknowledgment mode
-#spring.kafka.listener.ack-mode=MANUAL_IMMEDIATE
-#property that turns off auto commit
-#spring.kafka.consumer.enable-auto-commit=false
-      SPRING_KAFKA_LISTENER_ACK-MODE: MANUAL_IMMEDIATE
-      SPRING_KAFKA_CONSUMER_ENABLE-AUTO-COMMIT: false
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_JMX_PORT: 9997
-      KAFKA_JMX_HOSTNAME: kafka
-
-  kafka-init-topics:
-    image: confluentinc/cp-kafka:latest
+      KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081
     volumes:
-       - ./images/kafka/message.json:/data/message.json
+      - ./broker/data:/var/lib/kafka/data
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:latest
+    hostname: schema-registry
+    container_name: schema-registry
     depends_on:
       - kafka
-    command: "bash -c 'echo Waiting for Kafka to be ready... && \
-               cub kafka-ready -b kafka:29092 1 30 && \
-               kafka-topics --create --topic users --partitions 3 --replication-factor 1 --if-not-exists --bootstrap-server kafka:29092 && \
-               kafka-topics --create --topic messages --partitions 2 --replication-factor 1 --if-not-exists --bootstrap-server kafka:29092 && \
-               kafka-console-producer --bootstrap-server kafka:29092 --topic users < /data/message.json'"
-  
-  kafka-ui:
-    container_name: kafka-ui
-    image: provectuslabs/kafka-ui:latest
     ports:
-      - 8082:8080
+      - "8081:8081"
     environment:
-      - DYNAMIC_CONFIG_ENABLED=true
-      - KAFKA_CLUSTERS_0_NAME=kafka
-      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:29092
-      - KAFKA_CLUSTERS_0_ZOOKEEPER=kafka:2181      
-
-  kafdrop:
-    image: obsidiandynamics/kafdrop
-    restart: "no"
-    ports:
-      - "9000:9000"
-    environment:
-      KAFKA_BROKERCONNECT: "kafka:29092"
-      
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+     
+  control-center:
+    image: confluentinc/cp-enterprise-control-center:latest
+    hostname: control-center
+    container_name: control-center
     depends_on:
-      - "kafka"      
+      - kafka
+      - schema-registry
+    ports:
+      - "9021:9021"
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: 'kafka:29092'
+      CONTROL_CENTER_SCHEMA_REGISTRY_URL: "http://schema-registry:8081"
+      CONTROL_CENTER_REPLICATION_FACTOR: 1
+      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
+      CONFLUENT_METRICS_TOPIC_REPLICATION: 1
+      PORT: 9021    

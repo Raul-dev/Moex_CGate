@@ -7,7 +7,7 @@ using MQ.dal;
 using static MQ.dal.DBHelper;
 using Microsoft.IdentityModel.Tokens;
 
-namespace MQ.bll.Kafka
+namespace MQ.bll.Kafka.ForDeleteTesting
 {
     public class SendAllUnknownMsg
     {
@@ -23,7 +23,7 @@ namespace MQ.bll.Kafka
         {
             option = bllOption;
             this.cancellationToken = cancellationToken;
-            
+
             var readSettings = configuration.GetRequiredSection(nameof(KafkaSettings)).Get<KafkaSettings>();
             if (readSettings == null) throw new ArgumentException(nameof(KafkaSettings));
             KafkaSettings = readSettings;
@@ -32,7 +32,7 @@ namespace MQ.bll.Kafka
         }
         public async Task ProcessLauncher()
         {
-            
+
             if (option.Iteration > 0)
                 for (int i = 0; i < option.Iteration; i++)
                 {
@@ -43,7 +43,7 @@ namespace MQ.bll.Kafka
 
             //var summary = BenchmarkRunner.Run<SendAllUnknownMsg>();
         }
-        
+
         public async Task MQProcess()
         {
             List<MsgQueueItem> mq = dbHelper.GetMsgqueueItems();
@@ -58,12 +58,12 @@ namespace MQ.bll.Kafka
                 //var queueName = rabbitMQSettings.DefaultQueue;
 
                 using var mqConnection = new KafkaConnection(KafkaSettings);
-                if(await mqConnection.TryConnect())
+                if (await mqConnection.TryConnect())
                 {
                     Log.Information("Start sending messages.");
                     using var channel = await mqConnection.CreateChannelAsync();
                     {
-                        
+
                         //await channel.InitSetup(option, KafkaSettings, cancellationToken, null, false);
 
                         Log.Information(@$"We are starting to send {mq.Count} messages to the RabbitMQ.");
@@ -75,7 +75,7 @@ namespace MQ.bll.Kafka
                                 Log.Warning("Null MsgOrder={0}, MsgKey={1}.", item.MsgOrder, item.MsgKey);
                                 continue;
                             }
-                            await channel.PublishMessageAsync(item.MsgKey??"", item.Msg?? throw new ArgumentNullException());
+                            await channel.PublishMessageAsync(item.MsgKey ?? "", item.Msg ?? throw new ArgumentNullException());
                             iCount++;
                             if (iCount % 1000 == 0)
                             {

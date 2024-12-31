@@ -25,6 +25,8 @@ using Microsoft.IdentityModel.Tokens;
 using static MQ.dal.DBHelper;
 using MQ.bll.RabbitMQ;
 using MQ.bll.Kafka;
+using RTools_NTS.Util;
+using Confluent.Kafka;
 
 namespace MQ.bll
 {
@@ -32,12 +34,9 @@ namespace MQ.bll
     {
         BllOption option;
         CancellationToken _cancellationToken;
-        //RabbitMQSettings? _MQSettings;
         MQSession _MQSession;
         Thread _bulkThread;
         IQueueChannel channel;
-        //RabbitMQConnection? mqConnection = null;
-
 
         public ReceiveAllMessages(BllOption bllOption, IConfiguration configuration, CancellationToken cancellationToken)
         {
@@ -69,7 +68,6 @@ namespace MQ.bll
             }
 
         }
-
 
         public async Task ProcessLauncherConsoleAsync()
         {
@@ -149,7 +147,7 @@ namespace MQ.bll
                 _MQSession.SessionMode == SessionModeEnum.WhileGet
                 )
             {
-                //Log.Debug($@"Creating RabbitMQ factory connection: Host={_MQSettings.Host}, Port={_MQSettings.Port}, Mode={_MQSession.SessionMode.ToString()}.");
+                //Log.Debug($@"Creating MQ factory connection: Host={_MQSettings.Host}, Port={_MQSettings.Port}, Mode={_MQSession.SessionMode.ToString()}.");
 
                 channel = option.IsKafka ? new KafkaChannel(option) : new RabbitMQChannel(option);
                 Random rnd = new Random();
@@ -171,45 +169,50 @@ namespace MQ.bll
 
         public async Task<int> MQProcess()
         {
-            //string ErrorMsg = "";
             try
             {
-                //string queueName =
+                
                 await InitFactory();
                 if (channel == null) throw new ArgumentNullException();
-                while (true)
+
+                if (_MQSession.SessionMode == SessionModeEnum.WhileGet) //Get message by message
                 {
-                    if (_MQSession.SessionMode == SessionModeEnum.WhileGet)
+                    //Test load procedures
+                    _MQSession.RunEtlLoadProcedure("All"); //execute load procedures
+                    long msgcnt = 0; // for Debug Mode
+                    msgcnt = await channel.MessageCountAsync();
+                    
+                    if (msgcnt > 0)
+                        Log.Debug("We are starting to receive messages from the queue. Messages Count: {0}", msgcnt);
+                    for (uint i = 0; i < msgcnt; i++)
                     {
-                        //Test load procedures
-                        _MQSession.RunEtlLoadProcedure("All");
-                        uint msgcnt = 0; // for Debug Mode
-                        msgcnt = await channel.MessageCountAsync();
-
-                        if (msgcnt > 0)
-                            Log.Debug("Start get from queue. Rabbit Messages Count: {0}", msgcnt);
-                        for (uint i = 0; i < msgcnt; i++)
+                        //BasicGetResult message = await mqChannel.BasicGetAsync(queueName, false);
+                        BasicGetResult message = await channel.GetMessageAsync();
+                        if (message != null)
                         {
-                            //BasicGetResult message = await mqChannel.BasicGetAsync(queueName, false);
-                            BasicGetResult message = await channel.GetMessageAsync();
-                            if (message != null)
-                            {
 
-                                
-                                _MQSession.SaveMsgToDataBase(message.BasicProperties.MessageId, Encoding.UTF8.GetString(message.Body.ToArray()), message.BasicProperties.Type);
-                                if (option.IsConfirmMsgAndRemoveFromQueue)
-                                    
-                                    await channel.ConfirmMessageAsync(message.DeliveryTag);
+                            _MQSession.SaveMsgToDataBase(message.BasicProperties.MessageId, Encoding.UTF8.GetString(message.Body.ToArray()), message.BasicProperties.Type);
+                            if (option.IsConfirmMsgAndRemoveFromQueue)
+                            {
+                                await channel.ConfirmMessageAsync(message.DeliveryTag);
+
                             }
                         }
-                        if (msgcnt > 0)
-                            Log.Debug("Finish get from queue. Rabbit Message Count: {0}", msgcnt);
+                        else
+                            Log.Error($"Null message {i}");
                     }
+                    if (msgcnt > 0)
+                        Log.Debug("Finish get from queue. Rabbit Message Count: {0}", msgcnt);
+                }
+                else
+                    if(_MQSession.SessionMode != SessionModeEnum.BufferOnly)
+                        _MQSession.RunEtlThread("All"); //Started load proc threads
 
-                    if (_MQSession.SessionMode != SessionModeEnum.BufferOnly)
-                        _MQSession.RunEtlThread("All");
+                while (true && _MQSession.SessionMode != SessionModeEnum.WhileGet)
+                {
 
-                    Thread.Sleep(2000);
+                    //Thread.Sleep(2000);
+                    _cancellationToken.WaitHandle.WaitOne(2000);
                     if (_MQSession.SessionMode != SessionModeEnum.BufferOnly)
                         if (channel == null || !channel.IsOpen)
                         {
@@ -228,6 +231,7 @@ namespace MQ.bll
             }
             finally
             {
+                channel.CloseAsync();
                 CleanProcess();
             }
         }

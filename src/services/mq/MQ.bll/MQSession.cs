@@ -37,7 +37,7 @@ namespace MQ.bll
         MongoHelper mongoHelper;
         BllOption option;
         
-        long sessionId;
+        long sessionId = 0;
         
         Dictionary<string, MQMessagePropertyKey> MQMessagePropertyKeyList;
         public MQSession(BllOption option, CancellationToken cancellationToken)
@@ -166,6 +166,8 @@ namespace MQ.bll
                 {
                     foreach (KeyValuePair<string, MQMessagePropertyKey> kvp in MQMessagePropertyKeyList)
                     {
+                        if (kvp.Value.ProcessQuery.IsNullOrEmpty())
+                            continue;
                         dt = DateTime.Now;
                         oldBufferId = 0;
                         cnt = dbHelper.EtlLoadProcess(sessionId, kvp.Value.ProcessQuery, oldBufferId, out errorMessage, out bufferId);
@@ -321,13 +323,13 @@ namespace MQ.bll
 
         }
 
-        public async Task SendMsgToLocalQueue(ulong offsetId, IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body)
+        public async Task SendMsgToLocalQueue(ulong offsetId, string messageId, string body, string messagePropertyKey)
         {
-            MQMessagePropertyKey? ms = GetMQMessagePropertyKey(basicProperties.Type ?? "Unknown") ;
+            MQMessagePropertyKey? ms = GetMQMessagePropertyKey(messagePropertyKey ?? "Unknown") ;
 
             if (ms == null)
                 return;
-            await ms.SendMsgToLocalQueue(offsetId, basicProperties, body);
+            await ms.SendMsgToLocalQueue(offsetId, messageId, body);
         }
         public void SaveMsgToDataBaseBulk()
         {

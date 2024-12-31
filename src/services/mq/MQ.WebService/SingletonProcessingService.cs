@@ -3,9 +3,7 @@ using Microsoft.Extensions.Hosting;
 using MongoDB.Driver.Core.Servers;
 using MQ.bll;
 using MQ.bll.Common;
-using RabbitMQ.Client;
 using Serilog;
-using System.Configuration;
 using System.Xml.Linq;
 
 namespace MQ.WebService
@@ -73,6 +71,7 @@ namespace MQ.WebService
             DataBaseSettings databaseSettings = _configuration.GetRequiredSection(nameof(DataBaseSettings)).Get<DataBaseSettings>() ?? throw new ArgumentNullException();
             bo.RabbitMQServSettings = _configuration.GetRequiredSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>() ?? throw new ArgumentNullException();
             //bo.KafkaServSettings = _configuration.GetRequiredSection(nameof(KafkaSettings)).Get<KafkaSettings>() ?? throw new Exception("Have not config KafkaSettings");
+
             bo.ServerName = databaseSettings.ServerName;
             string dbname = $"{databaseSettings.DataBase}";
             bo.DatabaseName = dbname;

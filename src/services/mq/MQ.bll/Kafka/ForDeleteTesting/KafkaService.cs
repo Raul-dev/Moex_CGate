@@ -10,7 +10,7 @@ using System.Text;
 using static Confluent.Kafka.ConfigPropertyNames;
 using static MQ.dal.DBHelper;
 
-namespace MQ.bll.Kafka;
+namespace MQ.bll.Kafka.ForDeleteTesting;
 
 public class KafkaService : IQueueService
 {
@@ -32,7 +32,7 @@ public class KafkaService : IQueueService
     public async Task GetAllMessages(CancellationTokenSource cts)
     {
         var server = $"{KafkaSettings.Host}:{KafkaSettings.Port}";
-        
+
         var consConfig = new ConsumerConfig
         {
             BootstrapServers = server, // TODO: make servers a collection and build string here.
@@ -43,7 +43,7 @@ public class KafkaService : IQueueService
             //EnableAutoCommit = false,
         };
 
-        using var consumer = new ConsumerBuilder<long, MsgQueueItem>(consConfig)
+        using var consumer = new ConsumerBuilder<long, MsgKafkaItem>(consConfig)
             .SetKeyDeserializer(Deserializers.Int64)
             .SetValueDeserializer(new MsgQueueSerializer())
             .SetErrorHandler((_, e) => Console.WriteLine($"Error: {e.Reason}"))
@@ -55,7 +55,7 @@ public class KafkaService : IQueueService
         consumer.Subscribe(KafkaSettings.Topic);
         var p = consumer.Position;
         var token = cts.Token;
-        int iCount = 0 ;
+        int iCount = 0;
 
         // как я понял это позиционирование на начало
         //consumer.Assign(partitions.Select(p => new TopicPartitionOffset(Topic_Counts, p, Offset.Beginning)));
@@ -91,7 +91,7 @@ public class KafkaService : IQueueService
         consumer.Close();
         Log.Information(@$"Recive {iCount} messages.");
     }
-    public async Task SendAllMessages(CancellationTokenSource cts  )
+    public async Task SendAllMessages(CancellationTokenSource cts)
     {
         var server = $"{KafkaSettings.Host}:{KafkaSettings.Port}";
         var config = new ProducerConfig
@@ -100,7 +100,7 @@ public class KafkaService : IQueueService
             AllowAutoCreateTopics = true,
             EnableSslCertificateVerification = false,
         };
-        using var producer = new ProducerBuilder<long, MsgQueueItem>(config)
+        using var producer = new ProducerBuilder<long, MsgKafkaItem>(config)
         .SetKeySerializer(Serializers.Int64)
         .SetValueSerializer(new MsgQueueSerializer())
             .SetErrorHandler((_, e) => Console.WriteLine($"Error: {e.Reason}"))
@@ -112,7 +112,7 @@ public class KafkaService : IQueueService
         Log.Information(@$"We are starting to add {mq.Count} messages to the Kafka.");
         foreach (var item in mq)
         {
-            producer.Produce(KafkaSettings.Topic, new Message<long, MsgQueueItem> { Key = item.SessionId, Value = item, });
+            producer.Produce(KafkaSettings.Topic, new Message<long, MsgKafkaItem> { Key = item.SessionId, Value = new MsgKafkaItem { MsgId = item.MsgId ?? Guid.NewGuid(), MsgKey = item.MsgKey!, Msg = item.Msg!, CreateDate = DateTime.Now }, });
             iCount++;
             if (iCount % 1000 == 0)
             {
@@ -123,7 +123,7 @@ public class KafkaService : IQueueService
             {
                 Thread.SpinWait(rnd.Next(Bo.PauseMs / 2, Bo.PauseMs));
             }
-            
+
         }
         Log.Information(@$"Send {iCount} messages.");
         producer.Flush();

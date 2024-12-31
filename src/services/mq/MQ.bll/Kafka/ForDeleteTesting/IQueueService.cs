@@ -1,5 +1,4 @@
-﻿
-namespace MQ.bll
+﻿namespace MQ.bll.Kafka.ForDeleteTesting
 {
     public interface IQueueService
     {

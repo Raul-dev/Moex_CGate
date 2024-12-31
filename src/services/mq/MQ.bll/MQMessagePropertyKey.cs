@@ -17,6 +17,7 @@ using System.Security.Cryptography;
 using Microsoft.Diagnostics.Runtime.Utilities;
 using NetTopologySuite.Operation.Buffer;
 using static MongoDB.Driver.WriteConcern;
+using Confluent.Kafka;
 
 namespace MQ.bll
 {
@@ -194,22 +195,25 @@ namespace MQ.bll
             }
         }
 
-        public async Task SendMsgToLocalQueue(ulong offsetId, IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body)
+        //public async Task SendMsgToLocalQueue(ulong offsetId, IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body)
+        public async Task SendMsgToLocalQueue(ulong offsetId, string messageId, string body)
         {
 
             var buff = (MessagePropertyKey == "Unknown") ? (object)new MsgQueue
             {
                 SessionId = sessionId,
-                MsgId = new Guid(basicProperties.MessageId),
-                Msg = Encoding.UTF8.GetString(body.ToArray()),
+                MsgId = new Guid(messageId),
+                Msg = body,
+                //Encoding.UTF8.GetString(body.ToArray()),
                 MsgKey = MessagePropertyKey,
                 UpdateDate = DateTime.Now
             } :
             (object) new OrdersLogBuffer
             {
                 SessionId = sessionId,
-                MsgId = new Guid(basicProperties.MessageId),
-                Msg = Encoding.UTF8.GetString(body.ToArray()),
+                MsgId = new Guid(messageId),
+                Msg = body,
+                //Encoding.UTF8.GetString(body.ToArray()),
                 MsgTypeId = 1,
                 IsError = false,
                 CreateDate = DateTime.Now,
