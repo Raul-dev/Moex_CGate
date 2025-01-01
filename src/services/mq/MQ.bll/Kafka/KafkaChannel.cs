@@ -490,7 +490,7 @@ namespace MQ.bll.Kafka
             };
             _producer.Produce(option.KafkaServSettings.Topic, new Message<long, MsgKafkaItem> { Key = _iCount, Value = m });
             _iCount++;
-            if (_iCount % 1000 == 0)
+            if (_iCount % 10000 == 0)
             {
                 //Log.Information(@$"Send {_iCount} messages.");
                 _producer.Flush();

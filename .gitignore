@@ -2,7 +2,10 @@
 bin
 obj
 logs
+zoo
+broker
 packages
+BenchmarkDotNet.Artifacts
 clickhouse-data
 grafana-data
 __pycache__
