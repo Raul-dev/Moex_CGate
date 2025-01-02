@@ -40,17 +40,16 @@ namespace MQ.bll
         public async Task MQProcess()
         {
             List<MsgQueueItem> mq = dbHelper.GetMsgqueueItems();
-            Log.Warning($"{mq.Count}");
-           string ErrorMsg = "";
+            string ErrorMsg = "";
             IQueueChannel channel;
             try
             {
-                channel = option.IsKafka ? new KafkaChannel(option) : new RabbitMQChannel(option);
+                channel = option.IsKafka ? new KafkaChannel(option, _cancellationToken) : new RabbitMQChannel(option, _cancellationToken);
                 Random rnd = new Random();
 
                 int iCount = 0;
                 
-                await channel.InitSetup(_cancellationToken);
+                await channel.InitSetup();
 
                 Log.Information(@$"We are starting to send {mq.Count} messages to the MQ.");
                 foreach (var item in mq)

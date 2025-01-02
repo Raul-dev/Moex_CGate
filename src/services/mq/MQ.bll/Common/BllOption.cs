@@ -15,19 +15,19 @@ namespace MQ.bll.Common
 
 
         //DB Server name
-        public string ServerName { get; set; }
+        public string ServerName { get; set; } = "";
 
         //Database name
-        public string DatabaseName { get; set; }
+        public string DatabaseName { get; set; } = "";
 
 
         public SqlServerType ServerType { get; set; }
         public SqlServerType GenerationServerType { get; set; }
         public int Port { get; set; }
-        public string User { get; set; }
-        public string Password { get; set; }
-        public string OutputJsonFile { get; set; }
-        public string InputJsonFile { get; set; }
+        public string User { get; set; } = "";
+        public string Password { get; set; } = "";
+        public string OutputJsonFile { get; set; } = "";
+        public string InputJsonFile { get; set; } = "";
         public bool IsConfirmMsgAndRemoveFromQueue { get; set; }
         public SessionModeEnum SessionMode { get; set; }
         public int Iteration { get; set; }

@@ -11,13 +11,13 @@ namespace MQ.bll
     public interface IQueueChannel: IDisposable
     {
         public bool IsOpen { get; }
-        Task InitSetup(CancellationToken cancellationToken, MQSession? mqSession = null, bool isSend = true, bool isSubscription = false);
+        Task InitSetup(MQSession? mqSession = null, bool isSend = true, bool isSubscription = false);
         Task CloseAsync();
         Task<long> MessageCountAsync();
-        Task<BasicGetResult> GetMessageAsync();
+        Task<BasicGetResult?> GetMessageAsync();
         Task PublishMessageAsync(string msgKey, string msg);
-        Task ConfirmMessageAsync(ulong offsetId, bool multiple = false);
-        void Acknowledge(TopicPartitionOffset bagData);
+        Task AcknowledgeMessageAsync(ulong offsetId, bool multiple = false);
         Task RejectMessageAsync(ulong offsetId, bool requeue = true);
+        void Flush();
     }
 }

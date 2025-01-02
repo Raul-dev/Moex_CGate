@@ -4,52 +4,61 @@ using System.Text;
 using MQ.bll.Common;
 using Serilog;
 using Confluent.Kafka;
+using System.Threading;
 
 namespace MQ.bll.RabbitMQ
 {
     public class RabbitMQChannel : IQueueChannel
     {
         BllOption option;
-        MQSession _MQSession;
-        RabbitMQConnection _connection;
-        IChannel _channel;
+        MQSession? _MQSession;
+        RabbitMQConnection? _connection;
+        IChannel? _channel;
         string _queueName;
-        bool _disposed;
+        bool _disposed = false;
         string _exchange;
         CancellationToken _cancellationToken;
-        AsyncEventingBasicConsumer mqConsumer;
-        string? ConsumeTag;
+        AsyncEventingBasicConsumer? _mqConsumer;
+        string? _consumeTag;
         
 
-        public RabbitMQChannel(BllOption option)
+        public RabbitMQChannel(BllOption option, CancellationToken cancellationToken)
         {
             this.option = option;
+            _cancellationToken = cancellationToken;
+            _queueName = option.RabbitMQServSettings.DefaultQueue;
+            _exchange = option.RabbitMQServSettings.Exchange;
         }
-        public RabbitMQChannel(IChannel channel)
+        //public RabbitMQChannel(IChannel channel, CancellationToken cancellationToken)
+        //{
+        //    this._channel = channel;
+        //    _cancellationToken = cancellationToken;
+        //    _queueName = "";
+        //    _disposed = false;
+        //}
+        public void Flush()
         {
-            this._channel = channel;
 
-            _disposed = false;
         }
         public void Dispose()
         {
             if (_disposed) return;
             ConsumerUnSubscription();
-            _channel.Dispose();
+            _channel!.Dispose();
             _disposed = false;
         }
-        public async Task InitSetup( CancellationToken cancellationToken, MQSession? mqSession = null, bool isSend = true, bool isSubscription = false)
+        public async Task InitSetup(  MQSession? mqSession = null, bool isSend = true, bool isSubscription = false)
         {
             this._exchange = option.RabbitMQServSettings.Exchange;
             this._queueName = option.RabbitMQServSettings.DefaultQueue;
-            this._cancellationToken = cancellationToken;
-            _MQSession = mqSession;
+            
+            _MQSession = mqSession!;
             _connection = new RabbitMQConnection(option.RabbitMQServSettings);
             await _connection.TryConnect();
-            _channel = await _connection.CreateChannelAsync();
+            _channel = await _connection.CreateChannelAsync(_cancellationToken);
             if (isSend)
             {
-                await _channel.QueueBindAsync(_queueName, _exchange, "*", arguments: new Dictionary<string, object>());
+                await _channel.QueueBindAsync(_queueName, _exchange, "*", arguments: new Dictionary<string, object?>());
             }
 
             if(isSubscription)
@@ -59,17 +68,13 @@ namespace MQ.bll.RabbitMQ
         
         public async Task<long> MessageCountAsync()
         {
-            return await _channel.MessageCountAsync(_queueName);
+            return await _channel!.MessageCountAsync(_queueName);
         }
-        public async Task<BasicGetResult> GetMessageAsync()
+        public async Task<BasicGetResult?> GetMessageAsync()
         {
-            return await _channel.BasicGetAsync(_queueName, false);
+            return await _channel!.BasicGetAsync(_queueName, false);
         }
-        //kafka metod
-        public void Acknowledge(TopicPartitionOffset bagData)
-        {
 
-        }
         public async Task PublishMessageAsync(string msgKey, string msg)
         {
 
@@ -79,7 +84,7 @@ namespace MQ.bll.RabbitMQ
             props.MessageId = Guid.NewGuid().ToString();
             props.Type = msgKey;
             props.DeliveryMode = DeliveryModes.Persistent;
-            await _channel.BasicPublishAsync<BasicProperties>(_exchange, routingKey: msgKey, mandatory: true, props, messageBodyBytes);
+            await _channel!.BasicPublishAsync<BasicProperties>(_exchange, routingKey: msgKey, mandatory: true, props, messageBodyBytes);
         }
         public bool IsOpen
         {
@@ -90,18 +95,18 @@ namespace MQ.bll.RabbitMQ
         }
         public async Task CloseAsync()
         {
-            await _connection.CloseAsync();
-            await _channel.CloseAsync();
+            await _connection!.CloseAsync();
+            await _channel!.CloseAsync();
             ConsumerUnSubscription();
 
         }
-        public async Task ConfirmMessageAsync(ulong offsetId, bool multiple = false)
+        public async Task AcknowledgeMessageAsync(ulong offsetId, bool multiple = false)
         {
-            await _channel.BasicAckAsync(offsetId, false);
+            await _channel!.BasicAckAsync(offsetId, false);
         }
         public async Task RejectMessageAsync(ulong offsetId, bool requeue = true)
         {
-            await _channel.BasicRejectAsync(deliveryTag: offsetId, requeue: true);
+            await _channel!.BasicRejectAsync(deliveryTag: offsetId, requeue: true);
 
         }
         async Task ConsumerSubscription(string queueName)
@@ -111,12 +116,12 @@ namespace MQ.bll.RabbitMQ
             {
                 await _channel.QueueDeclarePassiveAsync(queueName);
                 await _channel.BasicQosAsync(0, 20000, false);
-                mqConsumer = new AsyncEventingBasicConsumer(_channel);
+                _mqConsumer = new AsyncEventingBasicConsumer(_channel);
 
-                mqConsumer.ReceivedAsync += OnReceivedMessageHandler;
+                _mqConsumer.ReceivedAsync += OnReceivedMessageHandler;
 
-                mqConsumer.UnregisteredAsync += OnCancel;
-                ConsumeTag = await _channel.BasicConsumeAsync(queue: queueName, autoAck: false, consumer: mqConsumer);
+                _mqConsumer.UnregisteredAsync += OnCancel;
+                _consumeTag = await _channel.BasicConsumeAsync(queue: queueName, autoAck: false, consumer: _mqConsumer);
             }
         }
 
@@ -125,15 +130,15 @@ namespace MQ.bll.RabbitMQ
         {
             try
             {
-                if (ConsumeTag != null)
+                if (_consumeTag != null)
                 {
-                    if (_channel.IsOpen)
-                        _channel.BasicCancelAsync(ConsumeTag);
+                    if (_channel!.IsOpen)
+                        _channel.BasicCancelAsync(_consumeTag);
 
 
                     //mqConsumer.ConsumerCancelled -= OnCancel;
-                    mqConsumer.ReceivedAsync -= OnReceivedMessageHandler;
-                    ConsumeTag = null;
+                    _mqConsumer!.ReceivedAsync -= OnReceivedMessageHandler;
+                    _consumeTag = null;
                 }
             }
             catch (Exception ex)
@@ -161,7 +166,7 @@ namespace MQ.bll.RabbitMQ
                 if (!option.IsMultipleMessages)
                 {
                     // Save single messages to DB 2787 msg/s
-                    _MQSession.SaveMsgToDataBase(ea.BasicProperties.MessageId, Encoding.UTF8.GetString(ea.Body.ToArray()), ea.BasicProperties.Type);
+                    _MQSession!.SaveMsgToDataBase(ea.BasicProperties.MessageId!, Encoding.UTF8.GetString(ea.Body.ToArray()), ea.BasicProperties.Type!);
                     
                     if (option.IsConfirmMsgAndRemoveFromQueue)
                     {
@@ -169,7 +174,7 @@ namespace MQ.bll.RabbitMQ
                     }
                 }else
                     // Save multiple messages to DB 6900 msg/s
-                    await _MQSession.SendMsgToLocalQueue(ea.DeliveryTag, ea.BasicProperties.MessageId!, Encoding.UTF8.GetString(ea.Body.ToArray()), ea.BasicProperties.Type! );
+                    await _MQSession!.SendMsgToLocalQueue(ea.DeliveryTag, ea.BasicProperties.MessageId!, Encoding.UTF8.GetString(ea.Body.ToArray()), ea.BasicProperties.Type! );
 
             }
             catch (Exception ex)

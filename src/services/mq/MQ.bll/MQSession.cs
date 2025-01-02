@@ -1,17 +1,9 @@
-﻿using RabbitMQ.Client;
-using Serilog;
+﻿using Serilog;
 using MQ.dal;
 using MQ.dal.Models;
-using System.Text;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using static MQ.dal.DBHelper;
-using System.Threading;
 using MQ.bll.Common;
-using System.Collections.Generic;
-using Microsoft.Diagnostics.Runtime;
+
 using Microsoft.IdentityModel.Tokens;
-using BenchmarkDotNet.Attributes;
-using System.Threading.Channels;
 
 namespace MQ.bll
 {
@@ -30,23 +22,20 @@ namespace MQ.bll
     }
     public class MQSession
     {
-        public SessionModeEnum SessionMode;
-        // Create the token source.
-        CancellationToken cancellationToken;
-        DBHelper dbHelper;
-        MongoHelper mongoHelper;
         BllOption option;
-        
-        long sessionId = 0;
-        
-        Dictionary<string, MQMessagePropertyKey> MQMessagePropertyKeyList;
+        CancellationToken _cancellationToken;
+        public SessionModeEnum SessionMode;
+        public long SessionId = 0;
+        public Dictionary<string, MQMessagePropertyKey> MQMessagePropertyKeyList;
+        DBHelper dbHelper;
+        MongoHelper? mongoHelper;
+
         public MQSession(BllOption option, CancellationToken cancellationToken)
         {
             SessionMode = option.SessionMode;
-            this.cancellationToken = cancellationToken;
+            this._cancellationToken = cancellationToken;
             this.option = option;
             dbHelper = new DBHelper(option.ServerName, option.DatabaseName, option.Port, option.ServerType, option.User, option.Password);
-            //IsConfirmMsgAndRemoveFromQueue = option.IsConfirmMsgAndRemoveFromQueue;
             MQMessagePropertyKeyList = new Dictionary<string, MQMessagePropertyKey>();
             if (option.MongoEnable)
                 mongoHelper = new MongoHelper(option.MongoUrl, option.MongoUser, option.MongoPassword, option.MongoDatabase);
@@ -54,12 +43,12 @@ namespace MQ.bll
 
         public long StartSessionProcessing()
         {
-            sessionId = SaveSessionState(SessionState.StartedSession);
+            SessionId = SaveSessionState(SessionState.StartedSession);
             int res = InitMessagePropertyKeyList();
             if (res != 0)
                 return -1;
-            Log.Information($@"Start mq Session Id = {sessionId}");
-            return sessionId;
+            Log.Information($@"Start mq Session Id = {SessionId}");
+            return SessionId;
         }
         public int FinishSessionProcessing(string errormsg = "", bool IsUserFinished = false)
         {
@@ -67,15 +56,15 @@ namespace MQ.bll
             {
                 if (IsUserFinished || errormsg.Length == 0)
                 {
-                    Log.Debug($@"Finish Session processing {IsUserFinished} {errormsg.Length.ToString()}  Session Id = {sessionId}");
-                    SaveSessionState(SessionState.FinishedSession, sessionId, 1, errormsg);
-                    Log.Information($@"Finished Session processing Session Id = {sessionId}");
+                    Log.Debug($@"Finish Session processing {IsUserFinished} {errormsg.Length.ToString()}  Session Id = {SessionId}");
+                    SaveSessionState(SessionState.FinishedSession, SessionId, 1, errormsg);
+                    Log.Information($@"Finished Session processing Session Id = {SessionId}");
                 }
                 else
                 {
-                    Log.Debug($@"Finish Session processing {IsUserFinished} {errormsg.Length.ToString()}  Session Id = {sessionId}");
-                    SaveSessionState(SessionState.ErrorSession, sessionId, 1, errormsg);
-                    Log.Information($@"Finished Session processing Session Id = {sessionId} with error.");
+                    Log.Debug($@"Finish Session processing {IsUserFinished} {errormsg.Length.ToString()}  Session Id = {SessionId}");
+                    SaveSessionState(SessionState.ErrorSession, SessionId, 1, errormsg);
+                    Log.Information($@"Finished Session processing Session Id = {SessionId} with error.");
                 }
             }
             catch (Exception ex)
@@ -117,7 +106,7 @@ namespace MQ.bll
             {
                 ms = GetMQMessagePropertyKey(messagePropertyKey);
             }
-            if (ms == null) throw new Exception(@"messagePropertyKey = {messagePropertyKey} Not found.");
+            if (ms == null) throw new Exception(@$"messagePropertyKey = {messagePropertyKey} Not found.");
             return ms.TableName;
         }
         public string? GetProcessQuery(string messagePropertyKey = "")
@@ -136,7 +125,7 @@ namespace MQ.bll
 
         public void RunEtlLoadProcedure(string messagePropertyKey = "")
         {
-            if (cancellationToken.IsCancellationRequested)
+            if (_cancellationToken.IsCancellationRequested)
             {
                 return;
             }
@@ -151,9 +140,9 @@ namespace MQ.bll
                 if (messagePropertyKey.Length != 0 && messagePropertyKey != "All")
                 {
                     MQMessagePropertyKey? ms = GetMQMessagePropertyKey(messagePropertyKey);
-                    if (ms == null) throw new Exception(@"Not found messagePropertyKey = {messagePropertyKey}.");
+                    if (ms == null) throw new Exception(@$"Not found messagePropertyKey = {messagePropertyKey}.");
                     dt = DateTime.Now;
-                    cnt = dbHelper.EtlLoadProcess(sessionId, ms.ProcessQuery, oldBufferId, out errorMessage, out bufferId);
+                    cnt = dbHelper.EtlLoadProcess(SessionId, ms.ProcessQuery, oldBufferId, out errorMessage, out bufferId);
                     ts = DateTime.Now - dt;
                     if (!errorMessage.IsNullOrEmpty())
                     {
@@ -170,7 +159,7 @@ namespace MQ.bll
                             continue;
                         dt = DateTime.Now;
                         oldBufferId = 0;
-                        cnt = dbHelper.EtlLoadProcess(sessionId, kvp.Value.ProcessQuery, oldBufferId, out errorMessage, out bufferId);
+                        cnt = dbHelper.EtlLoadProcess(SessionId, kvp.Value.ProcessQuery, oldBufferId, out errorMessage, out bufferId);
                         ts = DateTime.Now - dt;
                         if (!errorMessage.IsNullOrEmpty())
                         {
@@ -190,7 +179,7 @@ namespace MQ.bll
         }
         public void RunEtlThread(string messagePropertyKey = "")
         {
-            if (cancellationToken.IsCancellationRequested)
+            if (_cancellationToken.IsCancellationRequested)
             {
                 return;
             }
@@ -200,14 +189,14 @@ namespace MQ.bll
                 if (messagePropertyKey.Length != 0 && messagePropertyKey != "All")
                 {
                     MQMessagePropertyKey? ms = GetMQMessagePropertyKey(messagePropertyKey);
-                    if (ms == null) throw new Exception(@"Not found messagePropertyKey = {messagePropertyKey}.");
-                    ms.StartEtlThread(cancellationToken);
+                    if (ms == null) throw new Exception(@$"Not found messagePropertyKey = {messagePropertyKey}.");
+                    ms.StartEtlThread(_cancellationToken);
                 }
                 else
                 {
                     foreach (KeyValuePair<string, MQMessagePropertyKey> kvp in MQMessagePropertyKeyList)
                     {
-                        kvp.Value.StartEtlThread(cancellationToken);
+                        kvp.Value.StartEtlThread(_cancellationToken);
                     }
                 }
             }
@@ -220,7 +209,7 @@ namespace MQ.bll
         }
         public long GetSessionId()
         {
-            return sessionId;
+            return SessionId;
         }
 
         public int InitMessagePropertyKeyList()
@@ -232,7 +221,7 @@ namespace MQ.bll
                 //.Where<MsgMappingSetup>(c => (c.TableName.Contains("msgqueue") || c.TableName.Contains("TABLE_REPL")))
                 foreach (Metamap m in mms)
                 {
-                    MQMessagePropertyKey ms = new MQMessagePropertyKey(option, m.MsgKey, m.TableName, m.EtlQuery ?? "", sessionId, cancellationToken);
+                    MQMessagePropertyKey ms = new MQMessagePropertyKey(option, m.MsgKey, m.TableName, m.EtlQuery ?? "", SessionId, _cancellationToken);
                     MQMessagePropertyKeyList.Add(m.MsgKey, ms);
                 }
 
@@ -242,7 +231,7 @@ namespace MQ.bll
             {
                 Log.Error("GetMappingSetup caused an exception:");
                 Log.Error(ex.Message);
-                SaveSessionState(SessionState.ErrorSession, sessionId, 1, ex.Message);
+                SaveSessionState(SessionState.ErrorSession, SessionId, 1, ex.Message);
                 return -1;
             }
         }
@@ -311,12 +300,12 @@ namespace MQ.bll
 #pragma warning disable CS8604 // Possible null reference argument.
             if (messageTypeId == 1)
             {
-                dbHelper.EfBulkInsertAsync(body, sessionId, new Guid(messageId)).RunSynchronously();
+                dbHelper.EfBulkInsertAsync(body, SessionId, new Guid(messageId)).RunSynchronously();
                 ms.IncreaseIncomingMessagesCounter();
             }
             if (messageTypeId == 2)
             {
-                dbHelper.SaveMsgToDataBase(sessionId, GetTableName(messageKey) ?? "msgqueue", messageId, body, messageKey, messageTypeId);
+                dbHelper.SaveMsgToDataBase(SessionId, GetTableName(messageKey) ?? "msgqueue", messageId, body, messageKey, messageTypeId);
                 ms.IncreaseIncomingMessagesCounter();
             }
 #pragma warning restore CS8604 // Possible null reference argument.

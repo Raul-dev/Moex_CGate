@@ -55,7 +55,7 @@ namespace MQ.bll.RabbitMQ
             }
 
         }
-        public async Task<IChannel> CreateChannelAsync()
+        public async Task<IChannel> CreateChannelAsync(CancellationToken cancellationToken)
         {
             if (!IsOpen)
             {

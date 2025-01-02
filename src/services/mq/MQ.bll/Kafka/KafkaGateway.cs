@@ -14,9 +14,9 @@ namespace MQ.bll.Kafka
     public class KafkaGateway
     {
         //protected static readonly ILogger s_logger = ApplicationLogging.CreateLogger<KafkaMessageProducer>();
-        protected ClientConfig _clientConfig;
+        protected ClientConfig _clientConfig = new ClientConfig();
         protected OnMissingChannel MakeChannels;
-        protected string Topic;
+        protected string Topic="";
         protected int NumPartitions;
         protected short ReplicationFactor;
         protected TimeSpan TopicFindTimeout;
@@ -113,7 +113,7 @@ namespace MQ.bll.Kafka
                             //if topic is in error
                             if (inError)
                             {
-                                error += $" topic is in error => {matchingTopic.Error.Code};";
+                                error += $" topic is in error => {matchingTopic.Error!.Code};";
                             }
 
                             if (!matchingPartitions)

@@ -202,7 +202,7 @@ namespace MQ.dal
                 throw new Exception($"GetBufferCount not supported for server type= {SqlServerTypeHelper.GetString(ServerType)}");
             return cnt;
         }
-        public static T ConvertFromDBValPl<T>(object obj)
+        public static T? ConvertFromDBValPl<T>(object obj)
         {
             if (obj == null || ((NpgsqlParameter)obj).Value == null || ((NpgsqlParameter)obj).Value == DBNull.Value)
             {
@@ -210,11 +210,11 @@ namespace MQ.dal
             }
             else
             {
-                return (T)((NpgsqlParameter)obj).Value;
+                return (T?)((NpgsqlParameter)obj).Value;
             }
         }
 
-        public static T ConvertFromDBVal<T>(object obj)
+        public static T? ConvertFromDBVal<T>(object obj)
         {
             if (obj == null || ((SqlParameter)obj).Value == DBNull.Value)
             {
@@ -222,7 +222,7 @@ namespace MQ.dal
             }
             else
             {
-                return (T)((SqlParameter)obj).Value;
+                return (T?)((SqlParameter)obj).Value;
             }
         }
         public int EtlLoadProcess(long sessionid, string processQuery,long inBufferId, out string errorMessage, out long lBufferId)
@@ -267,7 +267,7 @@ namespace MQ.dal
 
                 
                 MetastorageDbContext.Database.ExecuteSqlRaw(cmd, par_session_id, par_rowcount);
-                iRowCountInt = (int)par_rowcount.Value;
+                iRowCountInt = (int)par_rowcount.Value!;
             }
             else
                 throw new Exception($"SaveMsgToDataBase not supported for {SqlServerTypeHelper.GetString(ServerType)}");
@@ -413,7 +413,7 @@ END CATCH
                 else
                     cmd = @$"INSERT INTO {tableName} (session_id, msg_id, msg)
                                         VALUES ({sessionId}, @msg_id, @msg);";
-                var msgId = new NpgsqlParameter("msg_id", new Guid(mqmsg.BasicProperties.MessageId));
+                var msgId = new NpgsqlParameter("msg_id", new Guid(mqmsg.BasicProperties.MessageId!));
                 var msg = new NpgsqlParameter("msg", Encoding.UTF8.GetString(mqmsg.Body.ToArray()));
                 var msgkey = new NpgsqlParameter("msgkey", mqmsg.BasicProperties.Type);
                 MetastorageDbContext.Database.ExecuteSqlRaw(cmd, msgId, msg, msgkey);
@@ -429,7 +429,7 @@ END CATCH
                     cmd = @$"INSERT INTO {tableName} (session_id, msg_id, msg)
                                         VALUES ({sessionId}, @msg_id, @msg);";
                 */
-                var msgId = new SqliteParameter("@msg_id", new Guid(mqmsg.BasicProperties.MessageId));
+                var msgId = new SqliteParameter("@msg_id", new Guid(mqmsg.BasicProperties.MessageId!));
                 var msg = new SqliteParameter("@msg", Encoding.UTF8.GetString(mqmsg.Body.ToArray()));
                 var msgkey = new SqliteParameter("@msgkey", mqmsg.BasicProperties.Type);
                 MetastorageDbContext.Database.ExecuteSqlRaw(cmd, msgId, msg, msgkey);
@@ -443,7 +443,7 @@ END CATCH
                 //cmd = @$"INSERT INTO msgqueue (session_id, msg_id, msg, msg_key)
                 //                        VALUES ({sessionId}, @msg_id, @msg, @msgkey);";
                 cmd = @"INSERT INTO msgqueue (session_id, msg_id, msg, msg_key)
-                                        VALUES ({0}, '" + new Guid(mqmsg.BasicProperties.MessageId).ToString() + @"', '{1}'" + $@", '{mqmsg.BasicProperties.Type}');";
+                                        VALUES ({0}, '" + new Guid(mqmsg.BasicProperties.MessageId!).ToString() + @"', '{1}'" + $@", '{mqmsg.BasicProperties.Type}');";
                 /*else
                     cmd = @$"INSERT INTO {tableName} (session_id, msg_id, msg)
                 */

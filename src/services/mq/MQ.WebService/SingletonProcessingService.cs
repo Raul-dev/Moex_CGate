@@ -11,8 +11,6 @@ namespace MQ.WebService
     public class SingletonProcessingService
     {
         private int executionCount = 0;
-
-        //public static IConfiguration Config { get; set; }
         Task _DoWork;
         private static CancellationTokenSource cts;
         private static CancellationToken ct;
@@ -70,7 +68,7 @@ namespace MQ.WebService
             //bo.
             DataBaseSettings databaseSettings = _configuration.GetRequiredSection(nameof(DataBaseSettings)).Get<DataBaseSettings>() ?? throw new ArgumentNullException();
             bo.RabbitMQServSettings = _configuration.GetRequiredSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>() ?? throw new ArgumentNullException();
-            //bo.KafkaServSettings = _configuration.GetRequiredSection(nameof(KafkaSettings)).Get<KafkaSettings>() ?? throw new Exception("Have not config KafkaSettings");
+            bo.KafkaServSettings = _configuration.GetRequiredSection(nameof(KafkaSettings)).Get<KafkaSettings>() ?? throw new Exception("Have not config KafkaSettings");
 
             bo.ServerName = databaseSettings.ServerName;
             string dbname = $"{databaseSettings.DataBase}";

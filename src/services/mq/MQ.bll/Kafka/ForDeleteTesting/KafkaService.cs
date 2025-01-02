@@ -77,7 +77,7 @@ public class KafkaService : IQueueService
                 iCount++;
                 if (iCount % 1000 == 0)
                 {
-                    Log.Information(@$"Recive {iCount} messages.");
+                    Log.Information(@$"Receive {iCount} messages.");
                 }
             }
             catch (Exception e)
@@ -89,7 +89,7 @@ public class KafkaService : IQueueService
             }
         }
         consumer.Close();
-        Log.Information(@$"Recive {iCount} messages.");
+        Log.Information(@$"Receive {iCount} messages.");
     }
     public async Task SendAllMessages(CancellationTokenSource cts)
     {

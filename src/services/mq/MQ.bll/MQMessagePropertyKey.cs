@@ -1,23 +1,8 @@
 ﻿using MQ.dal;
-using RabbitMQ.Client;
 using Serilog;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.SqlClient;
-using System.Text;
 using MQ.dal.Models;
 using Microsoft.IdentityModel.Tokens;
-using System.ComponentModel;
-using System.Threading;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 using MQ.bll.Common;
-using System.Collections;
-using System.Security.Cryptography;
-using Microsoft.Diagnostics.Runtime.Utilities;
-using NetTopologySuite.Operation.Buffer;
-using static MongoDB.Driver.WriteConcern;
-using Confluent.Kafka;
 
 namespace MQ.bll
 {
@@ -27,13 +12,13 @@ namespace MQ.bll
         public string MessagePropertyKey;
         public string TableName;
         public string ProcessQuery;
-        public IQueueChannel MQChanel { get; set; }
+        public IQueueChannel? MQChanel { get; set; }
         protected BllOption option;
-        protected CancellationToken cancellationToken;
-        protected long sessionId;
-        protected DBHelper dbHelper;
-        protected MongoHelper mongoHelper;
-        private Thread _loadThread;
+        protected long sessionId=0;
+        
+        protected MongoHelper? mongoHelper;
+        private Thread? _loadThread;
+        private CancellationToken _cancellationToken;
         private long _incomingMessagesCounter = 0; // DB saved msg for trigger load procedures
         private object _incomingMessagesCounterLock = new();
         private int _messageCurentQueue = 0;
@@ -68,7 +53,7 @@ namespace MQ.bll
         }
         public MQMessagePropertyKey(BllOption option, string messagePropertyKey, string tableName, string processQuery, long sessionid, CancellationToken cancellationToken)
         {
-            this.cancellationToken = cancellationToken;
+            this._cancellationToken = cancellationToken;
             this.option = option;
             MessagePropertyKey = messagePropertyKey;
             TableName = tableName;
@@ -109,7 +94,7 @@ namespace MQ.bll
                 if (MessagePropertyKey != "Unknown" &&
                     MessagePropertyKey != "Справочник.адаптер_СхемыДанных")
                 {
-                    thread.Start(cancellationToken);
+                    thread.Start(_cancellationToken);
                     _loadThread = thread;
                 }
             }
@@ -120,7 +105,7 @@ namespace MQ.bll
 
                     Thread thread = new Thread(EtlThread);
                     thread.Name = MessagePropertyKey;
-                    thread.Start(cancellationToken);
+                    thread.Start(_cancellationToken);
                     _loadThread = thread;
                 }
 
@@ -138,6 +123,7 @@ namespace MQ.bll
             int i = 0;
             long cnt = 0;
             string errorMessage;
+            DBHelper? dbHelper = null;
             //For Debug
             //if(MessagePropertyKey == "key")
             //{
@@ -186,7 +172,7 @@ namespace MQ.bll
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("{0} thread error: {1}.", MessagePropertyKey, ex.Message);
+                    Log.Error("EtlThread: {0}, Error: {1}.", MessagePropertyKey, ex.Message);
 
                 }
                 if (cnt != 200000) // TOP 200000 , нужно повторить процедуру без паузы
@@ -243,7 +229,6 @@ namespace MQ.bll
                     _messageCurentQueue = 0;
             }
    
-            int i = 0;
             var buff = _messageBufferQueue[prevMessageCurentList].ToArray();
             bool res = dbHelper.EfBulkInsertBufferAsync(MessagePropertyKey, buff).Result;
 
@@ -256,7 +241,7 @@ namespace MQ.bll
                 {
                     //Log.Debug("Confirm message Tag: {0} ,prevMessageCurentList {1}", offsetId, prevMessageCurentList);
                     if(res)
-                        MQChanel.ConfirmMessageAsync(offsetId).Wait();
+                        MQChanel.AcknowledgeMessageAsync(offsetId).Wait();
                     else
                         MQChanel.RejectMessageAsync(offsetId).Wait();   
                 }

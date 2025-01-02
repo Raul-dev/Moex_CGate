@@ -27,7 +27,7 @@ http://localhost:9021
 /For kafka
 ./MQ.exe SendMsg -d CGate -t mssql -k $true -i 0 -a 200
 .\services\mq\MQ\bin\Debug\net9.0\MQ.exe SendMsg -d CGate -t mssql -k $true -i 0 -a 200
-.\services\mq\MQ\bin\Debug\net9.0\MQ.exe SendMsg -d CGateBuf -t mssql -k $true -i 0
+
 
 //For Rabbit в SQL
 .\services\mq\MQ\bin\Debug\net9.0\MQ.exe GetMsg -d CGate -t mssql 

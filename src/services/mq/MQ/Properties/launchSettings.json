@@ -2,7 +2,7 @@
   "profiles": {
     "MQ": {
       "commandName": "Project",
-      "commandLineArgs": "SendMsg -d CGate -t mssql -k $true"
+      "commandLineArgs": " GetMsg -d CGate -t mssql -k $true "
     }
   }
 }

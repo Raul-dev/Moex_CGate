@@ -1,32 +1,10 @@
 ﻿using Microsoft.Extensions.Configuration;
 using MQ.bll.Common;
-using MQ.dal;
-using RabbitMQ.Client.Events;
 using RabbitMQ.Client;
 using Serilog;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using System.Data.Common;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using System.Runtime.ConstrainedExecution;
-using System.Collections;
-using MongoDB.Bson;
-using MongoDB.Driver;
-using System.Threading;
-using System.Threading.Channels;
-using MongoDB.Driver.Core.Bindings;
-using System.Diagnostics;
-using MQ.dal.Models;
-using Microsoft.CodeAnalysis.Text;
-using Microsoft.IdentityModel.Tokens;
-using static MQ.dal.DBHelper;
 using MQ.bll.RabbitMQ;
 using MQ.bll.Kafka;
-using RTools_NTS.Util;
-using Confluent.Kafka;
 
 namespace MQ.bll
 {
@@ -34,16 +12,14 @@ namespace MQ.bll
     {
         BllOption option;
         CancellationToken _cancellationToken;
-        MQSession _MQSession;
-        Thread _bulkThread;
-        IQueueChannel channel;
+        MQSession? _MQSession;
+        Thread? _bulkThread;
+        IQueueChannel? _channel;
 
         public ReceiveAllMessages(BllOption bllOption, IConfiguration configuration, CancellationToken cancellationToken)
         {
             _cancellationToken = cancellationToken;
             option = bllOption;
-            //_MQSettings = configuration.GetRequiredSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>() ?? throw new ArgumentNullException();
-            //dbHelper = new DBHelper(option.ServerName, option.DatabaseName, option.Port, option.ServerType, option.User, option.Password);
         }
         public async Task ProcessLauncherAsync()
         {
@@ -64,7 +40,7 @@ namespace MQ.bll
                 executionCount++;
                 await Task.Delay(50000, _cancellationToken);
 
-                Log.Information("Service running. Count: {Count} Connection state: {state}", executionCount, channel.IsOpen);
+                Log.Information("Service running. Count: {Count} Connection state: {state}", executionCount, _channel!.IsOpen);
             }
 
         }
@@ -76,16 +52,9 @@ namespace MQ.bll
             if (sessionId == -1)
                 return;
             int errorCount = 0;
-            while (true)
-            {
-                var res = await MQProcess();
-                if (res != 0)
-                    errorCount++;
-                if (_cancellationToken.IsCancellationRequested == true || errorCount > 10)
-                {
-                    break;
-                }
-            }
+            var res = await MQProcess();
+            if (res != 0)
+                errorCount++;
             return;
         }
         public void StartBulkThread()
@@ -126,7 +95,7 @@ namespace MQ.bll
 
                 try
                 {
-                    _MQSession.SaveMsgToDataBaseBulk();
+                    _MQSession!.SaveMsgToDataBaseBulk();
                 }
                 catch (Exception ex)
                 {
@@ -142,27 +111,27 @@ namespace MQ.bll
         public async Task InitFactory()
         {
 
-            if (_MQSession.SessionMode == SessionModeEnum.BufferOnly ||
+            if (_MQSession!.SessionMode == SessionModeEnum.BufferOnly ||
                 _MQSession.SessionMode == SessionModeEnum.FullMode ||
                 _MQSession.SessionMode == SessionModeEnum.WhileGet
                 )
             {
                 //Log.Debug($@"Creating MQ factory connection: Host={_MQSettings.Host}, Port={_MQSettings.Port}, Mode={_MQSession.SessionMode.ToString()}.");
 
-                channel = option.IsKafka ? new KafkaChannel(option) : new RabbitMQChannel(option);
+                _channel = option.IsKafka ? new KafkaChannel(option, _cancellationToken) : new RabbitMQChannel(option, _cancellationToken);
                 Random rnd = new Random();
                 
                 if (_MQSession.SessionMode != SessionModeEnum.WhileGet)
                 {
                     Log.Debug($@"Starting ConsumerSubscription creation.");
                 
-                    await channel.InitSetup(_cancellationToken, _MQSession, false, true);
+                    await _channel!.InitSetup( _MQSession, false, true);
                     if (option.IsMultipleMessages)
                         StartBulkThread();
                 }
                 else
-                    await channel.InitSetup(_cancellationToken, _MQSession, false, false);
-                _MQSession.SetChannel(channel);
+                    await _channel!.InitSetup( _MQSession, false, false);
+                _MQSession.SetChannel(_channel);
 
             }
         }
@@ -173,36 +142,35 @@ namespace MQ.bll
             {
                 
                 await InitFactory();
-                if (channel == null) throw new ArgumentNullException();
+                if (_channel == null) throw new ArgumentNullException();
 
-                if (_MQSession.SessionMode == SessionModeEnum.WhileGet) //Get message by message
+                if (_MQSession!.SessionMode == SessionModeEnum.WhileGet) //Get message by message
                 {
                     //Test load procedures
                     _MQSession.RunEtlLoadProcedure("All"); //execute load procedures
-                    long msgcnt = 0; // for Debug Mode
-                    msgcnt = await channel.MessageCountAsync();
+                    long msgcnt = 0, rcvcnt =0; // for Debug Mode
+                    msgcnt = await _channel!.MessageCountAsync();
                     
                     if (msgcnt > 0)
                         Log.Debug("We are starting to receive messages from the queue. Messages Count: {0}", msgcnt);
                     for (uint i = 0; i < msgcnt; i++)
                     {
-                        //BasicGetResult message = await mqChannel.BasicGetAsync(queueName, false);
-                        BasicGetResult message = await channel.GetMessageAsync();
+                        
+                        BasicGetResult? message = await _channel!.GetMessageAsync();
                         if (message != null)
                         {
-
-                            _MQSession.SaveMsgToDataBase(message.BasicProperties.MessageId, Encoding.UTF8.GetString(message.Body.ToArray()), message.BasicProperties.Type);
+                            rcvcnt ++;
+                            _MQSession.SaveMsgToDataBase(message.BasicProperties.MessageId!, Encoding.UTF8.GetString(message.Body.ToArray()), message.BasicProperties.Type!);
                             if (option.IsConfirmMsgAndRemoveFromQueue)
                             {
-                                await channel.ConfirmMessageAsync(message.DeliveryTag);
-
+                                await _channel!.AcknowledgeMessageAsync(message.DeliveryTag);
                             }
                         }
                         else
                             Log.Error($"Null message {i}");
                     }
                     if (msgcnt > 0)
-                        Log.Debug("Finish get from queue. Rabbit Message Count: {0}", msgcnt);
+                        Log.Debug("Finish of receiving the messages. MQ Messages Count: {0}", rcvcnt);
                 }
                 else
                     if(_MQSession.SessionMode != SessionModeEnum.BufferOnly)
@@ -211,10 +179,10 @@ namespace MQ.bll
                 while (true && _MQSession.SessionMode != SessionModeEnum.WhileGet)
                 {
 
-                    //Thread.Sleep(2000);
                     _cancellationToken.WaitHandle.WaitOne(2000);
+                    
                     if (_MQSession.SessionMode != SessionModeEnum.BufferOnly)
-                        if (channel == null || !channel.IsOpen)
+                        if (_channel == null || !_channel!.IsOpen)
                         {
                             Log.Error("MQ channel is closed.");
                             break;
@@ -229,21 +197,21 @@ namespace MQ.bll
                 Log.Error(ex.Message);
                 return -1;
             }
-            finally
+            finally     
             {
-                channel.CloseAsync();
+                await _channel!.CloseAsync();
                 CleanProcess();
             }
         }
         public void CleanProcess()
         {
 
-            if (channel != null)
+            if (_channel != null)
             {
-                channel.CloseAsync();
+                _channel!.CloseAsync();
                 
             }
-            _MQSession.FinishSessionProcessing();
+            _MQSession!.FinishSessionProcessing();
 
             _MQSession.CleanProcess();
 

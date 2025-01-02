@@ -84,7 +84,7 @@ namespace MQ.dal
             //c удалением сообщений
             //[23:39:39.78] [DBG] Start queue. Rabbit Message Count: 12603
             //[23:39:53.10][DBG] Finish queue. Rabbit Message Count: 12603
-            var bsonDoc = BsonDocument.Parse(Newtonsoft.Json.JsonConvert.SerializeObject((new BsonDoc { RoutingKey = resmsg.RoutingKey, MessageID = resmsg.BasicProperties.MessageId, Type = resmsg.BasicProperties.Type , Body = Encoding.UTF8.GetString(resmsg.Body.ToArray()) })));
+            var bsonDoc = BsonDocument.Parse(Newtonsoft.Json.JsonConvert.SerializeObject((new BsonDoc { RoutingKey = resmsg.RoutingKey, MessageID = resmsg.BasicProperties.MessageId!, Type = resmsg.BasicProperties.Type! , Body = Encoding.UTF8.GetString(resmsg.Body.ToArray()) })));
             IMongoCollection<BsonDocument> lCollection = db.GetCollection<BsonDocument>(collectionName);
             lCollection.InsertOne(bsonDoc);
 
