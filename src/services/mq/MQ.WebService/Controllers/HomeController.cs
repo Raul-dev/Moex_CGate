@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using MQ.bll;
 using MQ.bll.Common;
 using MQ.dal.Models;
@@ -47,7 +48,7 @@ namespace MQ.WebService.Controllers
             if(!SingletonProcessingService.Instance.GetStatus())
                 await SingletonProcessingService.Instance.Start(_config);
 
-            return NoContent();
+            return  Ok();
         }
         [HttpGet, Route("Stop", Name = "Stop")]
         public async Task<IActionResult> Stop()
@@ -56,7 +57,7 @@ namespace MQ.WebService.Controllers
             SingletonProcessingService.Instance.Stop();
 
 
-            return NoContent();
+            return Ok();
         }
         [HttpGet, Route("Status", Name = "Status")]
         public async Task<IActionResult> Status()
@@ -64,7 +65,15 @@ namespace MQ.WebService.Controllers
             Log.Logger.Debug($"Status");
             if (SingletonProcessingService.Instance.GetStatus())
                 return Ok();
-            return NoContent();
+
+            
+            var customResponse = new
+            {
+                Code = 503,
+                Message = "Service is not running."
+            };
+            // Return a 503 status code with the custom response object.
+            return StatusCode(503, customResponse);
         }
 
         [HttpGet, Route("Config", Name = "Config")]

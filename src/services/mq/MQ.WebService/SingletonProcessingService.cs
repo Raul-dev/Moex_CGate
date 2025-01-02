@@ -15,7 +15,7 @@ namespace MQ.WebService
         private static CancellationTokenSource cts;
         private static CancellationToken ct;
         ReceiveAllMessages? RecipientOfTheMessages = null;
-        string? SessionMode = null;
+        string? SessionMode ;
         private SingletonProcessingService() {
         }
 
@@ -23,15 +23,15 @@ namespace MQ.WebService
         {
             //"BufferOnly"
             //"FullMode"
-            SessionMode = sessionMode;
-            Log.Information("Started sessionMode {sessionMode}");
+            SessionMode = sessionMode?? "FullMode";
+            Log.Information(@$"Started sessionMode {SessionMode}");
             cts = new CancellationTokenSource();
             ct = cts.Token;
             _DoWork = DoWork(configuration, ct);
         }
         public bool GetStatus()
         {
-            if (RecipientOfTheMessages == null)
+            if (RecipientOfTheMessages == null || RecipientOfTheMessages.GetExecutionCount() == 0)
                 return false;
             else 
                 return true;
@@ -45,12 +45,9 @@ namespace MQ.WebService
                 cts.Cancel();
                 RecipientOfTheMessages.CleanProcess();
                 RecipientOfTheMessages = null;
-                Log.Information("Listening to the RabbitMQ queue has been stopped.");
+                Log.Information("Listening to the MQ queue has been stopped.");
             }
-
-               
         }
-
 
         private static SingletonProcessingService? _instance;  
         public static SingletonProcessingService Instance { 

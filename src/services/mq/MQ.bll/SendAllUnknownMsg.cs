@@ -68,7 +68,9 @@ namespace MQ.bll
                     }
                     if (option.PauseMs != 0)
                     {
-                        Thread.SpinWait(rnd.Next(option.PauseMs / 2, option.PauseMs));
+                        int ps = rnd.Next(option.PauseMs / 2, option.PauseMs);
+                        Log.Information(@$"Send {iCount} message. Pause {ps} ms");
+                        _cancellationToken.WaitHandle.WaitOne(ps);
                     }
                 }
                 Log.Information(@$"Send {iCount} messages.");

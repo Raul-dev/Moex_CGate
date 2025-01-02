@@ -24,6 +24,8 @@ http://localhost:9021
 .\services\mq\MQ\bin\Debug\net9.0\MQ.exe SendMsg -d CGateBuf -t mssql -i 2
 .\services\mq\MQ\bin\Debug\net9.0\MQ.exe SendMsg -d CGate -t mssql -i 0 -a 200
 
+.\services\mq\MQ\bin\Debug\net9.0\MQ.exe SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 500
+
 /For kafka
 ./MQ.exe SendMsg -d CGate -t mssql -k $true -i 0 -a 200
 .\services\mq\MQ\bin\Debug\net9.0\MQ.exe SendMsg -d CGate -t mssql -k $true -i 0 -a 200
@@ -46,7 +48,8 @@ docker-compose -f docker-compose.kafka.yml up
 http://localhost:9000
 http://localhost:8082
 Ent:
-http://localhost:9021
+http://localhost:8090/swagger
+docker-compose -f docker-compose.sqldacpac.yml down -v
  SELECT * FROM [dbo].[msgqueue]  
  TRUNCATE TABLE [dbo].[msgqueue]  
 TRUNCATE TABLE [CGate].[crs].[orders_log_buffer]

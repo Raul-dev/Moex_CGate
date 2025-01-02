@@ -15,7 +15,11 @@ namespace MQ.bll
         MQSession? _MQSession;
         Thread? _bulkThread;
         IQueueChannel? _channel;
-
+        int _executionCount;
+        public int GetExecutionCount()
+        {
+            return _executionCount;
+        }
         public ReceiveAllMessages(BllOption bllOption, IConfiguration configuration, CancellationToken cancellationToken)
         {
             _cancellationToken = cancellationToken;
@@ -23,7 +27,7 @@ namespace MQ.bll
         }
         public async Task ProcessLauncherAsync()
         {
-            int executionCount = 0;
+            _executionCount = 0;
 
             _MQSession = new MQSession(option, _cancellationToken);
             long sessionId = _MQSession.StartSessionProcessing();
@@ -37,12 +41,12 @@ namespace MQ.bll
                 _MQSession.RunEtlThread("All");
             while (!_cancellationToken.IsCancellationRequested)
             {
-                executionCount++;
+                _executionCount++;
                 await Task.Delay(50000, _cancellationToken);
 
-                Log.Information("Service running. Count: {Count} Connection state: {state}", executionCount, _channel!.IsOpen);
+                Log.Information("Service running. Count: {Count} Connection state: {state}", _executionCount, _channel!.IsOpen);
             }
-
+            _executionCount = 0;
         }
 
         public async Task ProcessLauncherConsoleAsync()
@@ -211,9 +215,12 @@ namespace MQ.bll
                 _channel!.CloseAsync();
                 
             }
-            _MQSession!.FinishSessionProcessing();
+            if (_MQSession != null)
+            {
+                _MQSession!.FinishSessionProcessing();
 
-            _MQSession.CleanProcess();
+                _MQSession.CleanProcess();
+            }
 
         }
     }

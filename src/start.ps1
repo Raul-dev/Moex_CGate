@@ -126,6 +126,8 @@ try{
 	} else {
 		
 		docker compose -f docker-compose.sqldacpac.yml up -d
+		Start-Sleep -Seconds 5
+		docker inspect -f '{{.State.Health.Status}}' cgatemssql
 		do {
 			Start-Sleep -Seconds 10
 			docker logs --tail 20 cgatemssql
