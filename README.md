@@ -51,7 +51,7 @@
 - Setup powershell in admin mode
 
 ```
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope AllUsers
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope LocalMachine
 ```
 
 - Install  MS SQL Server 2022 and Visual Studio Community 2022
@@ -83,17 +83,22 @@ and start MQ.sln
 ```
 
 В случае отсутствия локальноного MSSQL можно запустить sql в контейнере.
+
 ```
 ./start.ps1 -IsDockerSql $true
 ```
+
 В другом powershell окне запустить:
+
 ```
 #Reset MQ service:
 Invoke-RestMethod -Uri http://localhost:8090/api/Home/reset
 #Отправку сообщений:
 .\services\mq\MQ\bin\Release\net9.0\MQ.exe SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 500
 ```
+
 Подключение в ssms:
+
 - server: localhost,1434
 - user: CGateUser
 - password: MyPassword321

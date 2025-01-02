@@ -24,9 +24,9 @@ services:
       dockerfile: MQ.WebService/Dockerfile
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      #- ASPNETCORE_URLS=https://+:443;http://+:80
+      - ASPNETCORE_URLS=http://+:80
       - ASPNETCORE_HTTP_PORTS=8080
-      - ASPNETCORE_HTTPS_PORTS=8081
+      #- ASPNETCORE_HTTPS_PORTS=8081
       - DataBaseSettings__ServerType=mssql 
       - DataBaseSettings__ServerName=${MQ_SERVER:-host.docker.internal}
       - DataBaseSettings__ClientName=${MQ_CLIENTNAME:-client1}
@@ -38,8 +38,8 @@ services:
       - "8090:8080"
       - "8091:8081"
     volumes:
-      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
-      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+      #- ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
+      #- ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
       - ./logs:/logs   
     depends_on:
       rabbit:
