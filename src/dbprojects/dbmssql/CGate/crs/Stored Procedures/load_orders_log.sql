@@ -1,4 +1,5 @@
 ﻿/*
+SPECTRA 730
 SELECT * FROM [crs].[orders_log_buffer] WHERE [dt_update] = '19000101'
 SELECT count(*) FROM [crs].[orders_log]
 UPDATE [crs].[orders_log_buffer] SET [dt_update] = '19000101'
@@ -58,45 +59,43 @@ CREATE TABLE #LockedList (
 )
 
 CREATE TABLE #orders_log(
-	[replID] [bigint] NULL,
-	[replRev] [bigint] NULL,
-	[replAct] [bigint] NULL,
-	[public_order_id] [bigint] NULL,
-	[sess_id] [int] NULL,
-	[isin_id] [int] NULL,
-	[public_amount] [bigint] NULL,
-	[public_amount_rest] [bigint] NULL,
-	[id_deal] [bigint] NULL,
-	[xstatus] [bigint] NULL,
-	[xstatus2] [bigint] NULL,
-	[price] [decimal](16, 5) NULL,
-	[moment] [datetime2](3) NULL,
-	[moment_ns] [decimal](20, 0) NULL,
-	[dir] [tinyint] NULL,
-	[public_action] [tinyint] NULL,
-	[deal_price] [decimal](16, 5) NULL,
-	[client_code] [nvarchar](7) COLLATE Cyrillic_General_CI_AS NULL,
-	[login_from] [nvarchar](20) COLLATE Cyrillic_General_CI_AS NULL,
-	[comment] [nvarchar](20) COLLATE Cyrillic_General_CI_AS NULL,
-	[ext_id] [int] NULL,
-	[broker_to] [nvarchar](7) COLLATE Cyrillic_General_CI_AS NULL,
-	[broker_to_rts] [nvarchar](7) COLLATE Cyrillic_General_CI_AS NULL,
-	[broker_from_rts] [nvarchar](7) COLLATE Cyrillic_General_CI_AS NULL,
-	[date_exp] [datetime2](3) NULL,
-	[id_ord1] [bigint] NULL,
-	[aspref] [int] NULL,
-	[id_ord] [bigint] NULL,
-	[xamount] [bigint] NULL,
-	[xamount_rest] [bigint] NULL,
-	[variance_amount] [bigint] NULL,
-	[disclose_const_amount] [bigint] NULL,
-	[action] [tinyint] NULL,
-	[reason] [int] NULL,
-	[private_order_id] [bigint] NOT NULL,
-	[private_amount] [bigint] NULL,
-	[private_amount_rest] [bigint] NULL,
-	[private_action] [tinyint] NULL,
-  [edition] int
+    [replID]                BIGINT          NULL,
+    [replRev]               BIGINT          NULL,
+    [replAct]               BIGINT          NULL,
+    [public_order_id]       BIGINT          NULL,
+    [sess_id]               INT             NULL,
+    [isin_id]               INT             NULL,
+    [public_amount]         BIGINT          NULL,
+    [public_amount_rest]    BIGINT          NULL,
+    [id_deal]               BIGINT          NULL,
+    [xstatus]               BIGINT          NULL,
+    [xstatus2]              BIGINT          NULL,
+    [price]                 DECIMAL (16, 5) NULL,
+    [moment]                DATETIME2 (3)   NULL,
+    [moment_ns]             DECIMAL (20)    NULL,
+    [dir]                   TINYINT         NULL,
+    [public_action]         TINYINT         NULL,
+    [deal_price]            DECIMAL (16, 5) NULL,
+    [client_code]           NVARCHAR (7)    NULL,
+    [login_from]            NVARCHAR (20)   NULL,
+    [comment]               NVARCHAR (20)   NULL,
+    [ext_id]                INT             NULL,
+    [broker_to]             NVARCHAR (7)    NULL,
+    [broker_to_rts]         NVARCHAR (7)    NULL,
+    [broker_from_rts]       NVARCHAR (7)    NULL,
+    [date_exp]              DATETIME2 (3)   NULL,
+    [id_ord1]               BIGINT          NULL,
+    [aspref]                INT             NULL,
+    [private_order_id]      BIGINT          NOT NULL,
+    [private_amount]        BIGINT          NULL,
+    [private_amount_rest]   BIGINT          NULL,
+    [variance_amount]       BIGINT          NULL,
+    [disclose_const_amount] BIGINT          NULL,
+    [private_action]        TINYINT         NULL,
+    [reason]                INT             NULL,
+    [match_ref]             NVARCHAR (10)   NULL,
+    [compliance_id]         NVARCHAR (1)    NULL,
+    [edition] int
 PRIMARY KEY CLUSTERED 
 (
 	[private_order_id] ASC
@@ -165,17 +164,15 @@ BEGIN TRY
       ,[date_exp]
       ,[id_ord1]
       ,[aspref]
-      ,[id_ord]
-      ,[xamount]
-      ,[xamount_rest]
-      ,[variance_amount]
-      ,[disclose_const_amount]
-      ,[action]
-      ,[reason]
       ,[private_order_id]
       ,[private_amount]
       ,[private_amount_rest]
+      ,[variance_amount]
+      ,[disclose_const_amount]
       ,[private_action]
+      ,[reason]
+      ,[match_ref]
+      ,[compliance_id]
       ,[edition]
     )
 
@@ -209,17 +206,15 @@ BEGIN TRY
           ,[date_exp] = CONVERT([datetime2](3), [date_exp], 102)
           ,[id_ord1]
           ,[aspref]
-          ,[id_ord]
-          ,[xamount]
-          ,[xamount_rest]
-          ,[variance_amount]
-          ,[disclose_const_amount]
-          ,[action]
-          ,[reason]
           ,[private_order_id]
           ,[private_amount]
           ,[private_amount_rest]
+          ,[variance_amount]
+          ,[disclose_const_amount]
           ,[private_action]
+          ,[reason]
+          ,[match_ref]
+          ,[compliance_id]
           ,[edition] = ROW_NUMBER() OVER (PARTITION BY [private_order_id] ORDER BY [replRev] DESC)
         FROM #LockedList L 
         INNER JOIN [crs].[orders_log_buffer] b ON b.[buffer_id] = L.[buffer_id]
@@ -255,17 +250,15 @@ BEGIN TRY
 	          [date_exp] varchar(50) '$[24]',
 	          [id_ord1] [bigint] '$[25]',
 	          [aspref] [int] '$[26]',
-	          [id_ord] [bigint] '$[27]',
-	          [xamount] [bigint] '$[28]',
-	          [xamount_rest] [bigint] '$[29]',
-	          [variance_amount] [bigint] '$[30]',
-	          [disclose_const_amount] [bigint] '$[31]',
-	          [action] [tinyint] '$[32]',
-	          [reason] [int] '$[33]',
-	          [private_order_id] [bigint] '$[34]',
-	          [private_amount] [bigint] '$[35]',
-	          [private_amount_rest] [bigint] '$[36]',
-	          [private_action] [tinyint] '$[37]'
+              [private_order_id] [bigint] '$[27]',
+              [private_amount] [bigint] '$[28]',
+              [private_amount_rest] [bigint] '$[29]',
+              [variance_amount] [bigint] '$[30]',
+              [disclose_const_amount] [bigint] '$[31]',
+              [private_action] [tinyint] '$[32]',
+              [reason] [int] '$[33]',
+              [match_ref] varchar(10) '$[34]',
+              [compliance_id] varchar(1) '$[35]'
           ) 
         ) OL
       ) H
@@ -302,16 +295,16 @@ BEGIN TRY
       [date_exp] = src.[date_exp],
       [id_ord1] = src.[id_ord1],
       [aspref] = src.[aspref],
-      [id_ord] = src.[id_ord],
-      [xamount] = src.[xamount],
-      [xamount_rest] = src.[xamount_rest],
-      [variance_amount] = src.[variance_amount],
-      [disclose_const_amount] = src.[disclose_const_amount],
-      [action] = src.[action],
-      [reason] = src.[reason],
+      [private_order_id] = src.[private_order_id],
       [private_amount] = src.[private_amount],
       [private_amount_rest] = src.[private_amount_rest],
-      [private_action] = src.[private_action]
+      [variance_amount] = src.[variance_amount],
+      [disclose_const_amount] = src.[disclose_const_amount],
+      [private_action] = src.[private_action],
+      [reason] = src.[reason],
+      [match_ref] = src.[match_ref],
+      [compliance_id] = src.[compliance_id]
+
     WHEN NOT MATCHED BY TARGET
     THEN INSERT (
         [replID]
@@ -341,17 +334,15 @@ BEGIN TRY
       ,[date_exp]
       ,[id_ord1]
       ,[aspref]
-      ,[id_ord]
-      ,[xamount]
-      ,[xamount_rest]
-      ,[variance_amount]
-      ,[disclose_const_amount]
-      ,[action]
-      ,[reason]
       ,[private_order_id]
       ,[private_amount]
       ,[private_amount_rest]
+      ,[variance_amount]
+      ,[disclose_const_amount]
       ,[private_action]
+      ,[reason]
+      ,[match_ref]
+      ,[compliance_id]
     )
     VALUES
     (
@@ -382,17 +373,15 @@ BEGIN TRY
       src.[date_exp],
       src.[id_ord1],
       src.[aspref],
-      src.[id_ord],
-      src.[xamount],
-      src.[xamount_rest],
-      src.[variance_amount],
-      src.[disclose_const_amount],
-      src.[action],
-      src.[reason],
       src.[private_order_id],
       src.[private_amount],
       src.[private_amount_rest],
-      src.[private_action]
+      src.[variance_amount],
+      src.[disclose_const_amount],
+      src.[private_action],
+      src.[reason],
+      src.[match_ref],
+      src.[compliance_id]
     );
     
     SET @BufferId = (SELECT MAX([buffer_id]) FROM #LockedList)

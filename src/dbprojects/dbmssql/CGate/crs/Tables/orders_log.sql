@@ -26,17 +26,16 @@
     [date_exp]              DATETIME2 (3)   NULL,
     [id_ord1]               BIGINT          NULL,
     [aspref]                INT             NULL,
-    [id_ord]                BIGINT          NULL,
-    [xamount]               BIGINT          NULL,
-    [xamount_rest]          BIGINT          NULL,
-    [variance_amount]       BIGINT          NULL,
-    [disclose_const_amount] BIGINT          NULL,
-    [action]                TINYINT         NULL,
-    [reason]                INT             NULL,
     [private_order_id]      BIGINT          NOT NULL,
     [private_amount]        BIGINT          NULL,
     [private_amount_rest]   BIGINT          NULL,
+    [variance_amount]       BIGINT          NULL,
+    [disclose_const_amount] BIGINT          NULL,
     [private_action]        TINYINT         NULL,
+    [reason]                INT             NULL,
+    [match_ref]             NVARCHAR (10)   NULL,
+    [compliance_id]         NVARCHAR (1)    NULL,
+
     PRIMARY KEY CLUSTERED ([private_order_id] ASC)
 );
 
