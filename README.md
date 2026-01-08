@@ -37,7 +37,7 @@
 
 Добавил 3 типа логирования, локальная таблица, Linked server таблица и Post в очередь рабит. Вызовы clr процедур слишком тяжелые, но они тратят CPU сервера, а не HDD и при определенной конфигурации и нагрузке могут быть более выгодны.
 
-[Benchmark test](\doc\TestPerformance.AuditParserBenchmarks-report.html)
+[Benchmark test](./doc/TestPerformance.AuditParserBenchmarks-report.html)
 
 ## [Протоколы передачи финансовых данных. Инструкция по применению](https://habr.com/ru/companies/moex/articles/261369/)
 
