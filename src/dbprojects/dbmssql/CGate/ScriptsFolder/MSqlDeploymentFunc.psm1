@@ -14,7 +14,10 @@ function Get-MSVsInfo
        Write-Host $valuesToLookFor
        $latestVsInstallationInfo = Get-VSSetupInstance -All -Prerelease | Sort-Object -Property InstallationVersion -Descending | Where-Object -FilterScript {$valuesToLookFor -contains $_.DisplayName} | Select-Object -First 1
     } else {
-      $latestVsInstallationInfo = Get-VSSetupInstance -All | Sort-Object -Property InstallationVersion -Descending | Select-Object -First 1
+      #$latestVsInstallationInfo = Get-VSSetupInstance -All | Sort-Object -Property InstallationVersion -Descending | Select-Object -First 1
+      
+      $latestVsInstallationInfo = Get-VSSetupInstance -All -Prerelease | Sort-Object -Property InstallationVersion -Descending | Where-Object -FilterScript {$_.DisplayName -like "*Visual Studio*"} | Select-Object -First 1
+      
     }
 
     if($null -eq $latestVsInstallationInfo) {

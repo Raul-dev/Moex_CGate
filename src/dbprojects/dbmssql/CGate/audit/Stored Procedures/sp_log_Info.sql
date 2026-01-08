@@ -5,12 +5,15 @@ AS
 BEGIN
                     
     IF @LogID IS NULL RETURN 0
-    IF [audit].[fn_log_IsLnk]() = 0
+    DECLARE @AuditTypeID int
+    SELECT @AuditTypeID = [audit].[fn_GetAuditTypeSP](NULL)
+    IF @AuditTypeID = 1
     --SNAPSHOT ISOLATION LEVEL Remote access is not supported for transaction isolation level "SNAPSHOT".
         EXEC [audit].sp_lnk_Update
             @LogID         = @LogID,
             @ProcedureInfo = @ProcedureInfo
-    ELSE
+
+    IF @AuditTypeID = 2
         EXEC [$(LinkSRVLog)].[$(DatabaseName)].[audit].sp_lnk_Update
             @LogID         = @LogID,
             @ProcedureInfo = @ProcedureInfo

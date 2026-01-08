@@ -9,5 +9,6 @@ Post-Deployment Script Template
                SELECT * FROM [$(TableName)]					
 --------------------------------------------------------------------------------------
 */
+:r .\AuditSetup.sql
 :r .\session_state.sql
 :r .\metamap.sql

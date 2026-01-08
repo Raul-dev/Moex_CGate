@@ -28,6 +28,7 @@
     <AllowSnapshotIsolation>True</AllowSnapshotIsolation>
     <Recovery>SIMPLE</Recovery>
     <TargetFrameworkProfile />
+    <Trustworthy>True</Trustworthy>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release\</OutputPath>
@@ -79,6 +80,11 @@
     <Folder Include="Security\" />
     <Folder Include="Dictionaries" />
     <Folder Include="audit\Functions" />
+    <Folder Include="rmq\" />
+    <Folder Include="rmq\Tables\" />
+    <Folder Include="rmq\Stored Procedures\" />
+    <Folder Include="Assemblies\" />
+    <Folder Include="ScriptsFolder" />
   </ItemGroup>
   <ItemGroup>
     <Build Include="dbo\Tables\Setting.sql" />
@@ -122,6 +128,31 @@
     <Build Include="dbo\Functions\fn_GetSettingInt.sql" />
     <Build Include="audit\Functions\fn_log_IsLnk.sql" />
     <Build Include="crs\Stored Procedures\load_orders_log_array.sql" />
+    <Build Include="Security\rmqRole.sql" />
+    <Build Include="rmq\Stored Procedures\sp_clr_ReloadRabbitEndpoints.sql" />
+    <Build Include="rmq\Stored Procedures\sp_clr_PostRabbitMsg.sql" />
+    <Build Include="rmq\Stored Procedures\sp_clr_InitialiseRabbitMq.sql" />
+    <Build Include="Security\rmq.sql" />
+    <Build Include="rmq\Tables\RabbitSetting.sql" />
+    <Build Include="rmq\Tables\RabbitEndpoint.sql" />
+    <Build Include="rmq\Stored Procedures\sp_UpsertRabbitEndpoint.sql" />
+    <Build Include="rmq\Stored Procedures\sp_SomeProcessingStuff.sql" />
+    <Build Include="rmq\Stored Procedures\sp_PostRabbitMsg.sql" />
+    <Build Include="rmq\Stored Procedures\sp_GetRabbitEndpoints.sql" />
+    <Build Include="rmq\Stored Procedures\sp_GetLocalDBConnString.sql" />
+    <Build Include="audit\Tables\Setting.sql" />
+    <Build Include="audit\Tables\AuditTypeSP.sql" />
+    <Build Include="audit\Functions\fn_GetAuditTypeSP.sql" />
+    <Build Include="audit\Functions\Template_LogProc.sql" />
+    <Build Include="audit\Stored Procedures\sp_rmq_PostSp.sql" />
+    <Build Include="audit\Stored Procedures\sp_Initialise.sql" />
+    <Build Include="audit\Tables\LogText.sql" />
+    <Build Include="audit\Stored Procedures\sp_LogText_Add.sql" />
+    <Build Include="audit\Stored Procedures\sp_rmq_PostLT.sql" />
+    <Build Include="audit\Functions\fn_GetAuditTypeLT.sql" />
+    <Build Include="audit\Tables\AuditTypeLT.sql" />
+    <Build Include="audit\Stored Procedures\sp_lnkLT_Insert.sql" />
+    <Build Include="audit\Tables\LogError.sql" />
   </ItemGroup>
   <ItemGroup>
     <SqlCmdVariable Include="LinkSRVLog">
@@ -138,5 +169,47 @@
   <ItemGroup>
     <None Include="Dictionaries\LinkedServ.sql" />
     <None Include="README.MD" />
+    <None Include="Assemblies\System.Threading.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="Assemblies\RabbitMQSqlClr3.5.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="Assemblies\RabbitMQ.Client.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="ScriptsFolder\dbdeploy.ps1" />
+    <None Include="ScriptsFolder\MSqlDeploymentFunc.psm1" />
+    <None Include="ScriptsFolder\Test001.sql" />
+    <None Include="Dictionaries\AuditSetup.sql" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.Threading">
+      <HintPath>Assemblies\System.Threading.dll</HintPath>
+      <SqlAssemblyName>System.Threading</SqlAssemblyName>
+      <IsModelAware>True</IsModelAware>
+      <GenerateSqlClrDdl>False</GenerateSqlClrDdl>
+      <SqlOwnerName>rmq</SqlOwnerName>
+      <SqlPermissionSet>UNSAFE</SqlPermissionSet>
+    </Reference>
+    <Reference Include="RabbitMQSqlClr3.5">
+      <HintPath>Assemblies\RabbitMQSqlClr3.5.dll</HintPath>
+      <SqlAssemblyName>RabbitMQ.SqlServer</SqlAssemblyName>
+      <IsModelAware>True</IsModelAware>
+      <GenerateSqlClrDdl>False</GenerateSqlClrDdl>
+      <SqlOwnerName>rmq</SqlOwnerName>
+      <SqlPermissionSet>UNSAFE</SqlPermissionSet>
+    </Reference>
+    <Reference Include="RabbitMQ.Client">
+      <HintPath>Assemblies\RabbitMQ.Client.dll</HintPath>
+      <SqlAssemblyName>RabbitMQ.Client</SqlAssemblyName>
+      <IsModelAware>True</IsModelAware>
+      <GenerateSqlClrDdl>False</GenerateSqlClrDdl>
+      <SqlOwnerName>rmq</SqlOwnerName>
+      <SqlPermissionSet>UNSAFE</SqlPermissionSet>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <RefactorLog Include="CGate.refactorlog" />
   </ItemGroup>
 </Project>

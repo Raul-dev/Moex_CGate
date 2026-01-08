@@ -23,13 +23,13 @@ BEGIN
   
 SET CONCAT_NULL_YIELDS_NULL ON
 SET NOCOUNT ON
-DECLARE @LogID int, @ProcedureName varchar(510), @ProcedureParams varchar(max), @ProcedureInfo varchar(max), @AuditProcEnable nvarchar(256)
-SET @AuditProcEnable = [dbo].[fn_GetSettingValue]('AuditProcAll')
+DECLARE @LogID int, @ProcedureName varchar(510), @ProcedureParams varchar(max), @ProcedureInfo varchar(max), @AuditEnable nvarchar(256)
+SET @AuditEnable = [dbo].[fn_GetSettingValue]('FullAuditEnabled')
 SET @ProcedureName = '[' + OBJECT_SCHEMA_NAME(@@PROCID)+'].['+OBJECT_NAME(@@PROCID)+']'
-IF @AuditProcEnable IS NOT NULL 
+IF @AuditEnable IS NOT NULL 
 BEGIN
   IF OBJECT_ID('tempdb..#LogProc') IS NULL
-    CREATE TABLE #LogProc(LogID int Primary Key NOT NULL)
+     SELECT * INTO #LogProc FROM [audit].[Template_LogProc]()
   
   SET @ProcedureParams =
     '@SessionId=' + ISNULL(LTRIM(STR(@SessionId, 30)),'NULL') + ', ' +
@@ -105,8 +105,8 @@ PRIMARY KEY CLUSTERED
 BEGIN TRY
   BEGIN TRANSACTION
 
-    IF @AuditProcEnable IS NOT NULL 
-        EXEC [audit].[sp_log_Start] @AuditProcEnable = @AuditProcEnable, @ProcedureName = @ProcedureName, @ProcedureParams = @ProcedureParams, @LogID = @LogID OUTPUT
+    IF @AuditEnable IS NOT NULL 
+        EXEC [audit].[sp_log_Start] @AuditEnable = @AuditEnable, @ProcedureName = @ProcedureName, @ProcedureParams = @ProcedureParams, @LogID = @LogID OUTPUT
 
     IF ISNULL(@BufferId, 0) = 0
       INSERT INTO #LockedList

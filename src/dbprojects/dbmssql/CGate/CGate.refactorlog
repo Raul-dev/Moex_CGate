@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Operations Version="1.0" xmlns="http://schemas.microsoft.com/sqlserver/dac/Serialization/2012/02">
+  <Operation Name="Rename Refactor" Key="92326123-ee3f-4910-aa85-0c12797494b0" ChangeDateTime="12/30/2025 14:08:48">
+    <Property Name="ElementName" Value="[audit].[fn_log_GetAuditTypeID]" />
+    <Property Name="ElementType" Value="SqlScalarFunction" />
+    <Property Name="ParentElementName" Value="[audit]" />
+    <Property Name="ParentElementType" Value="SqlSchema" />
+    <Property Name="NewName" Value="[fn_GetAuditTypeSP]" />
+  </Operation>
+</Operations>

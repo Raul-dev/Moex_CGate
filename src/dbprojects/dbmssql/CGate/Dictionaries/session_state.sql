@@ -43,8 +43,6 @@ BEGIN
     SET IDENTITY_INSERT [session] OFF
 END
 
-IF NOT EXISTS(SELECT 1 FROM [dbo].[Setting] WHERE SettingID = 'AuditProcAll' )
-INSERT INTO [dbo].[Setting] (SettingID, StrValue) values('AuditProcAll', N'AuditProcAll')
 
 TRUNCATE TABLE [dbo].[DataGeneration]
 

@@ -2,17 +2,17 @@
 /*
 BEGIN TRAN
 DECLARE @LogID int 
-EXEC [audit].sp_log_Start @AuditProcEnable ='AuditProcEnable', @LogID = @LogID output
+EXEC [audit].sp_log_Start @AuditEnable ='FullAuditEnabled', @LogID = @LogID output
 SELECT @LogID
 
-SELECT [dbo].[fn_GetSettingValue]('AuditProcAll')
+SELECT [dbo].[fn_GetSettingValue]('FullAuditEnabled')
 SELECT * FROM [audit].[LogProcedures]
 ROLLBACk
 
 */
 
 CREATE   PROCEDURE [audit].[sp_log_Start]   
-    @AuditProcEnable nvarchar(256) = NULL,
+    @AuditEnable nvarchar(256) = NULL,
     @ProcedureName   varchar(512)  = NULL,
     @ProcedureParams varchar(MAX)  = NULL,
     @LogID           int           = NULL OUTPUT
@@ -20,11 +20,14 @@ CREATE   PROCEDURE [audit].[sp_log_Start]
 AS 
 BEGIN
     SET NOCOUNT ON 
-    IF @AuditProcEnable is NULL
+    DECLARE @AuditTypeID int
+    SELECT @AuditTypeID = [audit].[fn_GetAuditTypeSP](@AuditEnable)
+    
+    IF @AuditTypeID is NULL
         RETURN 0
-        
+
     IF OBJECT_ID('tempdb..#LogProc') IS NULL
-        CREATE TABLE #LogProc(LogID int Primary Key NOT NULL)
+        SELECT * INTO #LogProc FROM [audit].[Template_LogProc]()
                 
     DECLARE 
         @ParentID    int, 
@@ -43,7 +46,7 @@ BEGIN
         
     SET @ProcedureName = LEFT(REPLICATE('  ', @CountIds) + LTRIM(RTRIM(@ProcedureName)), 512)
 
-    IF [audit].[fn_log_IsLnk]() = 0
+    IF @AuditTypeID = 1
     --SNAPSHOT ISOLATION LEVEL Remote access is not supported for transaction isolation level "SNAPSHOT".
         EXEC [audit].sp_lnk_Insert
             @MainID           = @MainID,
@@ -58,7 +61,8 @@ BEGIN
             @ProcedureParams  = @ProcedureParams,
             @TransactionCount = @@TRANCOUNT,
             @LogID            = @LogID OUTPUT
-    ELSE
+    
+    IF @AuditTypeID = 2
         EXEC [$(LinkSRVLog)].[$(DatabaseName)].[audit].sp_lnk_Insert
             @MainID           = @MainID,
             @ParentID         = @ParentID,
@@ -73,7 +77,23 @@ BEGIN
             @TransactionCount = @@TRANCOUNT,
             @LogID            = @LogID OUTPUT
 
+    IF @AuditTypeID = 3 
+        EXEC [audit].sp_rmq_PostSp
+            @MainID           = @MainID,
+            @ParentID         = @ParentID,
+            @StartTime        = @StartTime,
+            @SysUserName      = @SysUserName,
+            @SysHostName      = @SysHostName,
+            @SysDbName        = @SysDbName,
+            @SysAppName       = @SysAppName,
+            @SPID             = @@SPID,
+            @ProcedureName    = @ProcedureName,
+            @ProcedureParams  = @ProcedureParams,
+            @TransactionCount = @@TRANCOUNT,
+            @LogID            = @LogID OUTPUT
+
+
     IF @ParentID IS NULL OR @ParentID < @LogID 
-        INSERT #LogProc(LogID) VALUES(@LogID)   
+        INSERT #LogProc(LogID) VALUES(ISNULL(@LogID,0))   
 
 END

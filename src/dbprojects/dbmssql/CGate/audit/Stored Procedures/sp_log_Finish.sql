@@ -11,12 +11,18 @@ BEGIN
     IF @LogID IS NULL RETURN 0
     DECLARE 
         @EndTime   datetime2(4) = GetDate(),
-        @TranCount int          = @@TRANCOUNT
-    
-    IF OBJECT_ID('tempdb..#LogProc') IS NULL
-        CREATE TABLE #LogProc(LogID int Primary Key NOT NULL)
+        @TranCount int          = @@TRANCOUNT,
+        @AuditTypeID int
 
-    IF [audit].[fn_log_IsLnk]() = 0
+    SELECT @AuditTypeID = [audit].[fn_GetAuditTypeSP](NULL)
+    
+    IF @AuditTypeID is NULL
+        RETURN 0
+
+    IF OBJECT_ID('tempdb..#LogProc') IS NULL
+         SELECT * INTO #LogProc FROM [audit].[Template_LogProc]()
+
+    IF @AuditTypeID = 1
     --SNAPSHOT ISOLATION LEVEL Remote access is not supported for transaction isolation level "SNAPSHOT".
 
         EXEC [audit].sp_lnk_Update
@@ -27,7 +33,7 @@ BEGIN
             @ProcedureInfo = @ProcedureInfo,
             @ErrorMessage  = @ErrorMessage
     
-    ELSE
+    IF @AuditTypeID = 2
         EXEC [$(LinkSRVLog)].[$(DatabaseName)].[audit].sp_lnk_Update
             @LogID         = @LogID,
             @EndTime       = @EndTime,

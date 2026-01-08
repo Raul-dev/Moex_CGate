@@ -1,3 +1,4 @@
+
 IF NOT EXISTS(SELECT 1 FROM [dbo].[metaadapter] )
 BEGIN
     INSERT INTO [dbo].[metaadapter] ([metaadapter_id], [name]) 

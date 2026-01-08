@@ -15,7 +15,7 @@
     [ProcedureParams]  VARCHAR (MAX) NULL,
     [ProcedureInfo]    VARCHAR (MAX) NULL,
     [ErrorMessage]     VARCHAR (MAX) NULL,
-    [TransactionCount] INT           NULL,
+    [TransactionCount] int       NULL,
     CONSTRAINT [PK_audit_LogProcedures] PRIMARY KEY CLUSTERED ([LogID] ASC)
 );
 

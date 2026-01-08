@@ -1,0 +1,3 @@
+﻿CREATE SCHEMA [rmq]
+    AUTHORIZATION [dbo];
+

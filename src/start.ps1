@@ -64,9 +64,7 @@ function MergeUser
 
 try{
 	$CurrentPath = Get-Location
-	if(-Not (Test-Docker)){
-		throw "DOCKER is not running. Visit and download https://docs.docker.com/docker-for-windows/install/ "
-	}
+
 	$TargetServerName="localhost";
     $TargetDBname="CGate";
 	$ErrorActionPreference = "Stop";
@@ -114,7 +112,9 @@ try{
 		}
 		exit
 	}
-
+	if(-Not (Test-Docker)){
+		throw "DOCKER is not running. Visit and download https://docs.docker.com/docker-for-windows/install/ "
+	}
 	Set-Location $CurrentPath
 	if ($IsRecreateDockerContainer){
 	    docker compose -f docker-compose.sqldacpac.yml down -v
