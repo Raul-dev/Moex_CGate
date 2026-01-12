@@ -13,24 +13,16 @@ namespace RabbitMQTestApp
     static void Main(string[] args)
     {
 
-            //set the local connection string
-            //RabbitMQSqlServer.LocalhostConnectionString = "server=HOMEST; database=RabbitMQTest; uid=sa; pwd=14all41";
-            //RabbitMQSqlServer.LocalhostConnectionString = "server=HOMEST; database=CGate; uid=sa; pwd=14all41";
-            RabbitMQSqlServer.LocalhostConnectionString = "server = HOMEST; database = CGate; uid = CGateUser; pwd = MyPassword321";
-
-
+      //set the local connection string
+      RabbitMQSqlServer.LocalhostConnectionString = "server = localhost; database = CGate; uid = CGateUser; pwd = MyPassword321";
 
 			RabbitMQSqlServer.sp_clr_InitialiseRabbitMq();
       Console.WriteLine("Rabbit is initialised. Press any key to send msg");
       //Console.ReadLine();
-	 RabbitMQSqlServer.sp_clr_PostRabbitMsg(2, "Hello World");
-	//		RabbitMQSqlServer.sp_clr_PostRabbitMsg(-1, "Hello World");
-
+   	  RabbitMQSqlServer.sp_clr_PostRabbitMsg(2, "Hello World");
+	
       Console.WriteLine("Message posted. Press any key to exit");
       Console.ReadLine();
-
-
-
 
     }
   }

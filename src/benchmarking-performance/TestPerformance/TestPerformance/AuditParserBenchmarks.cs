@@ -14,51 +14,37 @@ namespace TestPerformance
     public class AuditParserBenchmarks
     {
 
-        [Benchmark]
-        public void LogLocalTable()
+        public void Add1000LogMessage(LogType logType)
         {
             Parallel.For(0, 10, i =>
             {
                 DBHelper dbHelper = new DBHelper(@$"Server = localhost; Database = CGate; User = CGateUser; Password = MyPassword321; MultipleActiveResultSets = true; TrustServerCertificate = true; Encrypt = False");
-                dbHelper.SetLogType(LogType.LocalTable);
+                dbHelper.SetLogType(logType);
 
                 for (int j = 0; j < 100; j++)
                 {
                     dbHelper.AddLogMessage();
-
                 }
 
             });
+        }
+
+        [Benchmark]
+        public void LogLocalTable()
+        {
+            Add1000LogMessage(LogType.LocalTable)
         }
 
         [Benchmark]
         public void LogLinkedServerTable()
         {
-            Parallel.For(0, 10, i =>
-            {
-                DBHelper dbHelper = new DBHelper(@$"Server = localhost; Database = CGate; User = CGateUser; Password = MyPassword321; MultipleActiveResultSets = true; TrustServerCertificate = true; Encrypt = False");
-                dbHelper.SetLogType(LogType.LinkedServerTable);
-
-                for (int j = 0; j < 100; j++)
-                {
-                    dbHelper.AddLogMessage();
-                }
-            });
+            Add1000LogMessage(LogType.LinkedServerTable)
         }
 
         [Benchmark(Baseline = true)]
         public void LogRabbitMQPost()
         {
-            Parallel.For(0, 10, i =>
-            {
-                DBHelper dbHelper = new DBHelper(@$"Server = localhost; Database = CGate; User = CGateUser; Password = MyPassword321; MultipleActiveResultSets = true; TrustServerCertificate = true; Encrypt = False");
-                dbHelper.SetLogType(LogType.RabbitMQPost);
-
-                for (int j = 0; j < 100; j++)
-                {
-                    dbHelper.AddLogMessage();
-                }
-            });
+            Add1000LogMessage(LogType.RabbitMQPost)
         }
 
 
