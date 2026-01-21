@@ -1,4 +1,4 @@
-# зныMoex_CGate
+# Moex_CGate
 
 ## Увеличение скорости сохранения ордеров в базе MS-SQL, поступающих с Московской биржи по CGate. Поток FORTS_TRADE_REPL SPECTRA730 таблица order_log от 2024-11-28. 7000 ордеров в секунду(50**Mb**).
 
@@ -37,7 +37,13 @@
 
 Добавил 3 типа логирования, локальная таблица, Linked server таблица и Post в очередь рабит. Вызовы clr процедур слишком тяжелые, но они тратят CPU сервера, а не HDD и при определенной конфигурации и нагрузке могут быть более выгодны.
 
-[Benchmark test](./doc/TestPerformance.AuditParserBenchmarks-report.html)
+[Benchmark test HTML](./doc/TestPerformance.AuditParserBenchmarks-report.html)
+		
+|        Method        |   Mean    |     StdDev    |
+|:-------------------- |:---------:| -------------:|
+| LogLocalTable        |  46.36 ms |   5.593 ms    |
+| LogLinkedServerTable | 115.24 ms |   9.541 ms    |
+| LogRabbitMQPost      | 317.55 ms | 123.575 ms    |
 
 ## [Протоколы передачи финансовых данных. Инструкция по применению](https://habr.com/ru/companies/moex/articles/261369/)
 
