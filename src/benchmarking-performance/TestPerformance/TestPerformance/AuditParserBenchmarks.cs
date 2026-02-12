@@ -16,10 +16,12 @@ namespace TestPerformance
 
         public void Add1000LogMessage(LogType logType)
         {
+            string connection = @$"Server = localhost; Database = CGate; User = CGateUser; Password = MyPassword321; MultipleActiveResultSets = true; TrustServerCertificate = true; Encrypt = False";
+            DBHelper dbset = new DBHelper(connection);
+            dbset.SetLogType(logType);
             Parallel.For(0, 10, i =>
             {
-                DBHelper dbHelper = new DBHelper(@$"Server = localhost; Database = CGate; User = CGateUser; Password = MyPassword321; MultipleActiveResultSets = true; TrustServerCertificate = true; Encrypt = False");
-                dbHelper.SetLogType(logType);
+                DBHelper dbHelper = new DBHelper(connection);
 
                 for (int j = 0; j < 100; j++)
                 {
@@ -32,21 +34,20 @@ namespace TestPerformance
         [Benchmark]
         public void LogLocalTable()
         {
-            Add1000LogMessage(LogType.LocalTable)
+            Add1000LogMessage(LogType.LocalTable);
         }
 
         [Benchmark]
         public void LogLinkedServerTable()
         {
-            Add1000LogMessage(LogType.LinkedServerTable)
+            Add1000LogMessage(LogType.LinkedServerTable);
         }
 
         [Benchmark(Baseline = true)]
         public void LogRabbitMQPost()
         {
-            Add1000LogMessage(LogType.RabbitMQPost)
+            Add1000LogMessage(LogType.RabbitMQPost);
         }
-
 
         public void LogRabbitMQPostDebug()
         {
