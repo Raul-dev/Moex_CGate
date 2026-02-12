@@ -104,7 +104,8 @@ try{
 		}
 		Set-Location $CurrentPath
 	}
-
+    
+	dotnet dev-certs https --trust
 	if($IsUpdate -eq $true){
 		try{
 			Invoke-RestMethod  -Uri http://localhost:8090/api/Home/Start -ErrorAction SilentlyContinue
