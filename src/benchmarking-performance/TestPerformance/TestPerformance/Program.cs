@@ -20,22 +20,38 @@ namespace benchmarkdotnetdemo
                 var config = ManualConfig.CreateEmpty()
                     .AddExporter(HtmlExporter.Default)
                     .AddColumnProvider(DefaultColumnProviders.Instance)
+                    .AddColumn(StatisticColumn.Min, StatisticColumn.Max)
                     .AddLogger(ConsoleLogger.Default);
 
-/*
+
                 var builder = new ConfigurationBuilder()
-                                 .SetBasePath(Directory.GetCurrentDirectory())
+                                 //.SetBasePath(Directory.GetCurrentDirectory())
                                  .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
                 IConfiguration configuration = builder.Build();
 
-                BenchmarkSettings benchmarkSettings = configuration.GetSection("Settings").Get<BenchmarkSettings>() ?? new BenchmarkSettings();
-                config.AddJob(Job.Default.WithIterationCount(benchmarkSettings.Iterations));
+                BenchmarkSettings benchmarkSettings = configuration.GetSection("BenchmarkSettings").Get<BenchmarkSettings>() ?? new BenchmarkSettings();
+                /*
+                 Количество вызовов для результатных измерений:
+                    Total Workload Invocations=LaunchCount×IterationCount×InvocationCount
+
+                LaunchCount – Сколько раз запускается сам процесс бенчмарка (разные процессы для устойчивости, изоляции).
+                WarmupCount – Сколько раз делается «разогревающая» (warmup) итерация (они не входят в финальный результат).
+                IterationCount – Сколько измерительных итераций (workload).
+                InvocationCount – Сколько раз вызывается ваш метод за одну итерацию (это то, что важно).
+                UnrollFactor – Сколько раз подряд вызывается метод внутри одного внутреннего блока (это оптимизация для минимизации накладных расходов; на общее количество вызовов не влияет — влияет, как считается InvocationCount).
+                */
+                config.AddJob(Job.Default.WithLaunchCount(1)
+                                .WithWarmupCount(2)
+                                .WithUnrollFactor(10)
+                                .WithIterationCount(benchmarkSettings.IterationCount)
+                                .WithInvocationCount(benchmarkSettings.InvocationCount)
+                );
 
                 // Example usage
                 Console.WriteLine($"Benchmark InputPath: {benchmarkSettings.InputPath}");
-                Console.WriteLine($"Benchmark Iterations: {benchmarkSettings.Iterations}");
-                Console.WriteLine($"Benchmark Iterations: {benchmarkSettings.ConnectionString}");
-*/
+                Console.WriteLine($"Benchmark IterationCount: {benchmarkSettings.IterationCount}");
+                Console.WriteLine($"Benchmark InvocationCount: {benchmarkSettings.InvocationCount}");
+
 
 #if DEBUG 
                 BenchmarkRunner.Run<AuditParserBenchmarks>(new DebugInProcessConfig());
