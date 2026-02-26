@@ -58,45 +58,13 @@ namespace MQ.WebService
 
         public async Task DoWork(IConfiguration _configuration, CancellationToken stoppingToken)
         {
-            int iPort;
-            BllOption bo = new BllOption();
-            //await Task.Delay(10000, stoppingToken);
-            //options.InitBllOption(bo);
-            //bo.
-            DataBaseSettings databaseSettings = _configuration.GetRequiredSection(nameof(DataBaseSettings)).Get<DataBaseSettings>() ?? throw new ArgumentNullException();
-            bo.RabbitMQServSettings = _configuration.GetRequiredSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>() ?? throw new ArgumentNullException();
-            bo.KafkaServSettings = _configuration.GetRequiredSection(nameof(KafkaSettings)).Get<KafkaSettings>() ?? throw new Exception("Have not config KafkaSettings");
-
-            bo.ServerName = databaseSettings.ServerName;
-            string dbname = $"{databaseSettings.DataBase}";
-            bo.DatabaseName = dbname;
-            Log.Information($"Database Name {bo.DatabaseName}");
-
-            //bo.Port, 
-            if (databaseSettings.ServerType == "psql")
+            BllOption bo = new()
             {
-                bo.ServerType = dal.SqlServerType.psql;
-                Log.Information($"Database ServerType psql");
-            }
-            else
-            {
-                bo.ServerType = dal.SqlServerType.mssql;
-                Log.Information($"Database ServerType mssql");
-            }
-            bo.User = databaseSettings.User;
-            bo.Password = databaseSettings.Password;
-            int.TryParse( databaseSettings.Port, out iPort);
-            bo.Port = iPort;
-            
-            if (SessionMode != "BufferOnly" && databaseSettings.SessionMode == "FullMode")
-                bo.SessionMode = SessionModeEnum.FullMode;
-            else if (SessionMode == "BufferOnly" || databaseSettings.SessionMode == "BufferOnly")
-                bo.SessionMode = SessionModeEnum.BufferOnly;
-            else
-                throw new InvalidOperationException();
-
-            bo.IsConfirmMsgAndRemoveFromQueue = true;
-
+                DataBaseServSettings = _configuration.GetRequiredSection(nameof(DataBaseSettings)).Get<DataBaseSettings>() ?? throw new ArgumentNullException(),
+                RabbitMQServSettings = _configuration.GetRequiredSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>() ?? throw new ArgumentNullException(),
+                KafkaServSettings = _configuration.GetRequiredSection(nameof(KafkaSettings)).Get<KafkaSettings>(),
+                IsConfirmMsgAndRemoveFromQueue = true
+            };
             // = new CancellationToken vs CancellationToken
             RecipientOfTheMessages = new ReceiveAllMessages(bo, _configuration, stoppingToken);
             bool isRunning = true;
@@ -126,5 +94,6 @@ namespace MQ.WebService
             await Task.Delay(1000, stoppingToken);
             RecipientOfTheMessages = null;
         }
+
     }
 }

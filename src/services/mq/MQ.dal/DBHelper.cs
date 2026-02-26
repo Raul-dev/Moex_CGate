@@ -355,7 +355,7 @@ END CATCH
                     throw new Exception($"SaveMsgToDataBase not supported for {SqlServerTypeHelper.GetString(ServerType)}");
             }
         }
-        public async Task SaveMsgToDataBaseAsync(long sessionId, string tableName, string messageId, string body, string messageKey, int messageTypeId)
+        public async Task SaveMsgToDataBaseAsync(long sessionId, string tableName, string messageId, string body, string messageKey, int messageTypeId, CancellationToken cancellationToken)
         {
             string cmd = "";
             if (ServerType == SqlServerType.mssql)
@@ -373,11 +373,11 @@ END CATCH
                 var msgKey = new SqlParameter("@msgKey", messageKey);
                 var msgtype_id = new SqlParameter("@msgtype_id", messageTypeId); 
 
-                await MetastorageDbContext.Database.ExecuteSqlRawAsync(cmd, msgId, msg, msgKey);
+                await MetastorageDbContext.Database.ExecuteSqlRawAsync(cmd, msgId, msg, msgKey, cancellationToken);
 
             }
             else
-                throw new Exception($"SaveMsgToDataBase not supported for {SqlServerTypeHelper.GetString(ServerType)}");
+                throw new Exception($"SaveMsgToDataBaseAsync not supported for {SqlServerTypeHelper.GetString(ServerType)}");
         }
         public void SaveMsgToDataBase(int sessionId, string tableName, BasicGetResult mqmsg)
         {

@@ -1,10 +1,11 @@
 ﻿using Microsoft.Extensions.Configuration;
 using MQ.bll.Common;
+using MQ.bll.Kafka;
+using MQ.bll.RabbitMQ;
 using RabbitMQ.Client;
 using Serilog;
 using System.Text;
-using MQ.bll.RabbitMQ;
-using MQ.bll.Kafka;
+using System.Threading;
 
 namespace MQ.bll
 {
@@ -180,18 +181,20 @@ namespace MQ.bll
                     if(_MQSession.SessionMode != SessionModeEnum.BufferOnly)
                         _MQSession.RunEtlThread("All"); //Started load proc threads
 
-                while (true && _MQSession.SessionMode != SessionModeEnum.WhileGet)
-                {
+                //while (true && _MQSession.SessionMode != SessionModeEnum.WhileGet)
+                //{
 
-                    _cancellationToken.WaitHandle.WaitOne(2000);
-                    
-                    if (_MQSession.SessionMode != SessionModeEnum.BufferOnly)
-                        if (_channel == null || !_channel!.IsOpen)
-                        {
-                            Log.Error("MQ channel is closed.");
-                            break;
-                        }
-                }
+                //    _cancellationToken.WaitHandle.WaitOne(2000);
+
+                //    if (_MQSession.SessionMode != SessionModeEnum.BufferOnly)
+                //        if (_channel == null || !_channel!.IsOpen)
+                //        {
+                //            Log.Error("MQ channel is closed.");
+                //            break;
+                //        }
+                //}
+                if (_MQSession.SessionMode != SessionModeEnum.WhileGet)
+                  await TaskCompletionSourceWithCancelation(_cancellationToken);
 
                 return 0;
             }
@@ -207,6 +210,14 @@ namespace MQ.bll
                 CleanProcess();
             }
         }
+
+        public Task TaskCompletionSourceWithCancelation(CancellationToken cancellationToken) { 
+            
+            var tcs = new TaskCompletionSource<bool>();
+            cancellationToken.Register(s => tcs.SetResult(true), tcs);
+            return tcs.Task;
+        }
+
         public void CleanProcess()
         {
 

@@ -2,24 +2,42 @@ using MQ.Service;
 
 using Serilog;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 
-
-IHost host = Host.CreateDefaultBuilder(args)
-    .UseSystemd()
-    .ConfigureServices(services =>
-    {
-        services.AddHostedService<Worker>();
-    })
-    .Build();
 
 
 var configuration = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json")
     .Build();
-
+/*
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.File(
+        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "../logs/sample-service.log")
+    )
+    .CreateLogger();
+*/
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(configuration)
     .CreateLogger();
+
+IHost host = Host.CreateDefaultBuilder(args)
+    .ConfigureServices(services =>
+    {
+        services.AddHostedService<Worker>();
+    })
+    // Configure as a Windows Service
+    .UseWindowsService(options =>
+    {
+        options.ServiceName = "My Service";
+    })
+    .UseSerilog()
+    /*
+    .UseSerilog((ctx, options) =>
+            {
+                options.ReadFrom.Configuration(ctx.Configuration);
+            })
+    */
+    .Build();
 
 
 try

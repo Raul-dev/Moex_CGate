@@ -17,19 +17,22 @@ namespace MQ.bll.RabbitMQ
         private IConnection _connection;
         private bool _disposed;
         private bool _isEvent;
-        private readonly object sync_root = new object();
+        //private readonly object sync_root = new object();
         private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
-        public RabbitMQConnection(RabbitMQSettings rabbitMQSettings)
+        public RabbitMQConnection(RabbitMQSettings? rabbitMQSettings)
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
-        {
+        {   
+            if ( rabbitMQSettings == null)
+                throw new ArgumentException("RabbitMQSettings cannot be null or empty", nameof(RabbitMQSettings));
+
             var factory = new ConnectionFactory();
             factory.UserName = rabbitMQSettings.UserName;
             factory.Password = rabbitMQSettings.UserPassword;
             factory.VirtualHost = rabbitMQSettings.VirtualHost;
             factory.HostName = rabbitMQSettings.Host;
-            factory.Port = int.Parse(rabbitMQSettings.Port);
+            factory.Port = rabbitMQSettings.Port;
             factory.RequestedConnectionTimeout = TimeSpan.FromSeconds(200);
 
             _connectionFactory = factory;

@@ -22,7 +22,7 @@ namespace MQ.bll
     }
     public class MQSession
     {
-        BllOption option;
+        BllOption bo;
         CancellationToken _cancellationToken;
         public SessionModeEnum SessionMode;
         public long SessionId = 0;
@@ -34,11 +34,11 @@ namespace MQ.bll
         {
             SessionMode = option.SessionMode;
             this._cancellationToken = cancellationToken;
-            this.option = option;
-            dbHelper = new DBHelper(option.ServerName, option.DatabaseName, option.Port, option.ServerType, option.User, option.Password);
+            this.bo = option;
+            dbHelper = new DBHelper(bo.DataBaseServSettings?.ServerName ?? "", bo.DataBaseServSettings?.DataBase ?? "", bo.DataBaseServSettings?.Port ?? 0, bo.ServerType, bo.DataBaseServSettings?.User ?? "", bo.DataBaseServSettings?.Password ?? "");
             MQMessagePropertyKeyList = new Dictionary<string, MQMessagePropertyKey>();
             if (option.MongoEnable)
-                mongoHelper = new MongoHelper(option.MongoUrl, option.MongoUser, option.MongoPassword, option.MongoDatabase);
+                mongoHelper = new MongoHelper(option.MongoServSettings?.Url ?? "", option.MongoServSettings?.User ?? "", option.MongoServSettings?.Password ?? "", option.MongoServSettings?.DataBase ?? "");
         }
 
         public long StartSessionProcessing()
@@ -221,7 +221,7 @@ namespace MQ.bll
                 //.Where<MsgMappingSetup>(c => (c.TableName.Contains("msgqueue") || c.TableName.Contains("TABLE_REPL")))
                 foreach (Metamap m in mms)
                 {
-                    MQMessagePropertyKey ms = new MQMessagePropertyKey(option, m.MsgKey, m.TableName, m.EtlQuery ?? "", SessionId, _cancellationToken);
+                    MQMessagePropertyKey ms = new MQMessagePropertyKey(bo, m.MsgKey, m.TableName, m.EtlQuery ?? "", SessionId, _cancellationToken);
                     MQMessagePropertyKeyList.Add(m.MsgKey, ms);
                 }
 
@@ -248,43 +248,70 @@ namespace MQ.bll
                 kvp.Value.MQChanel = channel;
             }
         }
-/*
-        public async Task SaveMsgToDataBaseAsync(IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body)
-        {
+        /*
+                public async Task SaveMsgToDataBaseAsync(IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body)
+                {
 
+                    int messageTypeId = 1; //Тестируем  Bulk запись, парсинг процедурой load_orders_log
+                    messageTypeId = 2; //Тестируем Array парсинг процедурой load_orders_log_array
+
+                    //Log.Debug($@"sessionId {sessionId}, basicProperties.Type {basicProperties.Type}, Table {GetTableName(basicProperties.Type)}, messageTypeId {messageTypeId.ToString()} .");
+
+                    MQMessagePropertyKey? ms = GetMQMessagePropertyKey(basicProperties.Type?? "Unknown");
+                    if (ms == null)
+                        return;
+        #pragma warning disable CS8604 // Possible null reference argument.
+                    if (messageTypeId == 1)
+                    {
+                        string str = Encoding.UTF8.GetString(body.ToArray());
+
+                        await dbHelper.EfBulkInsertAsync(str, sessionId, new Guid(basicProperties.MessageId) );
+
+                        ms.IncreaseIncomingMessagesCounter();
+                    }
+                    if (messageTypeId == 2)
+                    {
+                        //dbHelper.SaveMsgToDataBase(sessionId, GetTableName(basicProperties.Type) ?? "msgqueue", basicProperties.MessageId, Encoding.UTF8.GetString(body.ToArray()), basicProperties.Type, messageTypeId);
+                        //Async метод медленнее на 20%
+                        Task task = dbHelper.SaveMsgToDataBaseAsync(sessionId, GetTableName(basicProperties.Type) ?? "msgqueue", basicProperties.MessageId, Encoding.UTF8.GetString(body.ToArray()), basicProperties.Type, messageTypeId);
+                        //todo
+                        ms.IncreaseIncomingMessagesCounter();
+                    }
+        #pragma warning restore CS8604 // Possible null reference argument.
+
+                }
+
+                public void SaveMsgToDataBase(IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body) {
+                    SaveMsgToDataBase( basicProperties.MessageId, Encoding.UTF8.GetString(body.ToArray()), basicProperties.Type);
+                }
+        */
+
+        public async Task SaveMsgToDataBaseAsync(string messageId, string body, string messageKey, CancellationToken cancellationToken)
+        {
+            string tableName = GetTableName(messageKey) ?? "msgqueue";
             int messageTypeId = 1; //Тестируем  Bulk запись, парсинг процедурой load_orders_log
             messageTypeId = 2; //Тестируем Array парсинг процедурой load_orders_log_array
-            
+
             //Log.Debug($@"sessionId {sessionId}, basicProperties.Type {basicProperties.Type}, Table {GetTableName(basicProperties.Type)}, messageTypeId {messageTypeId.ToString()} .");
 
-            MQMessagePropertyKey? ms = GetMQMessagePropertyKey(basicProperties.Type?? "Unknown");
+            MQMessagePropertyKey? ms = GetMQMessagePropertyKey(messageKey ?? "Unknown");
+
             if (ms == null)
                 return;
 #pragma warning disable CS8604 // Possible null reference argument.
             if (messageTypeId == 1)
             {
-                string str = Encoding.UTF8.GetString(body.ToArray());
-
-                await dbHelper.EfBulkInsertAsync(str, sessionId, new Guid(basicProperties.MessageId) );
-
+                dbHelper.EfBulkInsertAsync(body, SessionId, new Guid(messageId)).RunSynchronously();
                 ms.IncreaseIncomingMessagesCounter();
             }
             if (messageTypeId == 2)
             {
-                //dbHelper.SaveMsgToDataBase(sessionId, GetTableName(basicProperties.Type) ?? "msgqueue", basicProperties.MessageId, Encoding.UTF8.GetString(body.ToArray()), basicProperties.Type, messageTypeId);
-                //Async метод медленнее на 20%
-                Task task = dbHelper.SaveMsgToDataBaseAsync(sessionId, GetTableName(basicProperties.Type) ?? "msgqueue", basicProperties.MessageId, Encoding.UTF8.GetString(body.ToArray()), basicProperties.Type, messageTypeId);
-                //todo
+                await dbHelper.SaveMsgToDataBaseAsync(SessionId, GetTableName(messageKey) ?? "msgqueue", messageId, body, messageKey, messageTypeId, cancellationToken);
                 ms.IncreaseIncomingMessagesCounter();
             }
 #pragma warning restore CS8604 // Possible null reference argument.
 
         }
-        
-        public void SaveMsgToDataBase(IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body) {
-            SaveMsgToDataBase( basicProperties.MessageId, Encoding.UTF8.GetString(body.ToArray()), basicProperties.Type);
-        }
-*/
         public void SaveMsgToDataBase( string messageId, string body, string messageKey)
         {
             string tableName = GetTableName(messageKey) ?? "msgqueue";

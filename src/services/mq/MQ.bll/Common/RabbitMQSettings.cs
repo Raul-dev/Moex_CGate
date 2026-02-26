@@ -11,7 +11,7 @@ namespace MQ.bll.Common
     {
         public string Host { get; init; }
         public string VirtualHost { get; init; }
-        public string Port { get; init; }
+        public int Port { get; init; }
         public string Exchange { get; init; }
         public string UserName { get; init; }
         public string UserPassword { get; init; }

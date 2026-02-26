@@ -7,7 +7,7 @@ using MQ.OptionModels;
 
 namespace MQ.OptionModels
 {
-    [Verb("GetMsg", isDefault: true, HelpText = "Get Message.")]
+    [Verb("GetMsg", isDefault: false, HelpText = "Get Message.")]
     public class GetMsgOptions : BaseOptions
     {
 
@@ -20,25 +20,26 @@ namespace MQ.OptionModels
         public override void InitBllOption(BllOption blloption, IConfiguration configuration)
         {
             base.InitBllOption(blloption, configuration);
-            blloption.Verb = BllOptionVerb.Json;
+            
             
             blloption.IsConfirmMsgAndRemoveFromQueue = IsConfirmMsgAndRemoveFromQueue ?? false;
             switch (SessionMode.ToLower()) {
                 case "bufferonly":
-                    blloption.SessionMode = SessionModeEnum.BufferOnly;
+                    blloption.DataBaseServSettings.SessionMode = SessionModeEnum.BufferOnly;
                     break;
                 case "whileget":
-                    blloption.SessionMode = SessionModeEnum.WhileGet;
+                    blloption.DataBaseServSettings.SessionMode = SessionModeEnum.WhileGet;
                     break;
                 case "etlonly":
-                    blloption.SessionMode = SessionModeEnum.EtlOnly;
+                    blloption.DataBaseServSettings.SessionMode = SessionModeEnum.EtlOnly;
                     break;
 
                 default:
-                    blloption.SessionMode = SessionModeEnum.FullMode;
+                    blloption.DataBaseServSettings.SessionMode = SessionModeEnum.FullMode;
                     break;
             }
             blloption.RabbitMQServSettings = configuration.GetRequiredSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>() ?? throw new Exception("Have not config RabbitMQSettings");
+            if (IsKafka)
             blloption.KafkaServSettings = configuration.GetRequiredSection(nameof(KafkaSettings)).Get<KafkaSettings>() ?? throw new Exception("Have not config KafkaSettings");
         }
     }

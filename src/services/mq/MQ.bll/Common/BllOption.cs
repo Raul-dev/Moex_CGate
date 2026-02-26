@@ -1,49 +1,62 @@
 ﻿using MQ.dal;
+using System.Diagnostics;
 
 namespace MQ.bll.Common
 {
-    public enum BllOptionVerb
-    {
-        Sql,
-        Json,
-        SqlFromJson
-    }
-
+    [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
     public class BllOption
     {
-        public BllOptionVerb Verb { get; set; }
-
-
+        /*
         //DB Server name
         public string ServerName { get; set; } = "";
 
         //Database name
         public string DatabaseName { get; set; } = "";
-
-
-        public SqlServerType ServerType { get; set; }
-        public SqlServerType GenerationServerType { get; set; }
         public int Port { get; set; }
         public string User { get; set; } = "";
         public string Password { get; set; } = "";
+        */
+        public SqlServerType ServerType { get; set; } = SqlServerType.mssql;
+        public SqlServerType GenerationServerType { get; set; } = SqlServerType.mssql;
+
         public string OutputJsonFile { get; set; } = "";
         public string InputJsonFile { get; set; } = "";
-        public bool IsConfirmMsgAndRemoveFromQueue { get; set; }
-        public SessionModeEnum SessionMode { get; set; }
+        public bool IsConfirmMsgAndRemoveFromQueue { get; set; } = false;
+        public SessionModeEnum SessionMode
+        {
+            get => DataBaseServSettings?.SessionMode ?? SessionModeEnum.BufferOnly;
+        }
         public int Iteration { get; set; }
         public int PauseMs { get; set; }
 
-        public bool IsKafka { get; set; }
+        public bool IsKafka
+        {
+            get => (KafkaServSettings == null) ? false : true;
+        }
         public bool IsMultipleMessages { get; set; } = true;
-        public KafkaSettings KafkaServSettings { get; set; }
-        public RabbitMQSettings RabbitMQServSettings { get; set; }
-
+        public KafkaSettings? KafkaServSettings { get; set; }
+        public RabbitMQSettings? RabbitMQServSettings { get; set; }
+        public required DataBaseSettings DataBaseServSettings { get; set; } = new DataBaseSettings();
         //Mongo
+        //MongoSettings
         public bool MongoEnable { get; set; } = false;
-        public string MongoUrl { get; set; } = "localhost:27017/";
-        public string MongoUser { get; set; } = "admin";
-        public string MongoPassword { get; set; } = "admin";
-        public string MongoDatabase { get; set; } = "rbbt";
+        public MongoSettings? MongoServSettings { get; set; }
 
+        public BllOption()
+        {
+            DataBaseServSettings  = new DataBaseSettings();
+        }
+
+        private string GetDebuggerDisplay()
+        {
+            return ToString();
+        }
+        public override string ToString()
+        {
+            string ret = "{";
+            ret += DataBaseServSettings?.ServerName ?? "";
+            ret += "}";
+            return ret;
+        }
     }
 }

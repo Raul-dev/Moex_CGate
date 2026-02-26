@@ -45,12 +45,12 @@ namespace MQ.bll.RabbitMQ
             if (_disposed) return;
             ConsumerUnSubscription();
             _channel!.Dispose();
-            _disposed = false;
+            _disposed = true;
         }
         public async Task InitSetup(  MQSession? mqSession = null, bool isSend = true, bool isSubscription = false)
         {
-            this._exchange = option.RabbitMQServSettings.Exchange;
-            this._queueName = option.RabbitMQServSettings.DefaultQueue;
+            this._exchange = option.RabbitMQServSettings?.Exchange ?? "";
+            this._queueName = option.RabbitMQServSettings?.DefaultQueue ?? "";
             
             _MQSession = mqSession!;
             _connection = new RabbitMQConnection(option.RabbitMQServSettings);
@@ -166,7 +166,7 @@ namespace MQ.bll.RabbitMQ
                 if (!option.IsMultipleMessages)
                 {
                     // Save single messages to DB 2787 msg/s
-                    _MQSession!.SaveMsgToDataBase(ea.BasicProperties.MessageId!, Encoding.UTF8.GetString(ea.Body.ToArray()), ea.BasicProperties.Type!);
+                    await _MQSession!.SaveMsgToDataBaseAsync(ea.BasicProperties.MessageId!, Encoding.UTF8.GetString(ea.Body.ToArray()), ea.BasicProperties.Type!, _cancellationToken);
                     
                     if (option.IsConfirmMsgAndRemoveFromQueue)
                     {

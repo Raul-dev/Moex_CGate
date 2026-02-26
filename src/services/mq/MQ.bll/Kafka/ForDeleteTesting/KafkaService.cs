@@ -21,7 +21,7 @@ public class KafkaService : IQueueService
         var readSettings = configuration.GetRequiredSection(nameof(KafkaSettings)).Get<KafkaSettings>();
         if (readSettings == null) throw new ArgumentException(nameof(KafkaSettings));
         KafkaSettings = readSettings;
-        DbHelper = new DBHelper(bo.ServerName, bo.DatabaseName, bo.Port, bo.ServerType, bo.User, bo.Password);
+        DbHelper = new DBHelper(bo.DataBaseServSettings?.ServerName??"", bo.DataBaseServSettings?.DataBase??"", bo.DataBaseServSettings?.Port??0, bo.ServerType, bo.DataBaseServSettings?.User??"", bo.DataBaseServSettings?.Password ?? "");
     }
 
     public BllOption Bo { get; }

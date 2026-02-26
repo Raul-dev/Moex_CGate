@@ -31,15 +31,15 @@ namespace MQ.OptionModels
 
         public virtual void InitBllOption(BllOption blloption, IConfiguration configuration)
         {
-
-            blloption.ServerName = ServerName;
-            blloption.DatabaseName = DatabaseName;
+            
+            blloption.DataBaseServSettings.ServerName = ServerName;
+            blloption.DataBaseServSettings.DataBase = DatabaseName;
 
             blloption.ServerType = SqlServerTypeHelper.GetTypeFromString(ServerType);
             
             try
             {
-                blloption.Port = int.Parse(Port);
+                blloption.DataBaseServSettings.Port = int.Parse(Port);
             }
             catch (Exception)
             {
@@ -48,13 +48,13 @@ namespace MQ.OptionModels
             //For default user postgres
             if(blloption.ServerType == SqlServerType.psql && String.IsNullOrEmpty(User))
             {
-                blloption.User = "postgres";
+                blloption.DataBaseServSettings.User = "postgres";
             }
             else
-                blloption.User = User;
+                blloption.DataBaseServSettings.User = User;
 
-            blloption.Password = Password;
-            blloption.IsKafka = IsKafka;
+            blloption.DataBaseServSettings.Password = Password;
+            //blloption.IsKafka = IsKafka;
         }
     }
 }

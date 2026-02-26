@@ -13,16 +13,16 @@ namespace MQ.bll
         public string TableName;
         public string ProcessQuery;
         public IQueueChannel? MQChanel { get; set; }
-        protected BllOption option;
+        protected BllOption bo;
         protected long sessionId=0;
         
         protected MongoHelper? mongoHelper;
         private Thread? _loadThread;
         private CancellationToken _cancellationToken;
         private long _incomingMessagesCounter = 0; // DB saved msg for trigger load procedures
-        private object _incomingMessagesCounterLock = new();
+        private readonly Lock _incomingMessagesCounterLock = new Lock();
         private int _messageCurentQueue = 0;
-        private object _messageCurentQueueLock = new();
+        private readonly Lock _messageCurentQueueLock = new Lock();
 
         //private Queue<MessageBuffer>[] _messageBufferQueue = new Queue<MessageBuffer>[2];
         private Queue<object>[] _messageBufferQueue = new Queue<object>[2];
@@ -54,7 +54,7 @@ namespace MQ.bll
         public MQMessagePropertyKey(BllOption option, string messagePropertyKey, string tableName, string processQuery, long sessionid, CancellationToken cancellationToken)
         {
             this._cancellationToken = cancellationToken;
-            this.option = option;
+            this.bo = option;
             MessagePropertyKey = messagePropertyKey;
             TableName = tableName;
             sessionId = sessionid;
@@ -141,13 +141,13 @@ namespace MQ.bll
                 try
                 {
                     if (dbHelper == null)
-                        dbHelper = new DBHelper(option.ServerName, option.DatabaseName, option.Port, option.ServerType, option.User, option.Password);
+                        dbHelper = new DBHelper(bo.DataBaseServSettings?.ServerName ?? "", bo.DataBaseServSettings?.DataBase ?? "", bo.DataBaseServSettings?.Port ?? 0, bo.ServerType, bo.DataBaseServSettings?.User ?? "", bo.DataBaseServSettings?.Password ?? "");
 
-                    if (mongoHelper == null && option.MongoEnable)
-                        mongoHelper = new MongoHelper(option.MongoUrl, option.MongoUser, option.MongoPassword, option.MongoDatabase);
+                    if (mongoHelper == null && bo.MongoEnable)
+                        mongoHelper = new MongoHelper(bo.MongoServSettings?.Url ?? "", bo.MongoServSettings?.User ?? "", bo.MongoServSettings?.Password ?? "", bo.MongoServSettings?.DataBase ?? "");
 
                     
-                    if (option.MongoEnable && mongoHelper != null)
+                    if (bo.MongoEnable && mongoHelper != null)
                         cnt = mongoHelper.SaveCollectionToDB(sessionId, MessagePropertyKey, dbHelper, TableName, ProcessQuery, token);
                     else
                         if (cnt != 200000 && ProcessQuery.IsNullOrEmpty() == false)

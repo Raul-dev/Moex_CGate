@@ -18,7 +18,6 @@ namespace MQ.OptionModels
         public override void InitBllOption(BllOption blloption, IConfiguration configuration)
         {
             base.InitBllOption(blloption, configuration);
-            blloption.Verb = BllOptionVerb.Json;
             blloption.Iteration = Iteration;
             blloption.PauseMs = PauseMs;
             blloption.RabbitMQServSettings = configuration.GetRequiredSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>() ?? throw new Exception("Have not config RabbitMQSettings");
