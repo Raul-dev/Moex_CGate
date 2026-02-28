@@ -16,11 +16,11 @@ namespace RabbitMQTestApp
       //set the local connection string
       RabbitMQSqlServer.LocalhostConnectionString = "server = localhost; database = CGate; uid = CGateUser; pwd = MyPassword321";
 
-			RabbitMQSqlServer.sp_clr_InitialiseRabbitMq();
+	  RabbitMQSqlServer.sp_clr_InitialiseRabbitMq();
       Console.WriteLine("Rabbit is initialised. Press any key to send msg");
       //Console.ReadLine();
    	  RabbitMQSqlServer.sp_clr_PostRabbitMsg(2, "Hello World");
-	
+
       Console.WriteLine("Message posted. Press any key to exit");
       Console.ReadLine();
 

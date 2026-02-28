@@ -48,5 +48,11 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RabbitMQSqlClr4\RabbitMQSqlClr4.csproj">
+      <Project>{514e56ce-9098-47aa-9c5d-436316737ca0}</Project>
+      <Name>RabbitMQSqlClr4</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

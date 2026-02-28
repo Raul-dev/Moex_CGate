@@ -39,11 +39,13 @@ namespace MQ.bll
 
         public async Task MQProcess()
         {
-            List<MsgQueueItem> mq = dbHelper.GetMsgqueueItems();
             string ErrorMsg = "";
-            IQueueChannel channel;
             try
             {
+                List<MsgQueueItem> mq = dbHelper.GetMsgqueueItems();
+                
+                IQueueChannel channel;
+    
                 channel = _option.IsKafka ? new KafkaChannel(_option, _cancellationToken) : new RabbitMQChannel(_option, _cancellationToken);
                 Random rnd = new Random();
 

@@ -40,8 +40,9 @@ class Program
     {
         Console.WriteLine("Simple Usage: MQ.exe GetMsg/SendMsg -s ServerName -d DataBaseName ");
     }
-    
-    //Debug cmd SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 10000
+
+    //Debug docker sql cmd SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 10000
+    //SendMsg -t mssql -s "localhost" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 1000
     static async Task<int> SendMsgExecute(SendMsgOptions options, IConfiguration configuration)
     {
         BllOption bo = new() { DataBaseServSettings = new DataBaseSettings() };

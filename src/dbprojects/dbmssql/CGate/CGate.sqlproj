@@ -123,7 +123,6 @@
     <Build Include="dbo\Tables\msgtype.sql" />
     <Build Include="dbo\Tables\metaadapter.sql" />
     <Build Include="Security\CGateUser.sql" />
-    <Build Include="Security\RoleMemberships.sql" />
     <Build Include="dbo\Functions\fn_GetBufferingDays.sql" />
     <Build Include="dbo\Functions\fn_GetSettingInt.sql" />
     <Build Include="audit\Functions\fn_log_IsLnk.sql" />
@@ -169,30 +168,19 @@
   <ItemGroup>
     <None Include="Dictionaries\LinkedServ.sql" />
     <None Include="README.MD" />
-    <None Include="Assemblies\RabbitMQ.Client.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <None Include="ScriptsFolder\dbdeploy.ps1" />
     <None Include="ScriptsFolder\MSqlDeploymentFunc.psm1" />
     <None Include="ScriptsFolder\Test001.sql" />
     <None Include="Dictionaries\AuditSetup.sql" />
-    <None Include="Assemblies\System.Threading.dll">
+    <None Include="Dictionaries\assembly.sql" />
+    <None Include="Assemblies\RabbitMQSqlClr4.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="Dictionaries\assembly.sql" />
-    <None Include="Assemblies\RabbitMQSqlClr3.5.dll">
+    <None Include="Assemblies\RabbitMQ.Client.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="System.Threading">
-      <HintPath>Assemblies\System.Threading.dll</HintPath>
-      <SqlAssemblyName>System.Threading</SqlAssemblyName>
-      <IsModelAware>True</IsModelAware>
-      <GenerateSqlClrDdl>False</GenerateSqlClrDdl>
-      <SqlOwnerName>rmq</SqlOwnerName>
-      <SqlPermissionSet>UNSAFE</SqlPermissionSet>
-    </Reference>
     <Reference Include="RabbitMQ.Client">
       <HintPath>Assemblies\RabbitMQ.Client.dll</HintPath>
       <SqlAssemblyName>RabbitMQ.Client</SqlAssemblyName>
@@ -201,9 +189,9 @@
       <SqlOwnerName>rmq</SqlOwnerName>
       <SqlPermissionSet>UNSAFE</SqlPermissionSet>
     </Reference>
-    <Reference Include="RabbitMQSqlClr3.5">
-      <HintPath>Assemblies\RabbitMQSqlClr3.5.dll</HintPath>
-      <SqlAssemblyName>RabbitMQ.SqlServer</SqlAssemblyName>
+    <Reference Include="RabbitMQSqlClr4">
+      <HintPath>Assemblies\RabbitMQSqlClr4.dll</HintPath>
+      <SqlAssemblyName>RabbitMQSqlClr4</SqlAssemblyName>
       <IsModelAware>True</IsModelAware>
       <GenerateSqlClrDdl>False</GenerateSqlClrDdl>
       <SqlOwnerName>rmq</SqlOwnerName>
