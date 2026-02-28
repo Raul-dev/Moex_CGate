@@ -1,5 +1,14 @@
 ﻿IF NOT EXISTS(SELECT 1 FROM data_source WHERE data_source_id =1 )
     INSERT [data_source] ([data_source_id], [name]) VALUES(1, N'crs')
+IF NOT EXISTS(SELECT 1 FROM data_source WHERE data_source_id =2 )
+    INSERT [data_source] ([data_source_id], [name]) VALUES(2, N'test2')
+IF NOT EXISTS(SELECT 1 FROM data_source WHERE data_source_id =3 )
+    INSERT [data_source] ([data_source_id], [name]) VALUES(3, N'test3')
+IF NOT EXISTS(SELECT 1 FROM data_source WHERE data_source_id =4 )
+    INSERT [data_source] ([data_source_id], [name]) VALUES(4, N'test4')
+IF NOT EXISTS(SELECT 1 FROM data_source WHERE data_source_id =5 )
+    INSERT [data_source] ([data_source_id], [name]) VALUES(5, N'test5')
+
 IF NOT EXISTS(SELECT 1 FROM msgtype WHERE msgtype_id =1 )
 BEGIN
     INSERT [msgtype] ([msgtype_id], [name]) VALUES(1, N'Bulk')

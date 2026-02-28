@@ -1,4 +1,16 @@
 ﻿--Table
+SELECT * FROM [dbo].[session_log]
+SELECT * FROM [dbo].[session]
+TRUNCATE TABLE [dbo].[session_log]
+DELETE FROM [dbo].[session]
+
+SELECT * FROM [rmq].[RabbitSetting]
+SELECT * FROM [rmq].[RabbitEndpoint]
+SELECT * FROM [audit].[Setting] 
+UPDATE [rmq].[RabbitSetting]
+ SET SettingStringValue = 'server=localhost; database=CGate; uid=CGateUser; pwd=MyPassword321'
+WHERE SettingID = 1
+
 UPDATE [audit].[Setting] SET 
 IntValue = 1
 WHERE ID = 2
@@ -16,7 +28,7 @@ END
 SET @DateFinish = GetDate()
 SELECT DateDiff(ms, @DateStart, @DateFinish)
 GO
-
+[audit].[LogText]
 --Linkedserver
 UPDATE [audit].[Setting] SET 
 IntValue = 2
@@ -37,13 +49,17 @@ SELECT DateDiff(ms, @DateStart, @DateFinish)
 GO
 
 --Rabbit
+UPDATE rmq.RabbitEndpoint SET IsEnabled = 0
+UPDATE rmq.RabbitEndpoint SET
+IsEnabled = 1
+WHERE AliasName = 'CGateAuditLT'
 UPDATE [audit].[Setting] SET 
 IntValue = 3
-WHERE ID = 2
+WHERE Code = 'AuditLTTypeDefault'
 EXEC [rmq].[sp_clr_InitialiseRabbitMq]
-
+[CGate]
 DECLARE @AuditType varchar(250) = 'Rabbit', @iterations int = 0, @DateStart datetime2(4) = GetDate(), @DateFinish datetime2(4)
-WHILE @iterations < 10000 BEGIN
+WHILE @iterations < 10 BEGIN
   EXEC [audit].[sp_LogText_Add] @AuditEnable ='FullAuditEnabled', 
     @KeyField = '@iterations',
     @KeyValue = @iterations,
@@ -54,6 +70,7 @@ END
 SET @DateFinish = GetDate()
 SELECT DateDiff(ms, @DateStart, @DateFinish)
 GO
+14all41
 
 
 
@@ -76,3 +93,11 @@ WITH (
   [MainID]  bigint '$[0]',
   [StartTime] datetime2(4) '$[1]'
 )
+EXEC sp_configure 'show advanced options', 1;
+RECONFIGURE;
+EXEC sp_configure 'clr strict security', 0;
+RECONFIGURE;
+EXEC sp_configure 'clr enabled', 1;
+RECONFIGURE;
+EXEC sp_configure 'show advanced options', 0;
+RECONFIGURE;

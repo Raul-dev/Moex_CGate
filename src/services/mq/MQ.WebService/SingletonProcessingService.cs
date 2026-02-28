@@ -4,6 +4,8 @@ using MongoDB.Driver.Core.Servers;
 using MQ.bll;
 using MQ.bll.Common;
 using Serilog;
+using System.ComponentModel;
+using System.Configuration;
 using System.Xml.Linq;
 
 namespace MQ.WebService
@@ -11,8 +13,8 @@ namespace MQ.WebService
     public class SingletonProcessingService
     {
         private int executionCount = 0;
-        Task _DoWork;
-        private static CancellationTokenSource cts;
+        Task? _DoWork;
+        private static CancellationTokenSource cts = new CancellationTokenSource();
         private static CancellationToken ct;
         ReceiveAllMessages? RecipientOfTheMessages = null;
         string? SessionMode ;
@@ -25,7 +27,7 @@ namespace MQ.WebService
             //"FullMode"
             SessionMode = sessionMode?? "FullMode";
             Log.Information(@$"Started sessionMode {SessionMode}");
-            cts = new CancellationTokenSource();
+            
             ct = cts.Token;
             _DoWork = DoWork(configuration, ct);
         }
@@ -42,9 +44,9 @@ namespace MQ.WebService
 
             if (RecipientOfTheMessages != null)
             {
-                cts.Cancel();
-                RecipientOfTheMessages.CleanProcess();
-                RecipientOfTheMessages = null;
+                //cts.Cancel();
+                RecipientOfTheMessages.CancelAll();
+                //RecipientOfTheMessages = null;
                 Log.Information("Listening to the MQ queue has been stopped.");
             }
         }
@@ -56,43 +58,41 @@ namespace MQ.WebService
                 return _instance;
             }}
 
-        public async Task DoWork(IConfiguration _configuration, CancellationToken stoppingToken)
+        public async Task DoWork(IConfiguration _configuration, CancellationToken cancellationToken)
         {
-            BllOption bo = new()
+//#if (DEBUG)
+            ServiceMsgSettings serviceMsgSettings = new()
             {
-                DataBaseServSettings = _configuration.GetRequiredSection(nameof(DataBaseSettings)).Get<DataBaseSettings>() ?? throw new ArgumentNullException(),
-                RabbitMQServSettings = _configuration.GetRequiredSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>() ?? throw new ArgumentNullException(),
-                KafkaServSettings = _configuration.GetRequiredSection(nameof(KafkaSettings)).Get<KafkaSettings>(),
-                IsConfirmMsgAndRemoveFromQueue = true
+
+                ServiceName = "test",
+                ServiceDescription = "test",
+                ServiceDisplayName = "test",
+                Workers = new BllOption[1]
+                {
+                    new BllOption()
+                    {
+                        DataBaseServSettings = _configuration.GetRequiredSection(nameof(DataBaseSettings)).Get<DataBaseSettings>() ?? throw new ArgumentNullException(),
+                        RabbitMQServSettings = _configuration.GetRequiredSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>() ?? throw new ArgumentNullException(),
+                        KafkaServSettings = _configuration.GetRequiredSection(nameof(KafkaSettings)).Get<KafkaSettings>(),
+                        IsConfirmMsgAndRemoveFromQueue = true,
+                        IsKafka = false,
+                        Name = "FullRabbit",
+                        IsEnabled = true,
+                        LogPrefix = "FL",
+                        Iteration = 100,
+                        PauseMs = 1000,
+                    }
+                }
             };
-            // = new CancellationToken vs CancellationToken
-            RecipientOfTheMessages = new ReceiveAllMessages(bo, _configuration, stoppingToken);
-            bool isRunning = true;
-            while (isRunning)
-            {
-                executionCount++;
-                try
-                {
-                    await RecipientOfTheMessages.ProcessLauncherAsync();
-                    Log.Information(
-                        "External Stopped ProcessLauncherAsync. Count: {Count}", executionCount);
-                    if (stoppingToken.IsCancellationRequested)
-                        isRunning = false;
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex.Message);
-                    if(ex.Message == "Exception Rabbit connection: None of the specified endpoints were reachable")
-                        await Task.Delay(100000, stoppingToken);
-                }
-                finally
-                {
-                    await Task.Delay(1000, stoppingToken);
-                }
-            }
-            RecipientOfTheMessages.CleanProcess();
-            await Task.Delay(1000, stoppingToken);
-            RecipientOfTheMessages = null;
+
+//#else
+//            ServiceMsgSettings serviceMsgSettings = _configuration.GetRequiredSection("ServiceRabbitMsgSettings").Get<ServiceMsgSettings>() ?? throw new ArgumentNullException();
+//#endif
+            ThreadManagerAsync tm = new ThreadManagerAsync(serviceMsgSettings, cts);
+            RecipientOfTheMessages = tm.GetWorker();
+            await tm.MonitorAndRestart();
+            var tsk = tm.TaskCompletionSourceWithCancelation(cts.Token);
+            tsk.Wait();
         }
 
     }

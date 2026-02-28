@@ -17,7 +17,7 @@ namespace MQ.bll.Kafka
     }
     public class KafkaChannel : KafkaGateway, IQueueChannel 
     {
-        BllOption option;
+        BllOption _option;
         CancellationToken _cancellationToken;
         IProducer<long, MsgKafkaItem>? _producer;
         IConsumer<long, MsgKafkaItem>? _consumer;
@@ -41,7 +41,7 @@ namespace MQ.bll.Kafka
         
         public KafkaChannel(BllOption option, CancellationToken cancellationToken)
         {
-            this.option = option;
+            this._option = option;
             _disposed = false;
             _cancellationToken = cancellationToken;
             Topic = option.KafkaServSettings.Topic;
@@ -87,10 +87,10 @@ namespace MQ.bll.Kafka
         public async Task InitSetup( MQSession? mqSession = null, bool isSend = true, bool isSubscription = false)
         {
             _disposed = false;
-            var server = $"{option.KafkaServSettings.Host}:{option.KafkaServSettings.Port}";
+            var server = $"{_option.KafkaServSettings.Host}:{_option.KafkaServSettings.Port}";
             
             if (mqSession == null)
-                _MQSession = new MQSession(option, _cancellationToken);
+                _MQSession = new MQSession(_option, _cancellationToken);
             else
                 _MQSession = mqSession;
             if (isSend)
@@ -123,7 +123,7 @@ namespace MQ.bll.Kafka
             EnsureTopic();
             if (!isSend)
             {
-                _consumer!.Subscribe(option.KafkaServSettings.Topic);
+                _consumer!.Subscribe(_option.KafkaServSettings.Topic);
 
                 if (_partitions.Count > 0)
                     _partition = _partitions.First();
@@ -137,7 +137,7 @@ namespace MQ.bll.Kafka
             {
                 BootstrapServers = server, 
                 ClientId = 1 + "_consumer",
-                GroupId = option.KafkaServSettings.GroupId,
+                GroupId = _option.KafkaServSettings.GroupId,
                 AutoOffsetReset = AutoOffsetReset.Earliest,
                 EnableAutoOffsetStore = false,
                 EnableAutoCommit = false,
@@ -502,11 +502,11 @@ namespace MQ.bll.Kafka
                     
                     iCount++;
                     
-                    if (!option.IsMultipleMessages)
+                    if (!_option.IsMultipleMessages)
                     {
                         //Save single message to DB 2787 msg/s
                         _MQSession!.SaveMsgToDataBase(msg.MsgId.ToString(), msg.Msg, msg.MsgKey);
-                        if (option.IsConfirmMsgAndRemoveFromQueue)
+                        if (_option.IsConfirmMsgAndRemoveFromQueue)
                         {
                             Acknowledge(consumeResult.TopicPartitionOffset);
                         }
@@ -563,15 +563,15 @@ namespace MQ.bll.Kafka
                 
                 ConsumerConfig config = new ConsumerConfig
                 {
-                    BootstrapServers = $"{option.KafkaServSettings.Host}:{option.KafkaServSettings.Port}",
+                    BootstrapServers = $"{_option.KafkaServSettings.Host}:{_option.KafkaServSettings.Port}",
                     ClientId = 1 + "_consumer",
-                    GroupId = option.KafkaServSettings.GroupId,
+                    GroupId = _option.KafkaServSettings.GroupId,
                     AutoOffsetReset = AutoOffsetReset.Earliest, 
                 };
                 ConsumerBuilder<long, MsgKafkaItem> builder = new ConsumerBuilder<long, MsgKafkaItem>(config);
                 builder.SetValueDeserializer(new MsgQueueSerializer());
                 IConsumer<long, MsgKafkaItem> consumer = builder.Build();
-                List<TopicPartition> partitions = GetTopicPartitions($"{option.KafkaServSettings.Host}:{option.KafkaServSettings.Port}", option.KafkaServSettings.Topic);
+                List<TopicPartition> partitions = GetTopicPartitions($"{_option.KafkaServSettings.Host}:{_option.KafkaServSettings.Port}", _option.KafkaServSettings.Topic);
                 TopicPartition firstPartition = partitions.First();
                 WatermarkOffsets watermarkOffsets1 = consumer!.QueryWatermarkOffsets(firstPartition, TimeSpan.FromSeconds(10));
                 long total1 = watermarkOffsets1.High - watermarkOffsets1.Low;
@@ -598,7 +598,7 @@ namespace MQ.bll.Kafka
             if (consumeResult == null || consumeResult.IsPartitionEOF)
                 return null;
             var msg = consumeResult.Message.Value;
-            var basicGetResult1 = new BasicGetResult((ulong)consumeResult.Offset.Value, true, option.KafkaServSettings.Topic, msg.MsgKey, 1, new BasicProperties() { MessageId = msg.MsgId!.ToString(), Type = msg.MsgKey }, Encoding.Default.GetBytes(msg.Msg!));
+            var basicGetResult1 = new BasicGetResult((ulong)consumeResult.Offset.Value, true, _option.KafkaServSettings.Topic, msg.MsgKey, 1, new BasicProperties() { MessageId = msg.MsgId!.ToString(), Type = msg.MsgKey }, Encoding.Default.GetBytes(msg.Msg!));
 
             if(_partition == null)
                 _partition = _consumer!.Assignment.FirstOrDefault()!;
@@ -613,7 +613,7 @@ namespace MQ.bll.Kafka
                 MsgKey = msgKey,
                 CreateDate = DateTime.Now,
             };
-            await Task.Run(() => _producer!.Produce(option.KafkaServSettings.Topic, new Message<long, MsgKafkaItem> { Key = _iCount, Value = m }));
+            await Task.Run(() => _producer!.Produce(_option.KafkaServSettings.Topic, new Message<long, MsgKafkaItem> { Key = _iCount, Value = m }));
             _iCount++;
             if (_iCount % 10000 == 0)
             {
@@ -649,7 +649,7 @@ namespace MQ.bll.Kafka
         }
         public async Task AcknowledgeMessageAsync(ulong offsetId, bool multiple = false)
         {
-            TopicPartitionOffset t = new TopicPartitionOffset(topic: option.KafkaServSettings.Topic, new Partition(), offset: new Offset((long)offsetId));
+            TopicPartitionOffset t = new TopicPartitionOffset(topic: _option.KafkaServSettings.Topic, new Partition(), offset: new Offset((long)offsetId));
             await Task.Run(() => Acknowledge(t));
         }
         public async Task RejectMessageAsync(ulong offsetId, bool requeue = true)
@@ -657,7 +657,7 @@ namespace MQ.bll.Kafka
             if (_flushToken.WaitOne())
             {
                 Log.Warning($@"Reject {offsetId}");
-                await Task.Run(() => _consumer!.Seek(new TopicPartitionOffset(option.KafkaServSettings.Topic, new Partition(0), (int)offsetId)));
+                await Task.Run(() => _consumer!.Seek(new TopicPartitionOffset(_option.KafkaServSettings.Topic, new Partition(0), (int)offsetId)));
                 _flushToken.Release();
             }
 

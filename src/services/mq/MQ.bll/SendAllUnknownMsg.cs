@@ -12,23 +12,23 @@ namespace MQ.bll
     public class SendAllUnknownMsg
     {
 
-        BllOption bo;
+        BllOption _option;
         DBHelper dbHelper;
         CancellationToken _cancellationToken;
         //RabbitMQSettings _MQSettings;
 
         public SendAllUnknownMsg(BllOption bllOption, IConfiguration configuration, CancellationToken cancellationToken)
         {
-            bo = bllOption;
+            _option = bllOption;
             _cancellationToken = cancellationToken;
             //_MQSettings = configuration.GetRequiredSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>() ?? throw new Exception("Нет конфига");
-            dbHelper = new DBHelper(bo.DataBaseServSettings?.ServerName ?? "", bo.DataBaseServSettings?.DataBase ?? "", bo.DataBaseServSettings?.Port ?? 0, bo.ServerType, bo.DataBaseServSettings?.User ?? "", bo.DataBaseServSettings?.Password ?? "");
+            dbHelper = new DBHelper(_option.DataBaseServSettings?.ServerName ?? "", _option.DataBaseServSettings?.DataBase ?? "", _option.DataBaseServSettings?.Port ?? 0, _option.ServerType, _option.DataBaseServSettings?.User ?? "", _option.DataBaseServSettings?.Password ?? "");
         }
         public async Task ProcessLauncher()
         {
 
-            if (bo.Iteration > 0)
-                for (int i = 0; i < bo.Iteration; i++)
+            if (_option.Iteration > 0)
+                for (int i = 0; i < _option.Iteration; i++)
                 {
                     await MQProcess();
                 }
@@ -44,7 +44,7 @@ namespace MQ.bll
             IQueueChannel channel;
             try
             {
-                channel = bo.IsKafka ? new KafkaChannel(bo, _cancellationToken) : new RabbitMQChannel(bo, _cancellationToken);
+                channel = _option.IsKafka ? new KafkaChannel(_option, _cancellationToken) : new RabbitMQChannel(_option, _cancellationToken);
                 Random rnd = new Random();
 
                 int iCount = 0;
@@ -66,9 +66,9 @@ namespace MQ.bll
                     {
                         Log.Information(@$"Send {iCount} messages.");
                     }
-                    if (bo.PauseMs != 0)
+                    if (_option.PauseMs != 0)
                     {
-                        int ps = rnd.Next(bo.PauseMs / 2, bo.PauseMs);
+                        int ps = rnd.Next(_option.PauseMs / 2, _option.PauseMs);
                         Log.Information(@$"Send {iCount} message. Pause {ps} ms");
                         _cancellationToken.WaitHandle.WaitOne(ps);
                     }

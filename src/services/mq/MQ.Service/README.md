@@ -1,4 +1,4 @@
-1) создание сервиса
+1) создание windows сервиса
 https://swimburger.net/blog/dotnet/how-to-run-a-dotnet-core-console-app-as-a-service-using-systemd-on-linux
 2) Win service
 dotnet publish -c Release

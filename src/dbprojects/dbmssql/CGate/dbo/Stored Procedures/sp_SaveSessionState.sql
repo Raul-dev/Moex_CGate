@@ -1,5 +1,5 @@
 ﻿
-CREATE   PROCEDURE [dbo].[rb_SaveSessionState] 
+CREATE   PROCEDURE [dbo].[sp_SaveSessionState] 
     @session_id       bigint = NULL,
     @data_source_id   tinyint = 1,
     @session_state_id tinyint = 1,
@@ -27,6 +27,10 @@ SET CONCAT_NULL_YIELDS_NULL ON
         INSERT [session] ([data_source_id],    [session_state_id],    [error_message])
         OUTPUT inserted.[session_id] into @IdentityOutput
         VALUES(@data_source_id, @session_state_id, @error_message)
+
+        INSERT [dbo].[session_log] ([session_id], [session_state_id], [error_message])
+        SELECT [session_id], @session_state_id, @error_message FROM @IdentityOutput
+
         SELECT * FROM @IdentityOutput
     END 
     ELSE
@@ -36,5 +40,9 @@ SET CONCAT_NULL_YIELDS_NULL ON
             [error_message]    = @error_message,
             [dt_update]        = GetDate()
         WHERE [session_id] = @session_id
+        
+        INSERT [dbo].[session_log] ([session_id], [session_state_id], [error_message])
+        VALUES(@session_id, @session_state_id, @error_message )
+
     END 
     EXEC [audit].[sp_log_Finish] @LogID = @LogID, @RowCount = @RowCount

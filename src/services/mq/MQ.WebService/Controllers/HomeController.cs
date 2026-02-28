@@ -82,22 +82,11 @@ namespace MQ.WebService.Controllers
             Log.Logger.Debug($"GetConfig");
             DataBaseSettings databaseSettings = _config.GetRequiredSection(nameof(DataBaseSettings)).Get<DataBaseSettings>() ?? throw new ArgumentNullException();
             var mqConfig = new MqConfig();
-            mqConfig.SessionMode = databaseSettings.SessionMode;
-            if (databaseSettings.SessionMode == "FullMode")
-                mqConfig.SessionMode ="FullMode";
-            else if (databaseSettings.SessionMode == "BufferOnly")
-                mqConfig.SessionMode = "BufferOnly";
-            else
+            mqConfig.SessionMode = databaseSettings.SessionMode.ToString();
+            if(String.IsNullOrEmpty(mqConfig.SessionMode))
                 mqConfig.SessionMode = "InvalidMode";
 
-            if (databaseSettings.ServerType == "psql")
-            {
-                mqConfig.SqlServerType = "psql";
-            }
-            else
-            {
-                mqConfig.SqlServerType = "mssql";
-            }
+            mqConfig.SqlServerType = databaseSettings.ServerType.ToString();
             return mqConfig;
         }
     }

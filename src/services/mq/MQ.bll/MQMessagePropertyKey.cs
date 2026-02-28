@@ -1,8 +1,10 @@
-﻿using MQ.dal;
-using Serilog;
-using MQ.dal.Models;
-using Microsoft.IdentityModel.Tokens;
+﻿using Microsoft.IdentityModel.Tokens;
 using MQ.bll.Common;
+using MQ.dal;
+using MQ.dal.Models;
+using Serilog;
+using Serilog.Context;
+using static MQ.dal.DBHelper;
 
 namespace MQ.bll
 {
@@ -66,22 +68,14 @@ namespace MQ.bll
             _messageOffsetIdQueue[1] = new Queue<ulong>();
         }
 
-         public void CleanProcess()
+        public void CleanProcess()
         {
-            Log.Information($@"Abort thread {ProcessQuery}");
+            
             if (_loadThread != null)
                 if (_loadThread.IsAlive)
-                {
+                {   //не должно вызываться, если вызвалось то нужно проверять почему поток не завершился сам.
+                    Log.Information($@"Abort thread {ProcessQuery}");
                     _loadThread.Abort();
-                    /*
-                    if(!cancellationToken.IsCancellationRequested )
-                        CancellationTokenSource.CreateLinkedTokenSource(cancellationToken).Cancel();
-                    while (_loadThread.IsAlive)
-                    {
-                        Task.Delay(100);
-                        Log.Information($@"Wait thread finished {ProcessQuery}");
-                    }
-                    */
                 }
         }
 
@@ -123,6 +117,7 @@ namespace MQ.bll
             int i = 0;
             long cnt = 0;
             string errorMessage;
+            string prevErrorMessage="";
             DBHelper? dbHelper = null;
             //For Debug
             //if(MessagePropertyKey == "key")
@@ -158,7 +153,7 @@ namespace MQ.bll
                         
                         DateTime dt = DateTime.Now;
                         ResetIncomingMessagesCounter();
-                        cnt = dbHelper.EtlLoadProcess(sessionId, ProcessQuery, oldBufferId, out errorMessage, out bufferId);
+                        cnt = dbHelper.EtlLoadProcess(sessionId, ProcessQuery, oldBufferId, out errorMessage, out bufferId, token);
                         
                         TimeSpan ts = DateTime.Now - dt;
                         if (!errorMessage.IsNullOrEmpty())
@@ -172,8 +167,17 @@ namespace MQ.bll
                 }
                 catch (Exception ex)
                 {
-                    Log.Error("EtlThread: {0}, Error: {1}.", MessagePropertyKey, ex.Message);
+                    
+                    errorMessage = string.Format("EtlThread: {0}, Error: {1}.", MessagePropertyKey, ex.Message);
+                    
+                    Log.Error(errorMessage);
+                    if(prevErrorMessage != errorMessage) {
+                        if (dbHelper == null)
+                            dbHelper = new DBHelper(bo.DataBaseServSettings?.ServerName ?? "", bo.DataBaseServSettings?.DataBase ?? "", bo.DataBaseServSettings?.Port ?? 0, bo.ServerType, bo.DataBaseServSettings?.User ?? "", bo.DataBaseServSettings?.Password ?? "");
 
+                        dbHelper.SaveSessionState((int)SessionState.ErrorSession, sessionId, 1, errorMessage);
+
+                    }
                 }
                 if (cnt != 200000) // TOP 200000 , нужно повторить процедуру без паузы
                     token.WaitHandle.WaitOne(1000);
@@ -230,7 +234,7 @@ namespace MQ.bll
             }
    
             var buff = _messageBufferQueue[prevMessageCurentList].ToArray();
-            bool res = dbHelper.EfBulkInsertBufferAsync(MessagePropertyKey, buff).Result;
+            bool res = dbHelper.EfBulkInsertBufferAsync(MessagePropertyKey, buff, _cancellationToken).Result;
 
             _messageBufferQueue[prevMessageCurentList].Clear();
             if(res)

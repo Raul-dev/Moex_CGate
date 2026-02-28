@@ -20,8 +20,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{E53339B2-1760-4266-BCC7-CA923CBCF16C}") = "docker-compose", "docker-compose.dcproj", "{D8B5BB3E-2E03-42F8-99FE-3F7041A9E1ED}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MQ.Share", "MQ.Share\MQ.Share.csproj", "{82650762-C1F9-8B98-B9E9-18A186C7AC1E}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -52,10 +50,6 @@ Global
 		{D8B5BB3E-2E03-42F8-99FE-3F7041A9E1ED}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D8B5BB3E-2E03-42F8-99FE-3F7041A9E1ED}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D8B5BB3E-2E03-42F8-99FE-3F7041A9E1ED}.Release|Any CPU.Build.0 = Release|Any CPU
-		{82650762-C1F9-8B98-B9E9-18A186C7AC1E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{82650762-C1F9-8B98-B9E9-18A186C7AC1E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{82650762-C1F9-8B98-B9E9-18A186C7AC1E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{82650762-C1F9-8B98-B9E9-18A186C7AC1E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

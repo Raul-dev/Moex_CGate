@@ -19,7 +19,7 @@ builder.LogStartUp(connection);
 
 // Add services to the container.
 
-if(databaseSettings.ServerType == "psql")
+if(databaseSettings.ServerType == MQ.dal.SqlServerType.psql)
     builder.Services.AddDbContext<MetastorageContext>(options =>
         options.UseNpgsql(connection));
 else

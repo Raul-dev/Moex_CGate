@@ -3,9 +3,9 @@ using Microsoft.Extensions.Configuration;
 using MQ.bll;
 using MQ.bll.Common;
 using MQ.OptionModels;
-using MQ.Share;
-using MQ.Share.Configuration;
+using MQ.bll.Extensions;
 using Serilog;
+using Serilog.Context;
 
 class Program
 {
@@ -19,10 +19,12 @@ class Program
             .Build();
 
         Log.Logger = new LoggerConfiguration()
-            .Enrich.With(new CustomPropertyEnricher("Q","Gen"))
+            .Enrich.WithThreadId()
+            .Enrich.FromLogContext()
+            .Enrich.With(new CustomPropertyEnricher("WorkerLogPrefix", "SYS"))
             .ReadFrom.Configuration(configuration)
             .CreateLogger();
-
+        
         var cmdRes = CommandLine.Parser.Default.ParseArguments<SendMsgOptions, GetMsgOptions, ConfigMsgOptions>(args)
                                 .WithNotParsed(HandleCmdError);
 
@@ -48,7 +50,8 @@ class Program
         CancellationTokenSource cts = new CancellationTokenSource();
         MQ.bll.SendAllUnknownMsg snd = new MQ.bll.SendAllUnknownMsg(bo, configuration, cts.Token);
         await snd.ProcessLauncher();
-
+        //var tsk = snd.TaskCompletionSourceWithCancelation(cts.Token);
+        //tsk.Wait();
         return 0;
     }
     static async Task<int> GetMsgExecute(GetMsgOptions options, IConfiguration configuration)
@@ -57,12 +60,16 @@ class Program
         options.InitBllOption(bo, configuration);
 
         CancellationTokenSource cts = new CancellationTokenSource();
-        var snd = new ReceiveAllMessages(bo, configuration, cts.Token);
-        await snd.ProcessLauncherConsoleAsync();
+        var snd = new ReceiveAllMessages(bo, cts.Token);
+        await snd.ProcessLauncherAsync();
+        var tsk = snd.TaskCompletionSourceWithCancelation(cts.Token);
+        tsk.Wait();
         return 0;
     }
+ 
     static async Task<int> ConfigMsgExecute(ConfigMsgOptions options, IConfiguration configuration)
     {
+        CancellationTokenSource cts = new CancellationTokenSource();
         /*
         BllOption bo = new BllOption();
         options.InitBllOption(bo, configuration);
@@ -72,15 +79,35 @@ class Program
         await snd.ProcessLauncherConsoleAsync();
         */
         //Servicegetmsgsettings servicegetmsgsettings = configuration.GetRequiredSection(options.ConfigName).Get<Servicegetmsgsettings>() ?? throw new ArgumentNullException();
+
+        Log.Information("test");
+      //  LogContext.PushProperty("WorkerLogPrefix", "DSA");
+      //  Log.Information("test1");
+        
         try
         {
             //var section = configuration.GetRequiredSection("MissingSection");
-            Servicegetmsgsettings servicegetmsgsettings = configuration.GetRequiredSection(options.ConfigName).Get<Servicegetmsgsettings>() ?? throw new ArgumentNullException();
+            //RabbitMQSettings rabbitMQSettings = configuration.GetRequiredSection("RabbitMQSettings").Get<RabbitMQSettings>() ?? throw new ArgumentNullException();
+            //DataBaseSettings dataBaseSettings = configuration.GetRequiredSection("DataBaseSettings").Get<DataBaseSettings>() ?? throw new ArgumentNullException();
+            ServiceMsgSettings serviceMsgSettings = configuration.GetRequiredSection(options.ConfigName).Get<ServiceMsgSettings>() ?? throw new ArgumentNullException();
+
+            ThreadManagerAsync tm = new ThreadManagerAsync(serviceMsgSettings, cts);
+            //await tm.RunAsync("FullRabbit");
+            //var tsk = tm.TaskCompletionSourceWithCancelation(cts.Token);
+            //tsk.Wait();
+            //object value = await tm.MonitorAndRestart().Result();
+            await tm.MonitorAndRestart();
+            var tsk = tm.TaskCompletionSourceWithCancelation(cts.Token);
+            tsk.Wait();
+            //var snd = new ReceiveAllMessages(bo, configuration, cts.Token);
+            //MQ.bll.SendAllUnknownMsg snd1 = new MQ.bll.SendAllUnknownMsg(bo, configuration, cts.Token);
+            //await snd1.ProcessLauncher();
         }
         catch (Exception ex)
         {
             // Log or handle the error
-            Console.WriteLine($"Configuration error: {ex.Message}");
+            Log.Error($"Configuration error: {ex.Message}");
+            
         }
         return 0;
     }

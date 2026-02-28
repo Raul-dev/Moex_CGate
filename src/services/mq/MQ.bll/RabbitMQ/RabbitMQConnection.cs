@@ -48,12 +48,16 @@ namespace MQ.bll.RabbitMQ
         
         public async Task CloseAsync()
         {
-            await _connection.CloseAsync();
+            if(IsOpen)
+                await _connection.CloseAsync();
             if (_isEvent)
             {
-                _connection.ConnectionShutdownAsync -= OnConnectionShutdown;
-                _connection.CallbackExceptionAsync -= OnCallbackException;
-                _connection.ConnectionBlockedAsync -= OnConnectionBlocked;
+                if (_connection != null)
+                {
+                    _connection.ConnectionShutdownAsync -= OnConnectionShutdown;
+                    _connection.CallbackExceptionAsync -= OnCallbackException;
+                    _connection.ConnectionBlockedAsync -= OnConnectionBlocked;
+                }
                 _isEvent = false;
             }
 

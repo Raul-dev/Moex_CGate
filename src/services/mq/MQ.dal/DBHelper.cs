@@ -1,18 +1,19 @@
 ﻿
-using Microsoft.EntityFrameworkCore;
-using System.Text;
-using MQ.dal.Models;
-using Microsoft.Data.SqlClient;
-using RabbitMQ.Client;
-using Npgsql;
-using System.Data;
-using Microsoft.Data.Sqlite;
-using ClickHouse.EntityFrameworkCore.Extensions;
 using ClickHouse.Client.ADO.Parameters;
-using Mono.TextTemplating;
-using Microsoft.IdentityModel.Tokens;
+using ClickHouse.EntityFrameworkCore.Extensions;
 using EFCore.BulkExtensions;
+using Microsoft.Data.SqlClient;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Mono.TextTemplating;
+using MQ.dal.Models;
+using Npgsql;
+using RabbitMQ.Client;
+using RTools_NTS.Util;
 using Serilog;
+using System.Data;
+using System.Text;
 //using static MongoDB.Driver.WriteConcern;
 //using MongoDB.Bson;
 //using ClickHouse.Client.ADO.Parameters;
@@ -30,7 +31,7 @@ namespace MQ.dal
     {
         MetastorageContext MetastorageDbContext;
         SqlServerType ServerType;
-        object LockObjSaveMsgToDataBase = new object();
+        Lock LockObjSaveMsgToDataBase = new Lock();
         DbContextOptionsBuilder<MetastorageContext> OptionsBuilder;
         public DBHelper(string server, string databasename, int port = 1433, SqlServerType type = SqlServerType.mssql, string user = "", string pwd = "")
         {
@@ -58,9 +59,7 @@ namespace MQ.dal
                 throw new Exception($"DBHelper not supported for {SqlServerTypeHelper.GetString(ServerType)}");
             OptionsBuilder = optionsBuilder;
             MetastorageDbContext = new MetastorageContext(optionsBuilder.Options);
-#if (DEBUG)
-            Test();
-#endif
+
         }
         
         public void Test()
@@ -141,7 +140,7 @@ namespace MQ.dal
                 var session_state_id = new SqlParameter("@session_state_id", stateid);
                 var error_message = new SqlParameter("@error_message", errormsg);
                 
-                var res = MetastorageDbContext.Database.SqlQueryRaw<Int64>($"EXEC rb_SaveSessionState @session_id, @data_source_id, @session_state_id, @error_message", session_id, data_source_id, session_state_id, error_message).ToList();
+                var res = MetastorageDbContext.Database.SqlQueryRaw<Int64>($"EXEC sp_SaveSessionState @session_id, @data_source_id, @session_state_id, @error_message", session_id, data_source_id, session_state_id, error_message).ToList();
                 foreach (var s in res)
                 {
                     sessionid = s;
@@ -225,7 +224,8 @@ namespace MQ.dal
                 return (T?)((SqlParameter)obj).Value;
             }
         }
-        public int EtlLoadProcess(long sessionid, string processQuery,long inBufferId, out string errorMessage, out long lBufferId)
+
+        public int EtlLoadProcess(long sessionid, string processQuery,long inBufferId, out string errorMessage, out long lBufferId, CancellationToken token)
         {
             int iRowCountInt = 0;
             lBufferId = 0;
@@ -246,7 +246,7 @@ namespace MQ.dal
                 MetastorageDbContext.Database.SetCommandTimeout(30 * 60); // value in seconds
                 //using (var txn = MetastorageDbContext.Database.BeginTransaction(IsolationLevel.Snapshot))
                 //{
-                MetastorageDbContext.Database.ExecuteSqlRawAsync(cmd, session_id, rowCount, bufferId, errMessage).Wait();
+                MetastorageDbContext.Database.ExecuteSqlRawAsync(cmd, session_id, rowCount, bufferId, errMessage, token).Wait();
                 //txn.Commit();
                 //}
                 //System.Int32' to type 'System.Int64
@@ -483,7 +483,7 @@ END CATCH
             await context.BulkInsertAsync(msgQueueBuffer);
             return true;
         }
-        public async Task<bool> EfBulkInsertBufferAsync(string messagePropertyKey, object[] objArray)
+        public async Task<bool> EfBulkInsertBufferAsync(string messagePropertyKey, object[] objArray, CancellationToken token)
         {
             try 
             { 
@@ -497,13 +497,13 @@ END CATCH
                             var i = objArray.Length;
                             MsgQueue[] destinationArray = new MsgQueue[objArray.Length]; //;new List<MsgQueue>(objArray.Length).ToArray();
                             Array.Copy(objArray, destinationArray, objArray.Length);
-                            await context.BulkInsertAsync(destinationArray);
+                            await context.BulkInsertAsync(entities: destinationArray, cancellationToken: token);
                             break;
                         case "crs.orders_log":
                             var y = objArray.Length;
                             OrdersLogBuffer[] orders_logArray = new OrdersLogBuffer[objArray.Length];
                             Array.Copy(objArray, orders_logArray, objArray.Length);
-                            await context.BulkInsertAsync(orders_logArray);
+                            await context.BulkInsertAsync(orders_logArray, cancellationToken: token);
                             
                             break;
                         default:

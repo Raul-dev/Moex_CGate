@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿using MQ.bll.Extensions;
+using Serilog;
 using Serilog.Context;
 using Serilog.Core.Enrichers;
 using System.Text.RegularExpressions;
@@ -38,11 +39,15 @@ namespace MQ.WebService.Extensions
         {
             // Use the appsettings.json configuration to override minimum levels and add any additional sinks.
             var config = new ConfigurationBuilder()
+                 
                 .AddJsonFile($"appsettings.json")
                 .AddJsonFile($"appsettings.{environment}.json", optional: true)
                 .Build();
 
             var cfg = new LoggerConfiguration()
+                 .Enrich.WithThreadId()
+                 .Enrich.FromLogContext()
+                 .Enrich.With(new CustomPropertyEnricher("WorkerLogPrefix", "SYS"))
                 .ReadFrom.Configuration(config);
 
             return cfg;

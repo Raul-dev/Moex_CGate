@@ -6,6 +6,9 @@ namespace MQ.bll.Common
     [DebuggerDisplay($"{{{nameof(GetDebuggerDisplay)}(),nq}}")]
     public class BllOption
     {
+        public string Name { get; set; } = "";  
+        public bool IsEnabled { get; set; } = false;
+        public string LogPrefix { get; set; } = ""; // Used as LogPrefix parameter WorkerLogPrefix
         /*
         //DB Server name
         public string ServerName { get; set; } = "";
@@ -29,10 +32,7 @@ namespace MQ.bll.Common
         public int Iteration { get; set; }
         public int PauseMs { get; set; }
 
-        public bool IsKafka
-        {
-            get => (KafkaServSettings == null) ? false : true;
-        }
+        public bool IsKafka { get; set; } = false;
         public bool IsMultipleMessages { get; set; } = true;
         public KafkaSettings? KafkaServSettings { get; set; }
         public RabbitMQSettings? RabbitMQServSettings { get; set; }
@@ -54,7 +54,11 @@ namespace MQ.bll.Common
         public override string ToString()
         {
             string ret = "{";
+            ret += Name;
+            ret += ",";
             ret += DataBaseServSettings?.ServerName ?? "";
+            ret += ",";
+            ret += SessionMode;
             ret += "}";
             return ret;
         }

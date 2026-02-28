@@ -1,16 +1,17 @@
-﻿using RabbitMQ.Client.Events;
-using RabbitMQ.Client;
-using System.Text;
+﻿using Confluent.Kafka;
 using MQ.bll.Common;
+using RabbitMQ.Client;
+using RabbitMQ.Client.Events;
 using Serilog;
-using Confluent.Kafka;
+using System.Text;
 using System.Threading;
+using System.Threading.Channels;
 
 namespace MQ.bll.RabbitMQ
 {
     public class RabbitMQChannel : IQueueChannel
     {
-        BllOption option;
+        BllOption _option;
         MQSession? _MQSession;
         RabbitMQConnection? _connection;
         IChannel? _channel;
@@ -24,7 +25,7 @@ namespace MQ.bll.RabbitMQ
 
         public RabbitMQChannel(BllOption option, CancellationToken cancellationToken)
         {
-            this.option = option;
+            this._option = option;
             _cancellationToken = cancellationToken;
             _queueName = option.RabbitMQServSettings.DefaultQueue;
             _exchange = option.RabbitMQServSettings.Exchange;
@@ -49,11 +50,19 @@ namespace MQ.bll.RabbitMQ
         }
         public async Task InitSetup(  MQSession? mqSession = null, bool isSend = true, bool isSubscription = false)
         {
-            this._exchange = option.RabbitMQServSettings?.Exchange ?? "";
-            this._queueName = option.RabbitMQServSettings?.DefaultQueue ?? "";
+            this._exchange = _option.RabbitMQServSettings?.Exchange ?? "";
+            this._queueName = _option.RabbitMQServSettings?.DefaultQueue ?? "";
+            if (String.IsNullOrEmpty(_option.RabbitMQServSettings?.Host) || String.IsNullOrEmpty(_option.RabbitMQServSettings?.DefaultQueue))
+            {
+                Log.Error("Empty RabbitMQ Host or DefaultQueue");
+                throw new ArgumentException("Empty RabbitMQ Host or DefaultQueue");
+            } else
+            {
+                Log.Information("RabbitMQ Host:{0}, DefaultQueue:{1}", _option.RabbitMQServSettings?.Host, _option.RabbitMQServSettings?.DefaultQueue);
+            }
             
             _MQSession = mqSession!;
-            _connection = new RabbitMQConnection(option.RabbitMQServSettings);
+            _connection = new RabbitMQConnection(_option.RabbitMQServSettings);
             await _connection.TryConnect();
             _channel = await _connection.CreateChannelAsync(_cancellationToken);
             if (isSend)
@@ -95,9 +104,11 @@ namespace MQ.bll.RabbitMQ
         }
         public async Task CloseAsync()
         {
-            await _connection!.CloseAsync();
-            await _channel!.CloseAsync();
             ConsumerUnSubscription();
+            if(_channel != null)
+                await _channel!.CloseAsync();
+            if (_connection != null)
+                await _connection!.CloseAsync();
 
         }
         public async Task AcknowledgeMessageAsync(ulong offsetId, bool multiple = false)
@@ -163,12 +174,12 @@ namespace MQ.bll.RabbitMQ
             IChannel ch = cons.Channel;
             try
             {
-                if (!option.IsMultipleMessages)
+                if (!_option.IsMultipleMessages)
                 {
                     // Save single messages to DB 2787 msg/s
                     await _MQSession!.SaveMsgToDataBaseAsync(ea.BasicProperties.MessageId!, Encoding.UTF8.GetString(ea.Body.ToArray()), ea.BasicProperties.Type!, _cancellationToken);
                     
-                    if (option.IsConfirmMsgAndRemoveFromQueue)
+                    if (_option.IsConfirmMsgAndRemoveFromQueue)
                     {
                         await ch.BasicAckAsync(ea.DeliveryTag, false);
                     }

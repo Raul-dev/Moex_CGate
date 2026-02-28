@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace MQ.Share.Configuration
+namespace MQ.bll.Common
 {
     public enum SessionModeEnum
     {
@@ -17,15 +17,15 @@ namespace MQ.Share.Configuration
     }
     public class Rootobject
     {
-        public Servicegetmsgsettings ServiceGetMsgSettings { get; set; }
+        public ServiceMsgSettings ServiceGetMsgSettings { get; set; }
     }
 
-    public class Servicegetmsgsettings
+    public class ServiceMsgSettings
     {
         public string ServiceName { get; set; }
         public string ServiceDisplayName { get; set; }
         public string ServiceDescription { get; set; }
-        public BllOption[] Services { get; set; }
+        public BllOption[] Workers { get; set; }
     }
     /*
     public class Service
