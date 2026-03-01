@@ -27,7 +27,6 @@ namespace MQ.bll
         private int _messageCurentQueue = 0;
         private readonly Lock _messageCurentQueueLock = new Lock();
 
-        //private Queue<MessageBuffer>[] _messageBufferQueue = new Queue<MessageBuffer>[2];
         private Queue<object>[] _messageBufferQueue = new Queue<object>[2];
         private Queue<ulong>[] _messageOffsetIdQueue = new Queue<ulong>[2];
 
@@ -184,7 +183,6 @@ namespace MQ.bll
             }
         }
 
-        //public async Task SendMsgToLocalQueue(ulong offsetId, IReadOnlyBasicProperties basicProperties, ReadOnlyMemory<byte> body)
         public async Task SendMsgToLocalQueue(ulong offsetId, string messageId, string body)
         {
 

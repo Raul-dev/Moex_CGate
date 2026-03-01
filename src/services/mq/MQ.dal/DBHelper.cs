@@ -249,7 +249,7 @@ namespace MQ.dal
                 MetastorageDbContext.Database.SetCommandTimeout(30 * 60); // value in seconds
                 //using (var txn = MetastorageDbContext.Database.BeginTransaction(IsolationLevel.Snapshot))
                 //{
-                MetastorageDbContext.Database.ExecuteSqlRawAsync(cmd, session_id, rowCount, bufferId, errMessage, token).Wait();
+                MetastorageDbContext.Database.ExecuteSqlRawAsync(cmd, new object[] { session_id, rowCount, bufferId, errMessage }, token).Wait();
                 //txn.Commit();
                 //}
                 //System.Int32' to type 'System.Int64
