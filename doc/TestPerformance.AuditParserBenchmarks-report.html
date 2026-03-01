@@ -2,7 +2,7 @@
 <html lang='en'>
 <head>
 <meta charset='utf-8' />
-<title>TestPerformance.AuditParserBenchmarks-20260108-181906</title>
+<title>TestPerformance.AuditParserBenchmarks-20260301-131920</title>
 
 <style type="text/css">
 	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
@@ -17,16 +17,18 @@ BenchmarkDotNet v0.15.8, Windows 10 (10.0.19045.2130/22H2/2022Update)
 Intel Core i9-9900K CPU 3.60GHz (Coffee Lake), 1 CPU, 16 logical and 8 physical cores
 .NET SDK 10.0.101
   [Host]     : .NET 9.0.11 (9.0.11, 9.0.1125.51716), X64 RyuJIT x86-64-v3
-  DefaultJob : .NET 9.0.11 (9.0.11, 9.0.1125.51716), X64 RyuJIT x86-64-v3
+  Job-YYGFXN : .NET 9.0.11 (9.0.11, 9.0.1125.51716), X64 RyuJIT x86-64-v3
 </code></pre>
-<pre><code></code></pre>
+<pre><code>InvocationCount=20  IterationCount=200  LaunchCount=1  
+UnrollFactor=10  WarmupCount=2  
+</code></pre>
 
 <table>
-<thead><tr><th>Method        </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Gen1</th><th>Allocated</th><th>Alloc Ratio</th>
+<thead><tr><th>Method        </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Median</th><th>Min</th><th>Max</th><th>Ratio</th><th>RatioSD</th><th>Gen0</th><th>Allocated</th><th>Alloc Ratio</th>
 </tr>
-</thead><tbody><tr><td>LogLocalTable</td><td>46.36 ms</td><td>1.938 ms</td><td>5.593 ms</td><td>0.17</td><td>0.07</td><td>692.3077</td><td>230.7692</td><td>5.65 MB</td><td>0.97</td>
-</tr><tr><td>LogLinkedServerTable</td><td>115.24 ms</td><td>3.443 ms</td><td>9.541 ms</td><td>0.43</td><td>0.18</td><td>500.0000</td><td>250.0000</td><td>5.65 MB</td><td>0.97</td>
-</tr><tr><td>LogRabbitMQPost</td><td>317.55 ms</td><td>42.135 ms</td><td>123.575 ms</td><td>1.17</td><td>0.69</td><td>-</td><td>-</td><td>5.8 MB</td><td>1.00</td>
+</thead><tbody><tr><td>LogLocalTable</td><td>29.51 ms</td><td>0.346 ms</td><td>1.425 ms</td><td>29.40 ms</td><td>26.79 ms</td><td>33.66 ms</td><td>0.76</td><td>0.04</td><td>50.0000</td><td>578.02 KB</td><td>1.01</td>
+</tr><tr><td>LogLinkedServerTable</td><td>84.58 ms</td><td>0.605 ms</td><td>2.479 ms</td><td>84.81 ms</td><td>78.10 ms</td><td>92.08 ms</td><td>2.19</td><td>0.08</td><td>50.0000</td><td>570.13 KB</td><td>1.00</td>
+</tr><tr><td>LogRabbitMQPost</td><td>38.68 ms</td><td>0.196 ms</td><td>0.779 ms</td><td>38.50 ms</td><td>37.54 ms</td><td>41.34 ms</td><td>1.00</td><td>0.03</td><td>50.0000</td><td>570.13 KB</td><td>1.00</td>
 </tr></tbody></table>
 </body>
 </html>

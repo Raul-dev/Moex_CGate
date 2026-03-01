@@ -1,4 +1,5 @@
 ﻿using Microsoft.IdentityModel.Tokens;
+using MongoDB.Driver.Core.Servers;
 using MQ.bll.Common;
 using MQ.dal;
 using MQ.dal.Models;
@@ -85,8 +86,7 @@ namespace MQ.bll
             {
                 Thread thread = new Thread(EtlThread);
                 thread.Name = MessagePropertyKey;
-                if (MessagePropertyKey != "Unknown" &&
-                    MessagePropertyKey != "Справочник.адаптер_СхемыДанных")
+                if ( !String.IsNullOrEmpty(ProcessQuery) )
                 {
                     thread.Start(_cancellationToken);
                     _loadThread = thread;
@@ -141,7 +141,6 @@ namespace MQ.bll
                     if (mongoHelper == null && bo.MongoEnable)
                         mongoHelper = new MongoHelper(bo.MongoServSettings?.Url ?? "", bo.MongoServSettings?.User ?? "", bo.MongoServSettings?.Password ?? "", bo.MongoServSettings?.DataBase ?? "");
 
-                    
                     if (bo.MongoEnable && mongoHelper != null)
                         cnt = mongoHelper.SaveCollectionToDB(sessionId, MessagePropertyKey, dbHelper, TableName, ProcessQuery, token);
                     else

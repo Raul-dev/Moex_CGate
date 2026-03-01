@@ -22,6 +22,7 @@ namespace MQ.bll.Common
         public SessionModeEnum SessionMode { get; set; }
         public string Filter { get; set; } = "CGateJson";
         public int DataSourceID { get; set; } = 1;
+        public int MetaAdapterId { get; set; } = 1;
         public string GetConnection()
         {
             if (ServerType == SqlServerType.mssql)

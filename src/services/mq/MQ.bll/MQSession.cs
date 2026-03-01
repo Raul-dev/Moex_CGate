@@ -90,7 +90,12 @@ namespace MQ.bll
         public MQMessagePropertyKey? GetMQMessagePropertyKey(string messagePropertyKey = "")
         {
             MQMessagePropertyKey? ms = null;
-            bool keyres = MQMessagePropertyKeyList.TryGetValue(messagePropertyKey, out ms);
+            bool keyres = false;
+            if (!string.IsNullOrEmpty(messagePropertyKey))
+            {
+                keyres = MQMessagePropertyKeyList.TryGetValue(messagePropertyKey, out ms);
+            }
+            
             if (!keyres)
             {
                 MQMessagePropertyKeyList.TryGetValue("Unknown", out ms);
@@ -101,12 +106,9 @@ namespace MQ.bll
         {
 
             MQMessagePropertyKey? ms = null;
-            if (messagePropertyKey == null)
-                return "msgqueue";
-            if (messagePropertyKey.Length != 0 && messagePropertyKey != "All")
-            {
-                ms = GetMQMessagePropertyKey(messagePropertyKey);
-            }
+
+            ms = GetMQMessagePropertyKey(messagePropertyKey);
+            
             if (ms == null) throw new Exception(@$"messagePropertyKey = {messagePropertyKey} Not found.");
             return ms.TableName;
         }
@@ -230,14 +232,15 @@ namespace MQ.bll
             try
             {
 
-                List<Metamap> mms = dbHelper.GetMappingSetup();
+                List<Metamap> mms = dbHelper.GetMappingSetup(_option.DataBaseServSettings.MetaAdapterId);
                 //.Where<MsgMappingSetup>(c => (c.TableName.Contains("msgqueue") || c.TableName.Contains("TABLE_REPL")))
                 foreach (Metamap m in mms)
                 {
                     MQMessagePropertyKey ms = new MQMessagePropertyKey(_option, m.MsgKey, m.TableName, m.EtlQuery ?? "", SessionId, _cancellationToken);
                     MQMessagePropertyKeyList.Add(m.MsgKey, ms);
                 }
-
+                if (mms.Count > 0 && !MQMessagePropertyKeyList.ContainsKey("Unknown"))
+                    throw new Exception("Hav't Unknown Message Key");
                 return 0;
             }
             catch (Exception ex)
@@ -264,13 +267,13 @@ namespace MQ.bll
 
         public async Task SaveMsgToDataBaseAsync(string messageId, string body, string messageKey, CancellationToken cancellationToken)
         {
-            string tableName = GetTableName(messageKey) ?? "msgqueue";
+            string tableName = GetTableName(messageKey);
             int messageTypeId = 1; //Тестируем  Bulk запись, парсинг процедурой load_orders_log
             messageTypeId = 2; //Тестируем Array парсинг процедурой load_orders_log_array
 
             //Log.Debug($@"sessionId {sessionId}, basicProperties.Type {basicProperties.Type}, Table {GetTableName(basicProperties.Type)}, messageTypeId {messageTypeId.ToString()} .");
 
-            MQMessagePropertyKey? ms = GetMQMessagePropertyKey(messageKey ?? "Unknown");
+            MQMessagePropertyKey? ms = GetMQMessagePropertyKey(messageKey );
 
             if (ms == null)
                 return;
@@ -282,7 +285,7 @@ namespace MQ.bll
             }
             if (messageTypeId == 2)
             {
-                await dbHelper.SaveMsgToDataBaseAsync(SessionId, GetTableName(messageKey) ?? "msgqueue", messageId, body, messageKey, messageTypeId, cancellationToken);
+                await dbHelper.SaveMsgToDataBaseAsync(SessionId, GetTableName(messageKey), messageId, body, messageKey, messageTypeId, cancellationToken);
                 ms.IncreaseIncomingMessagesCounter();
             }
 #pragma warning restore CS8604 // Possible null reference argument.
@@ -290,7 +293,7 @@ namespace MQ.bll
         }
         public void SaveMsgToDataBase( string messageId, string body, string messageKey)
         {
-            string tableName = GetTableName(messageKey) ?? "msgqueue";
+            string tableName = GetTableName(messageKey);
             int messageTypeId = 1; //Тестируем  Bulk запись, парсинг процедурой load_orders_log
             messageTypeId = 2; //Тестируем Array парсинг процедурой load_orders_log_array
 
@@ -308,7 +311,7 @@ namespace MQ.bll
             }
             if (messageTypeId == 2)
             {
-                dbHelper.SaveMsgToDataBase(SessionId, GetTableName(messageKey) ?? "msgqueue", messageId, body, messageKey, messageTypeId);
+                dbHelper.SaveMsgToDataBase(SessionId, GetTableName(messageKey), messageId, body, messageKey, messageTypeId);
                 ms.IncreaseIncomingMessagesCounter();
             }
 #pragma warning restore CS8604 // Possible null reference argument.

@@ -104,7 +104,7 @@ namespace MQ.bll
         public void Dispose()
         {
             _semaphore.Dispose();
-            //_cts.Dispose();
+
         }
     }
 }

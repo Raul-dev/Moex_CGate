@@ -86,20 +86,6 @@ namespace MQ.bll
             }
         }
 
-        /*
-        public async Task ProcessLauncherConsoleAsync()
-        {
-            _MQSession = new MQSession(_option, _cancellationToken);
-            long sessionId = _MQSession.StartSessionProcessing();
-            if (sessionId == -1)
-                return;
-            int errorCount = 0;
-            var res = await MQProcess();
-            if (res != 0)
-                errorCount++;
-            return;
-        }
-        */
         public void StartBulkThread()
         {
             if (_bulkThread == null)

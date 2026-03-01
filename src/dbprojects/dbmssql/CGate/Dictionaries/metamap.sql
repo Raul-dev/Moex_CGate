@@ -3,7 +3,11 @@ IF NOT EXISTS(SELECT 1 FROM [dbo].[metaadapter] )
 BEGIN
     INSERT INTO [dbo].[metaadapter] ([metaadapter_id], [name]) 
     SELECT 1, N'CGateJson'
+    UNION ALL SELECT 2, N'CGateAuditSP'
+    UNION ALL SELECT 3, N'CGateAuditLT'
+    UNION ALL SELECT 4, N'CGateAuditErr'
     UNION ALL SELECT 5, N'UnknownJsonXml'
+
 END
 DECLARE @metamap TABLE
 (
@@ -19,8 +23,10 @@ DECLARE @metamap TABLE
 )
 INSERT @metamap ([metamap_id], [msg_key], [table_name], [metaadapter_id], [namespace], [namespace_ver], [etl_query], [import_query], [is_enable])
 VALUES
-(1, N'Unknown', 'msgqueue', 5, CAST(N'https://nevacgate.ru/CatalogObject.Unknown' AS varchar(255)), CAST('https://nevacgate.ru/CatalogObject.Unknown/version1' AS varchar(255)), NULL, NULL, 1),
-(2, N'crs.orders_log', N'[crs].[orders_log_buffer]', 1, N'crs.orders_log', N'crs.orders_log/version2.17', N'[crs].[load_orders_log]', NULL, 1)
+(1, N'Unknown', 'msgqueue', 1, CAST(N'https://nevacgate.ru/CatalogObject.Unknown' AS varchar(255)), CAST('https://nevacgate.ru/CatalogObject.Unknown/version1' AS varchar(255)), NULL, NULL, 1),
+(2, N'crs.orders_log', N'[crs].[orders_log_buffer]', 1, N'crs.orders_log', N'crs.orders_log/version2.17', N'[crs].[load_orders_log]', NULL, 1),
+(3, N'Unknown', N'[audit].[LogText_buffer]', 3, N'audit.LogText', N'audit.AuditLT/version1.01', N'[audit].[load_LogText]', NULL, 0),
+(4, N'Unknown', N'[audit].[LogError_buffer]', 4, N'audit.LogError', N'audit.AuditErr/version1.01', N'[audit].[load_LogError]', NULL, 0)
 
 IF EXISTS ( 
     SELECT 1 FROM [dbo].[metamap] d 

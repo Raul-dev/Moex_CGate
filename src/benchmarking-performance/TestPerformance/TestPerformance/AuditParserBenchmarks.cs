@@ -19,16 +19,16 @@ namespace TestPerformance
             string connection = @$"Server = localhost; Database = CGate; User = CGateUser; Password = MyPassword321; MultipleActiveResultSets = true; TrustServerCertificate = true; Encrypt = False";
             DBHelper dbset = new DBHelper(connection);
             dbset.SetLogType(logType);
-            Parallel.For(0, 10, i =>
-            {
-                DBHelper dbHelper = new DBHelper(connection);
+            //Parallel.For(0, 10, i =>
+            //{
+            //    DBHelper dbHelper = new DBHelper(connection);
 
                 for (int j = 0; j < 100; j++)
                 {
-                    dbHelper.AddLogMessage();
+                   dbset.AddLogMessage();
                 }
 
-            });
+            //});
         }
 
         [Benchmark]

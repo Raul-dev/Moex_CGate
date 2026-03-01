@@ -1,0 +1,3 @@
+﻿CREATE ROLE [rmq]
+    AUTHORIZATION [dbo];
+

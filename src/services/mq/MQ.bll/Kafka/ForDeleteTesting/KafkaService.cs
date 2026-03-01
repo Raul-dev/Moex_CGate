@@ -29,7 +29,7 @@ public class KafkaService : IQueueService
     public IConfiguration Configuration { get; }
     public KafkaSettings KafkaSettings { get; }
 
-    public async Task GetAllMessages(CancellationTokenSource cts)
+    public async Task GetAllMessages(CancellationTokenSource cts, string table = "msgqueue")
     {
         var server = $"{KafkaSettings.Host}:{KafkaSettings.Port}";
 
@@ -73,7 +73,7 @@ public class KafkaService : IQueueService
 
                 // int messageTypeId = mqmsg.BasicProperties.ContentType == "xmlfile" ? 2 : 1;
                 int msgTypeId = 1;
-                DbHelper.SaveMsgToDataBase(sessionId, "msgqueue", msg.MsgId.ToString()!, msg.Msg!, msg.MsgKey!, msgTypeId);
+                DbHelper.SaveMsgToDataBase(sessionId, table, msg.MsgId.ToString()!, msg.Msg!, msg.MsgKey!, msgTypeId);
                 iCount++;
                 if (iCount % 1000 == 0)
                 {

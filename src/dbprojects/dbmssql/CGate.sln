@@ -5,6 +5,8 @@ VisualStudioVersion = 17.12.35514.174
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{00D1A9C2-B5F0-4AF3-8072-F6C62B433612}") = "CGate", "CGate\CGate.sqlproj", "{FC74F6BF-9967-4459-9DE5-106F3CC707AB}"
 EndProject
+Project("{00D1A9C2-B5F0-4AF3-8072-F6C62B433612}") = "Log", "Log\Log.sqlproj", "{A2C736F0-85DA-419E-842C-C36DBC4B8262}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -17,6 +19,12 @@ Global
 		{FC74F6BF-9967-4459-9DE5-106F3CC707AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FC74F6BF-9967-4459-9DE5-106F3CC707AB}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FC74F6BF-9967-4459-9DE5-106F3CC707AB}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{A2C736F0-85DA-419E-842C-C36DBC4B8262}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A2C736F0-85DA-419E-842C-C36DBC4B8262}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A2C736F0-85DA-419E-842C-C36DBC4B8262}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{A2C736F0-85DA-419E-842C-C36DBC4B8262}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A2C736F0-85DA-419E-842C-C36DBC4B8262}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A2C736F0-85DA-419E-842C-C36DBC4B8262}.Release|Any CPU.Deploy.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

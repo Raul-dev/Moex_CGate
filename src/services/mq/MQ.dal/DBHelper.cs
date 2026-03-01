@@ -13,6 +13,7 @@ using RabbitMQ.Client;
 using RTools_NTS.Util;
 using Serilog;
 using System.Data;
+using System.Security.Cryptography;
 using System.Text;
 //using static MongoDB.Driver.WriteConcern;
 //using MongoDB.Bson;
@@ -33,6 +34,7 @@ namespace MQ.dal
         SqlServerType ServerType;
         Lock LockObjSaveMsgToDataBase = new Lock();
         DbContextOptionsBuilder<MetastorageContext> OptionsBuilder;
+     
         public DBHelper(string server, string databasename, int port = 1433, SqlServerType type = SqlServerType.mssql, string user = "", string pwd = "")
         {
            ServerType = type;
@@ -104,11 +106,12 @@ namespace MQ.dal
 
         }
 
-        public List<Metamap> GetMappingSetup()
+        public List<Metamap> GetMappingSetup(int metaAdapterId)
         {
 
             var v = from c in MetastorageDbContext.Metamaps
                     where c.IsEnable == true
+                    && c.MetamapId == metaAdapterId
                     select new Metamap()
             {
                 MetamapId = c.MetamapId,
@@ -355,26 +358,30 @@ END CATCH
                     throw new Exception($"SaveMsgToDataBase not supported for {SqlServerTypeHelper.GetString(ServerType)}");
             }
         }
-        public async Task SaveMsgToDataBaseAsync(long sessionId, string tableName, string messageId, string body, string messageKey, int messageTypeId, CancellationToken cancellationToken)
+        public async Task SaveMsgToDataBaseAsync(long sessionId, string tableName, string? messageId, string body, string? messageKey, int messageTypeId, CancellationToken cancellationToken)
         {
             string cmd = "";
             if (ServerType == SqlServerType.mssql)
             {   //3600 msg в сек без удаления и в одну таблицу
                 //600 msg в сек c удалением и в разные таблицы
+                //var g = new Guid(messageId);
+                var msgId = new SqlParameter("@msg_id", ((messageId == null) ? Guid.NewGuid() : new Guid(messageId)));
+                var msg = new SqlParameter("@msg", body);
                 if (tableName.Contains("msgqueue"))
+                {
                     cmd = @$"INSERT {tableName} ([session_id], [msg_id], [msg], [msg_key])
                                         VALUES ({sessionId}, @msg_id, @msg, @msgKey);";
+                    var msgKey = new SqlParameter("@msgKey", messageKey ?? "Unknown");
+                    await MetastorageDbContext.Database.ExecuteSqlRawAsync(cmd, new object[] { msgId, msg, msgKey } , cancellationToken);
+                }
                 else
+                {
                     cmd = @$"INSERT {tableName} ([session_id],[msg_id],[msg], [msgtype_id])
                                         VALUES ({sessionId}, @msg_id, @msg, @msgtype_id);";
-
-                var msgId = new SqlParameter("@msg_id", new Guid(messageId));
-                var msg = new SqlParameter("@msg", body);
-                var msgKey = new SqlParameter("@msgKey", messageKey);
-                var msgtype_id = new SqlParameter("@msgtype_id", messageTypeId); 
-
-                await MetastorageDbContext.Database.ExecuteSqlRawAsync(cmd, msgId, msg, msgKey, cancellationToken);
-
+                    var msgtype_id = new SqlParameter("@msgtype_id", messageTypeId);
+                    await MetastorageDbContext.Database.ExecuteSqlRawAsync(cmd, new object[] { msgId, msg, msgtype_id }, cancellationToken: cancellationToken);
+                }
+                
             }
             else
                 throw new Exception($"SaveMsgToDataBaseAsync not supported for {SqlServerTypeHelper.GetString(ServerType)}");

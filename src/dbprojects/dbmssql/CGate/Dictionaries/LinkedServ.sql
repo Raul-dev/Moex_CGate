@@ -17,7 +17,7 @@ EXEC sp_Configure 'CLR Enabled';
 
 SELECT @isCLREnabled = run_value
 FROM @spConfigureTab;
-/*
+/* 
 IF(@isCLREnabled = 0)
 BEGIN
   RAISERROR('The database has been created, BUT CLR is not enabled on this Sql Server instance. To enable, execute "sp_configure ''CLR Enabled'', 1 GO RECONFIGURE GO".', 16, -1)

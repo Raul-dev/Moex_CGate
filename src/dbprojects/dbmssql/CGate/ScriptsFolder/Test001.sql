@@ -70,7 +70,7 @@ END
 SET @DateFinish = GetDate()
 SELECT DateDiff(ms, @DateStart, @DateFinish)
 GO
-14all41
+
 
 
 
@@ -93,11 +93,13 @@ WITH (
   [MainID]  bigint '$[0]',
   [StartTime] datetime2(4) '$[1]'
 )
-EXEC sp_configure 'show advanced options', 1;
-RECONFIGURE;
-EXEC sp_configure 'clr strict security', 0;
-RECONFIGURE;
-EXEC sp_configure 'clr enabled', 1;
-RECONFIGURE;
-EXEC sp_configure 'show advanced options', 0;
-RECONFIGURE;
+
+--DROP TABLE #tmp
+SELECT json_column =  @Data into #tmp
+SELECT * FROM #tmp
+SELECT 
+    --nested.value AS Element
+    outer_array.value
+FROM #tmp
+CROSS APPLY OPENJSON(#tmp.json_column) AS outer_array
+CROSS APPLY OPENJSON(outer_array.value) AS nested;

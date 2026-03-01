@@ -2,7 +2,7 @@
   "profiles": {
     "MQ": {
       "commandName": "Project",
-      "commandLineArgs": "SendMsg -t mssql -s \"localhost\" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 10000"
+      "commandLineArgs": "Config"
     }
   }
 }

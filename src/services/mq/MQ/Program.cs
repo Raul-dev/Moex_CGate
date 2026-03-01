@@ -42,7 +42,7 @@ class Program
     }
 
     //Debug docker sql cmd SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 10000
-    //SendMsg -t mssql -s "localhost" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 1000
+    //SendMsg -t mssql -s "localhost" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 100
     static async Task<int> SendMsgExecute(SendMsgOptions options, IConfiguration configuration)
     {
         BllOption bo = new() { DataBaseServSettings = new DataBaseSettings() };
@@ -51,8 +51,6 @@ class Program
         CancellationTokenSource cts = new CancellationTokenSource();
         MQ.bll.SendAllUnknownMsg snd = new MQ.bll.SendAllUnknownMsg(bo, configuration, cts.Token);
         await snd.ProcessLauncher();
-        //var tsk = snd.TaskCompletionSourceWithCancelation(cts.Token);
-        //tsk.Wait();
         return 0;
     }
     static async Task<int> GetMsgExecute(GetMsgOptions options, IConfiguration configuration)
@@ -71,19 +69,7 @@ class Program
     static async Task<int> ConfigMsgExecute(ConfigMsgOptions options, IConfiguration configuration)
     {
         CancellationTokenSource cts = new CancellationTokenSource();
-        /*
-        BllOption bo = new BllOption();
-        options.InitBllOption(bo, configuration);
-
-        CancellationTokenSource cts = new CancellationTokenSource();
-        var snd = new ReceiveAllMessages(bo, configuration, cts.Token);
-        await snd.ProcessLauncherConsoleAsync();
-        */
-        //Servicegetmsgsettings servicegetmsgsettings = configuration.GetRequiredSection(options.ConfigName).Get<Servicegetmsgsettings>() ?? throw new ArgumentNullException();
-
         Log.Information("test");
-      //  LogContext.PushProperty("WorkerLogPrefix", "DSA");
-      //  Log.Information("test1");
         
         try
         {
@@ -93,16 +79,9 @@ class Program
             ServiceMsgSettings serviceMsgSettings = configuration.GetRequiredSection(options.ConfigName).Get<ServiceMsgSettings>() ?? throw new ArgumentNullException();
 
             ThreadManagerAsync tm = new ThreadManagerAsync(serviceMsgSettings, cts);
-            //await tm.RunAsync("FullRabbit");
-            //var tsk = tm.TaskCompletionSourceWithCancelation(cts.Token);
-            //tsk.Wait();
-            //object value = await tm.MonitorAndRestart().Result();
             await tm.MonitorAndRestart();
             var tsk = tm.TaskCompletionSourceWithCancelation(cts.Token);
             tsk.Wait();
-            //var snd = new ReceiveAllMessages(bo, configuration, cts.Token);
-            //MQ.bll.SendAllUnknownMsg snd1 = new MQ.bll.SendAllUnknownMsg(bo, configuration, cts.Token);
-            //await snd1.ProcessLauncher();
         }
         catch (Exception ex)
         {

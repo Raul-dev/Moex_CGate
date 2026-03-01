@@ -35,15 +35,15 @@
 
 ## CLR отправляющий сообщения в RabbitMQ
 
-Добавил 3 типа логирования, локальная таблица, Linked server таблица и Post в очередь рабит. Вызовы clr процедур слишком тяжелые, но они тратят CPU сервера, а не HDD и при определенной конфигурации и нагрузке могут быть более выгодны.
+Добавил 3 типа логирования, локальная таблица, Linked server таблица и Post в очередь рабит. Вызовы clr процедур для Rabbit.Client 4.5 соизмеримы с INSERT в локальную таблицу. 100 INSERT = 29.51 ms против 100 Push =38.68 ms они тратят CPU сервера, а не HDD и при определенной конфигурации и нагрузке могут быть более выгодны и отправлять логи в RabbitMQ однозначно быстрее в 2 раза чем делать INSERT через линкед сервер. Замер делал на 400000 вызовах по 100 операций логирования.
 
 [Benchmark test HTML](./doc/TestPerformance.AuditParserBenchmarks-report.html)
-		
-|        Method        |   Mean    |     StdDev    |
-|:-------------------- |:---------:| -------------:|
-| LogLocalTable        |  46.36 ms |   5.593 ms    |
-| LogLinkedServerTable | 115.24 ms |   9.541 ms    |
-| LogRabbitMQPost      | 317.55 ms | 123.575 ms    |
+
+| Method               |   Mean   |    StdDev |
+| :------------------- | :-------: | --------: |
+| LogLocalTable        | 29.51 ms | 1.425 ms |
+| LogLinkedServerTable | 84.58 ms | 0.605 ms |
+| LogRabbitMQPost      | 38.68 ms | 0.779 ms |
 
 ## [Протоколы передачи финансовых данных. Инструкция по применению](https://habr.com/ru/companies/moex/articles/261369/)
 

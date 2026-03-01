@@ -1,0 +1,154 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <Name>Log</Name>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectVersion>4.1</ProjectVersion>
+    <ProjectGuid>{a2c736f0-85da-419e-842c-c36dbc4b8262}</ProjectGuid>
+    <DSP>Microsoft.Data.Tools.Schema.Sql.Sql160DatabaseSchemaProvider</DSP>
+    <OutputType>Database</OutputType>
+    <RootPath>
+    </RootPath>
+    <RootNamespace>Log</RootNamespace>
+    <AssemblyName>Log</AssemblyName>
+    <ModelCollation>1033, CI</ModelCollation>
+    <DefaultFileStructure>BySchemaAndSchemaType</DefaultFileStructure>
+    <DeployToDatabase>True</DeployToDatabase>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetLanguage>CS</TargetLanguage>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <SqlServerVerification>False</SqlServerVerification>
+    <IncludeCompositeObjects>True</IncludeCompositeObjects>
+    <TargetDatabaseSet>True</TargetDatabaseSet>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <OutputPath>bin\Release\</OutputPath>
+    <BuildScriptName>$(MSBuildProjectName).sql</BuildScriptName>
+    <TreatWarningsAsErrors>False</TreatWarningsAsErrors>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <DefineDebug>false</DefineDebug>
+    <DefineTrace>true</DefineTrace>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <OutputPath>bin\Debug\</OutputPath>
+    <BuildScriptName>$(MSBuildProjectName).sql</BuildScriptName>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <DefineDebug>true</DefineDebug>
+    <DefineTrace>true</DefineTrace>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">11.0</VisualStudioVersion>
+    <!-- Default to the v11.0 targets path if the targets file for the current VS version is not found -->
+    <SSDTExists Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.SqlTasks.targets')">True</SSDTExists>
+    <VisualStudioVersion Condition="'$(SSDTExists)' == ''">11.0</VisualStudioVersion>
+  </PropertyGroup>
+  <Import Condition="'$(SQLDBExtensionsRefPath)' != ''" Project="$(SQLDBExtensionsRefPath)\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
+  <Import Condition="'$(SQLDBExtensionsRefPath)' == ''" Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
+  <ItemGroup>
+    <Folder Include="Properties" />
+    <Folder Include="dbo\" />
+    <Folder Include="dbo\Tables\" />
+    <Folder Include="rmq\" />
+    <Folder Include="rmq\Tables\" />
+    <Folder Include="audit\" />
+    <Folder Include="audit\Tables\" />
+    <Folder Include="Security\" />
+    <Folder Include="dbo\Functions\" />
+    <Folder Include="audit\Functions\" />
+    <Folder Include="dbo\Stored Procedures\" />
+    <Folder Include="rmq\Stored Procedures\" />
+    <Folder Include="audit\Stored Procedures\" />
+    <Folder Include="Assemblies\" />
+    <Folder Include="Dictionaries" />
+  </ItemGroup>
+  <ItemGroup>
+    <Build Include="dbo\Tables\Setting.sql" />
+    <Build Include="dbo\Tables\session_state.sql" />
+    <Build Include="dbo\Tables\session_log.sql" />
+    <Build Include="dbo\Tables\session.sql" />
+    <Build Include="dbo\Tables\msgtype.sql" />
+    <Build Include="dbo\Tables\msgqueue.sql" />
+    <Build Include="dbo\Tables\metamap.sql" />
+    <Build Include="dbo\Tables\metaadapter.sql" />
+    <Build Include="dbo\Tables\data_source.sql" />
+    <Build Include="rmq\Tables\RabbitSetting.sql" />
+    <Build Include="rmq\Tables\RabbitEndpoint.sql" />
+    <Build Include="audit\Tables\LogError.sql" />
+    <Build Include="audit\Tables\LogError_buffer.sql" />
+    <Build Include="audit\Tables\LogText_buffer.sql" />
+    <Build Include="audit\Tables\Setting.sql" />
+    <Build Include="audit\Tables\AuditTypeSP.sql" />
+    <Build Include="audit\Tables\LogText.sql" />
+    <Build Include="audit\Tables\AuditTypeLT.sql" />
+    <Build Include="audit\Tables\LogProcedures.sql" />
+    <Build Include="Security\rmq.sql" />
+    <Build Include="dbo\Functions\fn_GetSettingValue.sql" />
+    <Build Include="dbo\Functions\fn_GetSettingInt.sql" />
+    <Build Include="dbo\Functions\fn_GetBufferingDays.sql" />
+    <Build Include="dbo\Functions\fn_GenerationRandomField.sql" />
+    <Build Include="audit\Functions\fn_GetAuditTypeSP.sql" />
+    <Build Include="audit\Functions\fn_GetAuditTypeLT.sql" />
+    <Build Include="audit\Functions\fn_log_IsLnk.sql" />
+    <Build Include="audit\Functions\Template_LogProc.sql" />
+    <Build Include="dbo\Stored Procedures\sp_SaveSessionState.sql" />
+    <Build Include="rmq\Stored Procedures\sp_clr_ReloadRabbitEndpoints.sql" />
+    <Build Include="rmq\Stored Procedures\sp_clr_PostRabbitMsg.sql" />
+    <Build Include="rmq\Stored Procedures\sp_clr_InitialiseRabbitMq.sql" />
+    <Build Include="rmq\Stored Procedures\sp_SomeProcessingStuff.sql" />
+    <Build Include="rmq\Stored Procedures\sp_PostRabbitMsg.sql" />
+    <Build Include="rmq\Stored Procedures\sp_GetRabbitEndpoints.sql" />
+    <Build Include="rmq\Stored Procedures\sp_GetLocalDBConnString.sql" />
+    <Build Include="rmq\Stored Procedures\sp_UpsertRabbitEndpoint.sql" />
+    <Build Include="audit\Stored Procedures\load_LogError.sql" />
+    <Build Include="audit\Stored Procedures\load_LogText.sql" />
+    <Build Include="audit\Stored Procedures\sp_log_Start.sql" />
+    <Build Include="audit\Stored Procedures\sp_rmq_PostSp.sql" />
+    <Build Include="audit\Stored Procedures\sp_Initialise.sql" />
+    <Build Include="audit\Stored Procedures\sp_LogText_Add.sql" />
+    <Build Include="audit\Stored Procedures\sp_rmq_PostLT.sql" />
+    <Build Include="audit\Stored Procedures\sp_log_Finish.sql" />
+    <Build Include="audit\Stored Procedures\sp_log_Info.sql" />
+    <Build Include="audit\Stored Procedures\sp_lnkLT_Insert.sql" />
+    <Build Include="audit\Stored Procedures\sp_lnk_Update.sql" />
+    <Build Include="audit\Stored Procedures\sp_lnk_Insert.sql" />
+    <Build Include="audit\Stored Procedures\sp_Print.sql">
+      <QuotedIdentifier>Off</QuotedIdentifier>
+    </Build>
+    <Build Include="Security\rmq_1.sql" />
+    <Build Include="Security\audit.sql" />
+    <Build Include="Security\CGateUser.sql" />
+    <Build Include="Dictionaries\metamap.sql" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Assemblies\RabbitMQSqlClr4.dll" />
+    <None Include="Assemblies\RabbitMQ.Client.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="RabbitMQSqlClr4">
+      <HintPath>Assemblies\RabbitMQSqlClr4.dll</HintPath>
+      <SqlAssemblyName>RabbitMQSqlClr4</SqlAssemblyName>
+      <IsModelAware>True</IsModelAware>
+      <GenerateSqlClrDdl>False</GenerateSqlClrDdl>
+      <SqlOwnerName>rmq</SqlOwnerName>
+      <SqlPermissionSet>UNSAFE</SqlPermissionSet>
+    </Reference>
+    <Reference Include="RabbitMQ.Client">
+      <HintPath>Assemblies\RabbitMQ.Client.dll</HintPath>
+      <SqlAssemblyName>RabbitMQ.Client</SqlAssemblyName>
+      <IsModelAware>True</IsModelAware>
+      <GenerateSqlClrDdl>False</GenerateSqlClrDdl>
+      <SqlOwnerName>rmq</SqlOwnerName>
+      <SqlPermissionSet>UNSAFE</SqlPermissionSet>
+    </Reference>
+  </ItemGroup>
+</Project>

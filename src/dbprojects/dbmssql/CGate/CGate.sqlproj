@@ -152,6 +152,10 @@
     <Build Include="audit\Tables\AuditTypeLT.sql" />
     <Build Include="audit\Stored Procedures\sp_lnkLT_Insert.sql" />
     <Build Include="audit\Tables\LogError.sql" />
+    <Build Include="audit\Stored Procedures\load_LogText.sql" />
+    <Build Include="audit\Tables\LogText_buffer.sql" />
+    <Build Include="audit\Tables\LogError_buffer.sql" />
+    <Build Include="audit\Stored Procedures\load_LogError.sql" />
   </ItemGroup>
   <ItemGroup>
     <SqlCmdVariable Include="LinkSRVLog">

@@ -33,7 +33,7 @@ namespace MQ.bll.Common
         public int PauseMs { get; set; }
 
         public bool IsKafka { get; set; } = false;
-        public bool IsMultipleMessages { get; set; } = true;
+        public bool IsMultipleMessages { get; set; } = false; // Bulk insert
         public KafkaSettings? KafkaServSettings { get; set; }
         public RabbitMQSettings? RabbitMQServSettings { get; set; }
         public required DataBaseSettings DataBaseServSettings { get; set; } = new DataBaseSettings();
