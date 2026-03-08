@@ -13,7 +13,7 @@
     </RootPath>
     <RootNamespace>Log</RootNamespace>
     <AssemblyName>Log</AssemblyName>
-    <ModelCollation>1033, CI</ModelCollation>
+    <ModelCollation>1049,CI</ModelCollation>
     <DefaultFileStructure>BySchemaAndSchemaType</DefaultFileStructure>
     <DeployToDatabase>True</DeployToDatabase>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
@@ -22,6 +22,9 @@
     <SqlServerVerification>False</SqlServerVerification>
     <IncludeCompositeObjects>True</IncludeCompositeObjects>
     <TargetDatabaseSet>True</TargetDatabaseSet>
+    <DefaultCollation>Cyrillic_General_CI_AS</DefaultCollation>
+    <AllowSnapshotIsolation>True</AllowSnapshotIsolation>
+    <Trustworthy>True</Trustworthy>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release\</OutputPath>
@@ -70,6 +73,7 @@
     <Folder Include="audit\Stored Procedures\" />
     <Folder Include="Assemblies\" />
     <Folder Include="Dictionaries" />
+    <Folder Include="ScriptsFolder" />
   </ItemGroup>
   <ItemGroup>
     <Build Include="dbo\Tables\Setting.sql" />
@@ -77,7 +81,6 @@
     <Build Include="dbo\Tables\session_log.sql" />
     <Build Include="dbo\Tables\session.sql" />
     <Build Include="dbo\Tables\msgtype.sql" />
-    <Build Include="dbo\Tables\msgqueue.sql" />
     <Build Include="dbo\Tables\metamap.sql" />
     <Build Include="dbo\Tables\metaadapter.sql" />
     <Build Include="dbo\Tables\data_source.sql" />
@@ -127,11 +130,31 @@
     <Build Include="Security\rmq_1.sql" />
     <Build Include="Security\audit.sql" />
     <Build Include="Security\CGateUser.sql" />
-    <Build Include="Dictionaries\metamap.sql" />
+    <None Include="Dictionaries\metamap.sql">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <Build Include="Security\RoleMemberships.sql" />
+    <PreDeploy Include="Dictionaries\Script.PreDeployment1.sql">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </PreDeploy>
+    <None Include="Dictionaries\LinkedServ.sql">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <PostDeploy Include="Dictionaries\Script.PostDeployment1.sql">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </PostDeploy>
+    <None Include="Dictionaries\session_state.sql">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="Dictionaries\AuditSetup.sql">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <None Include="Assemblies\RabbitMQSqlClr4.dll" />
     <None Include="Assemblies\RabbitMQ.Client.dll" />
+    <None Include="ScriptsFolder\dbdeploy.ps1" />
+    <None Include="ScriptsFolder\MSqlDeploymentFunc.psm1" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="RabbitMQSqlClr4">
@@ -150,5 +173,11 @@
       <SqlOwnerName>rmq</SqlOwnerName>
       <SqlPermissionSet>UNSAFE</SqlPermissionSet>
     </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <SqlCmdVariable Include="LinkSRVLog">
+      <DefaultValue>LinkSRVLogExt</DefaultValue>
+      <Value>$(SqlCmdVar__1)</Value>
+    </SqlCmdVariable>
   </ItemGroup>
 </Project>

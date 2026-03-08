@@ -1,0 +1,33 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS sdk
+RUN dotnet tool install dotnet-script -g
+RUN dotnet tool install --tool-path /opt/sqlpackage/ microsoft.sqlpackage
+USER root
+RUN chmod +x /opt/sqlpackage/sqlpackage
+# 1. Устанавливаем зависимости для работы с репозиториями и сетевыми запросами
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg2 \
+    apt-transport-https \
+    && rm -rf /var/lib/apt/lists/*
+
+# 2. Добавляем ключ подписи Microsoft и репозиторий (для Debian 12, на которой базируется SDK 8.0)
+# 2. Добавляем ключ Microsoft (используем -L для перенаправлений и -k если есть проблемы с SSL)
+COPY microsoft.asc /tmp/microsoft.asc
+
+# 3. Декодируем ключ из текстового формата (.asc) в бинарный формат gpg
+RUN gpg --dearmor -o /usr/share/keyrings/microsoft-archive-keyring.gpg /tmp/microsoft.asc
+
+# 3. Добавляем репозиторий именно для Debian 12 (bookworm)
+RUN echo "deb [signed-by=/usr/share/keyrings/microsoft-archive-keyring.gpg] https://packages.microsoft.com bookworm main" > /etc/apt/sources.list.d/mssql-release.list
+
+# 3. Устанавливаем sqlcmd (mssql-tools18)
+# ACCEPT_EULA=Y обязателен для принятия лицензионного соглашения
+RUN apt-get update && ACCEPT_EULA=Y apt-get install -y \
+    mssql-tools18 \
+    unixodbc-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 4. Добавляем путь к sqlcmd в системный PATH, чтобы вызывать его просто как 'sqlcmd'
+ENV PATH="$PATH:/opt/mssql-tools18/bin"
+
+# Проверка: sqlcmd -?

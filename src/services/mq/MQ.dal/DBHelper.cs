@@ -124,6 +124,7 @@ namespace MQ.dal
                 ImportQuery = c.ImportQuery,
                 IsEnable = c.IsEnable
             };
+            
             return v.ToList();
  
         }

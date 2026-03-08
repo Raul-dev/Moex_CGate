@@ -70,6 +70,14 @@ END
 SET @DateFinish = GetDate()
 SELECT DateDiff(ms, @DateStart, @DateFinish)
 GO
+GO
+SELECT * FROM [Log].[audit].[LogText_buffer]
+SELECT * FROM [Log].[audit].[LogText]
+USE [LOG]
+UPDATE [audit].[LogText_Buffer] SET
+ dt_update = DATEFROMPARTS(1900, 01, 01)
+
+EXEC [audit].[load_LogText] @Debug = 1
 
 
 

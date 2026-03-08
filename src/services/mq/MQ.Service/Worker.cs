@@ -38,6 +38,8 @@ namespace MQ.Service
                 //DoWork(_configuration, ct).GetAwaiter().GetResult(); Call from sync method
                 _DoWork = DoWork(_configuration, cancellationToken);
                 await Task.Delay(1000, cancellationToken);
+
+  
             }
         }
         public override async Task StartAsync(CancellationToken cancellationToken)
@@ -54,10 +56,12 @@ namespace MQ.Service
         {
             try
             {
-               ServiceMsgSettings serviceMsgSettings = _configuration.GetRequiredSection("").Get<ServiceMsgSettings>() ?? throw new ArgumentNullException();
 
+
+                ServiceMsgSettings serviceMsgSettings = _configuration.GetRequiredSection("ServiceWinMsgSettings").Get<ServiceMsgSettings>() ?? throw new ArgumentNullException();
+                //#endif
                 ThreadManagerAsync tm = new ThreadManagerAsync(serviceMsgSettings, cts);
- 
+                RecipientOfTheMessages = tm.GetWorker();
                 await tm.MonitorAndRestart();
                 var tsk = tm.TaskCompletionSourceWithCancelation(cts.Token);
                 tsk.Wait();

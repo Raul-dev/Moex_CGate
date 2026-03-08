@@ -27,8 +27,4 @@
     <ProjectReference Include="..\MQ.dal\MQ.dal.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Extensions\" />
-  </ItemGroup>
-
 </Project>

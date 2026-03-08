@@ -8,11 +8,11 @@ using System.Threading.Tasks;
 
 namespace MQ.bll.Extensions
 {
+    //Для добавления Enricher из кода, но мы добавляем из config
     public class CustomPropertyEnricher : ILogEventEnricher
     {
         private readonly string _propertyValue;
         private readonly string _propertyName;
-        //public const string PropertyName ;
 
         public CustomPropertyEnricher(string propertyName,string propertyValue)
         {

@@ -169,30 +169,35 @@ namespace MQ.bll.RabbitMQ
         async Task OnReceivedMessageHandler(object sender, BasicDeliverEventArgs ea)
         {
             if (_cancellationToken.IsCancellationRequested == true) return;
-            //Log.Debug(@$"Received Message {ea.BasicProperties.Type} _cancellationToken.IsCancellationRequested: {_cancellationToken.IsCancellationRequested}");
+            
             AsyncEventingBasicConsumer cons = (AsyncEventingBasicConsumer)sender;
             IChannel ch = cons.Channel;
             try
             {
+                Log.Debug("Get message ea.DeliveryTag: {0}, _option.IsMultipleMessages {1}, ea.BasicProperties.Type! {2}, _option.IsConfirmMsgAndRemoveFromQueue {3}", ea.DeliveryTag, _option.IsMultipleMessages, ea.BasicProperties.Type!, _option.IsConfirmMsgAndRemoveFromQueue);
                 if (!_option.IsMultipleMessages)
                 {
                     // Save single messages to DB 2787 msg/s
                     await _MQSession!.SaveMsgToDataBaseAsync(ea.BasicProperties.MessageId!, Encoding.UTF8.GetString(ea.Body.ToArray()), ea.BasicProperties.Type!, _cancellationToken);
-                    
+
                     if (_option.IsConfirmMsgAndRemoveFromQueue)
                     {
                         await ch.BasicAckAsync(ea.DeliveryTag, false);
                     }
-                }else
+                }
+                else
+                {
+                    Log.Debug("Save multiple messages");
                     // Save multiple messages to DB 6900 msg/s
-                    await _MQSession!.SendMsgToLocalQueue(ea.DeliveryTag, ea.BasicProperties.MessageId!, Encoding.UTF8.GetString(ea.Body.ToArray()), ea.BasicProperties.Type! );
-
+                    await _MQSession!.SendMsgToLocalQueue(ea.DeliveryTag, ea.BasicProperties.MessageId!, Encoding.UTF8.GetString(ea.Body.ToArray()), ea.BasicProperties.Type!);
+                }
             }
             catch (Exception ex)
             {
                 Log.Debug(@$"OnReceivedMessage err: {ex.Message}");
                 await ch.BasicRejectAsync(deliveryTag: ea.DeliveryTag, requeue: true);
-
+                // Чтобы ошибка не заспамила лог, пауза
+                await Task.Delay(10000, _cancellationToken);
             }
             finally
             {

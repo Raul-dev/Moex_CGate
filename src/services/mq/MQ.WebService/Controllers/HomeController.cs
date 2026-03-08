@@ -26,7 +26,6 @@ namespace MQ.WebService.Controllers
            
             _config = config;
         }
-
         
         [HttpGet, Route("Reset", Name = "Reset")]
         public async Task<IActionResult> Reset(string SessionMode ="FullMode")

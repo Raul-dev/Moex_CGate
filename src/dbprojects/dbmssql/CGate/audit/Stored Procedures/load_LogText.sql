@@ -1,7 +1,6 @@
 ﻿/*
-
 */
-CREATE   PROCEDURE [audit].[load_LogText]
+CREATE     PROCEDURE [audit].[load_LogText]
   @SessionId         bigint         = NULL,
   @BufferHistoryMode tinyint        = 0,   -- 0 - Do not delete the buffering history.
                                            -- 1 - Delete the buffering history.
@@ -111,7 +110,7 @@ BEGIN TRY
         [SysHostName]   = NULLIF([SysHostName],'NULL'),
         [SysAppName]    = NULLIF([SysAppName],'NULL'),
         [SPID]          = TRY_CAST([SPID] AS int)
-    FROM (SELECT * FROM [audit].[LogText_buffer] e WHERE buffer_id= 1) b
+    FROM [audit].[LogText_buffer] b
     OUTER APPLY OPENJSON(b.msg,'$') 
     WITH 
     (
@@ -131,7 +130,38 @@ BEGIN TRY
 
     SET @BufferId = (SELECT MAX([buffer_id]) FROM #LockedList)
     IF @Debug = 1 BEGIN
-      SELECT [@BufferId] = @BufferId
+        SELECT 
+            [ObjectId]      = TRY_CAST(ObjectId AS int),
+            [KeyField]      = NULLIF([KeyField],'NULL'),
+            [KeyValue]      = NULLIF([KeyValue],'NULL'),
+            [MessageCode]   = NULLIF([MessageCode],'NULL'),
+            [Message]       = NULLIF([Message],'NULL'),
+            [TransactionCount] = TRY_CAST([TransactionCount] AS int),
+            [DateCreate]    = [DateCreate],
+            [SysDbName]     = NULLIF([SysDbName],'NULL'),
+            [SysUserName]   = NULLIF([SysUserName],'NULL'),
+            [SysHostName]   = NULLIF([SysHostName],'NULL'),
+            [SysAppName]    = NULLIF([SysAppName],'NULL'),
+            [SPID]          = TRY_CAST([SPID] AS int)
+        FROM [audit].[LogText_buffer] b
+        OUTER APPLY OPENJSON(b.msg,'$') 
+        WITH 
+        (
+            [ObjectId]     varchar(50)   '$[0]',
+            [KeyField]     varchar(128)  '$[1]',
+            [KeyValue]     varchar(128)  '$[2]',
+            [MessageCode]  varchar(50)   '$[3]',
+            [Message]      varchar(50)   '$[4]',
+            [TransactionCount] varchar(50)  '$[5]',
+            [DateCreate]   datetime2(4)  '$[6]',
+            [SysDbName]    varchar(128)  '$[7]',
+            [SysUserName]  varchar(256)  '$[8]',
+            [SysHostName]  varchar(128)  '$[9]',
+            [SysAppName]   varchar(128)  '$[10]',
+            [SPID]         varchar(50)   '$[11]'
+        ) M
+
+        SELECT [@BufferId] = @BufferId
     END    
     
     -- Update buffer table

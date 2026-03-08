@@ -86,7 +86,7 @@ Install-Module VSSetup -Scope AllUsers
 Отправка в RabbitMQ тестовых сообщений:
 
 ```
-.\services\mq\MQ\bin\Release\net9.0\MQ.exe SendMsg -d CGate -t mssql
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -d CGate -t mssql
 ```
 
 Debug in Visual Studio 2022:
@@ -96,7 +96,7 @@ docker-compose -f docker-compose.rabbit.yml up
 and start MQ.sln
 ```
 
-В случае отсутствия локальноного MSSQL можно запустить sql в контейнере.
+В бранче Basic можно создать контейнер MSSQL linux,  в этом бранче эта опция недоступна, MSSQL linux запрещает создавать UNSAFE CLR.
 
 ```
 ./start.ps1 -IsDockerSql $true
@@ -108,7 +108,7 @@ and start MQ.sln
 #Reset MQ service:
 Invoke-RestMethod -Uri http://localhost:8090/api/Home/reset
 #Отправку сообщений:
-.\services\mq\MQ\bin\Release\net9.0\MQ.exe SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 500
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 500
 ```
 
 Подключение в ssms:

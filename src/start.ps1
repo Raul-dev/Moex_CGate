@@ -1,4 +1,4 @@
-# By default: ./start.ps1
+﻿# By default: ./start.ps1
 # This script build and deploy database CGate to local MSSQL server
 # Run Rabbit docker container and MQ service docker container
 #
@@ -81,7 +81,14 @@ try{
 	if(-Not (Test-Path  .\services\mq\MQ\bin\Release\net9.0\MQ.exe)){
 		dotnet build .\services\mq\MQ\MQ.csproj -c Release
 	}
+	if ($IsDockerSql ){
+	  [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+      Write-Host "UNSAVE CLR не создать на LINUX MS-SQL2022. В бранче basic база без Rabbit CLR.
+Используйте бранч Basic для создания и тестирования контейнера LINUX MS-SQL2022." -ForegroundColor Red
+	  exit
+	}
 
+    #Deploy DB CGate
 	Set-Location "./dbprojects/dbmssql/CGate/ScriptsFolder"
 
 	if ($IsDockerSql ) {
@@ -104,7 +111,30 @@ try{
 		}
 		Set-Location $CurrentPath
 	}
-    
+	
+    #Deploy DB Log
+	Set-Location "./dbprojects/dbmssql/Log/ScriptsFolder"
+    $LogDBname = "Log"
+	if ($IsDockerSql ) {
+		./dbdeploy -TargetServerName $TargetServerName -TargetDBname $LogDBname -PublishMode "Build" -IsRebuild $true
+	} else {
+	    ./dbdeploy -TargetServerName $TargetServerName -TargetDBname $LogDBname -PublishMode "DeployOnly" -IsRebuild $true
+	}
+	
+	if ($LASTEXITCODE -eq -1)
+	{
+	  Set-Location $CurrentPath
+	  exit
+	}
+	Set-Location $CurrentPath
+	Copy-Item -Path .\dbprojects\dbmssql\Log\bin\Release\*.* -Destination .\images\mssql\dacpac\ -Force
+	if (-Not $IsDockerSql ) {
+		$res = MergeUser $TargetServerName $LogDBname "CGateUser" "MyPassword321"
+		IF ($LASTEXITCODE -ne 0 -or $res -ne 0){
+			throw "Create user CGateUser failed."
+		}
+		Set-Location $CurrentPath
+	}
 	dotnet dev-certs https --trust
 	if($IsUpdate -eq $true){
 		try{

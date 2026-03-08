@@ -51,7 +51,8 @@ namespace MQ.bll
                 }
                 else
                     Log.Information("Database Server:{0}, DB:{1}", _option.DataBaseServSettings.ServerName, _option.DataBaseServSettings.DataBase);
-
+                //For Debug
+                //Log.Information(_option.DataBaseServSettings.GetConnection());
                 _MQSession = new MQSession(_option, _cancellationToken);
                 long sessionId = _MQSession.StartSessionProcessing();
                 if (sessionId == -1)
@@ -108,12 +109,7 @@ namespace MQ.bll
             int hash = Thread.CurrentThread.GetHashCode();
             Log.Debug("Start Bulk Thread hash {0}", hash);
             int i = 0;
-            //For Debug
-            //if(MessagePropertyKey == "key")
-            //{
-            //    int h = 0;
-            //    h++;
-            //}
+
             while (true)
             {
                 if (token.IsCancellationRequested)
@@ -172,77 +168,7 @@ namespace MQ.bll
             }
             return res;
         }
-        /*
-        public async Task<int> MQProcess()
-        {
-            try
-            {
-                
-                await InitFactory();
-                if (_channel == null) throw new ArgumentNullException();
-
-                if (_MQSession!.SessionMode == SessionModeEnum.WhileGet) //Get message by message
-                {
-                    //Test load procedures
-                    _MQSession.RunEtlLoadProcedure("All"); //execute load procedures
-                    long msgcnt = 0, rcvcnt =0; // for Debug Mode
-                    msgcnt = await _channel!.MessageCountAsync();
-                    
-                    if (msgcnt > 0)
-                        Log.Debug("We are starting to receive messages from the queue. Messages Count: {0}", msgcnt);
-                    for (uint i = 0; i < msgcnt; i++)
-                    {
-                        
-                        BasicGetResult? message = await _channel!.GetMessageAsync();
-                        if (message != null)
-                        {
-                            rcvcnt ++;
-                            _MQSession.SaveMsgToDataBase(message.BasicProperties.MessageId!, Encoding.UTF8.GetString(message.Body.ToArray()), message.BasicProperties.Type!);
-                            if (_option.IsConfirmMsgAndRemoveFromQueue)
-                            {
-                                await _channel!.AcknowledgeMessageAsync(message.DeliveryTag);
-                            }
-                        }
-                        else
-                            Log.Error($"Null message {i}");
-                    }
-                    if (msgcnt > 0)
-                        Log.Debug("Finish of receiving the messages. MQ Messages Count: {0}", rcvcnt);
-                }
-                else
-                    if(_MQSession.SessionMode != SessionModeEnum.BufferOnly)
-                        _MQSession.RunEtlThread("All"); //Started load proc threads
-
-                //while (true && _MQSession.SessionMode != SessionModeEnum.WhileGet)
-                //{
-
-                //    _cancellationToken.WaitHandle.WaitOne(2000);
-
-                //    if (_MQSession.SessionMode != SessionModeEnum.BufferOnly)
-                //        if (_channel == null || !_channel!.IsOpen)
-                //        {
-                //            Log.Error("MQ channel is closed.");
-                //            break;
-                //        }
-                //}
-                if (_MQSession.SessionMode != SessionModeEnum.WhileGet)
-                  await TaskCompletionSourceWithCancelation(_cancellationToken);
-
-                return 0;
-            }
-            catch (Exception ex)
-            {
-
-                Log.Error(ex.Message);
-                return -1;
-            }
-            finally     
-            {
-                await _channel!.CloseAsync();
-                CleanProcess();
-            }
-        }
-        */
+       
         public Task TaskCompletionSourceWithCancelation(CancellationToken cancellationToken) { 
             
             var tcs = new TaskCompletionSource<bool>();

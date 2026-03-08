@@ -1,5 +1,6 @@
 ﻿using Azure;
 using Microsoft.IdentityModel.Tokens;
+using MongoDB.Driver;
 using MQ.bll.Common;
 using MQ.dal;
 using MQ.dal.Models;
@@ -87,7 +88,7 @@ namespace MQ.bll
             MQMessagePropertyKeyList.Clear();
         }
 
-        public MQMessagePropertyKey? GetMQMessagePropertyKey(string messagePropertyKey = "")
+        public MQMessagePropertyKey? GetMQMessagePropertyKey(string? messagePropertyKey )
         {
             MQMessagePropertyKey? ms = null;
             bool keyres = false;
@@ -102,31 +103,30 @@ namespace MQ.bll
             }
             return ms;
         }
-        public string GetTableName(string messagePropertyKey = "")
+        public string GetTableName(string? messagePropertyKey)
         {
 
             MQMessagePropertyKey? ms = null;
 
             ms = GetMQMessagePropertyKey(messagePropertyKey);
             
-            if (ms == null) throw new Exception(@$"messagePropertyKey = {messagePropertyKey} Not found.");
+            if (ms == null) throw new Exception( string.Format("GetTableName messagePropertyKey = {0} Not found. Должен быть настроен UNKNOWN для очереди DataSourceID={1}, Objects Count ={2}", messagePropertyKey , _option.DataBaseServSettings.DataSourceID, MQMessagePropertyKeyList.Count) );
             return ms.TableName;
         }
-        public string? GetProcessQuery(string messagePropertyKey = "")
+        public string? GetProcessQuery(string? messagePropertyKey )
         {
 
             MQMessagePropertyKey? ms = null;
-            if (messagePropertyKey == null)
-                return null;
-            if (messagePropertyKey.Length != 0 && messagePropertyKey != "All")
+    
+            if (messagePropertyKey != "All")
             {
                 ms = GetMQMessagePropertyKey(messagePropertyKey);
             }
-            if (ms == null) throw new Exception("Empty QueueList");
+            if (ms == null) throw new Exception(string.Format("GetProcessQuery messagePropertyKey = {0} Not found. Должен быть настроен UNKNOWN для очереди DataSourceID={1}, Objects Count ={2}", messagePropertyKey, _option.DataBaseServSettings.DataSourceID, MQMessagePropertyKeyList.Count));
             return ms.ProcessQuery;
         }
 
-        public void RunEtlLoadProcedure(string messagePropertyKey = "")
+        public void RunEtlLoadProcedure(string? messagePropertyKey)
         {
             if (_cancellationToken.IsCancellationRequested)
             {
@@ -142,10 +142,10 @@ namespace MQ.bll
                 long oldBufferId = 0, bufferId = 0;
                 TimeSpan ts;
                 DateTime dt;
-                if (messagePropertyKey.Length != 0 && messagePropertyKey != "All")
+                if (messagePropertyKey != "All")
                 {
                     MQMessagePropertyKey? ms = GetMQMessagePropertyKey(messagePropertyKey);
-                    if (ms == null) throw new Exception(@$"Not found messagePropertyKey = {messagePropertyKey}.");
+                    if (ms == null) throw new Exception(string.Format("RunEtlLoadProcedure messagePropertyKey = {0} Not found. Должен быть настроен UNKNOWN для очереди DataSourceID={1}, Objects Count ={2}", messagePropertyKey, _option.DataBaseServSettings.DataSourceID, MQMessagePropertyKeyList.Count));
                     dt = DateTime.Now;
                     processQuery = ms.ProcessQuery;
                     cnt = dbHelper.EtlLoadProcess(SessionId, ms.ProcessQuery, oldBufferId, out errorMessage, out bufferId, _cancellationToken);
@@ -185,13 +185,13 @@ namespace MQ.bll
             catch (Exception ex)
             {
                
-                Log.Error($@"RunEtlLoadProcedure caused an exception. messagePropertyKey = {(messagePropertyKey.Length == 0 ? "All" : messagePropertyKey)}");
+                Log.Error($@"RunEtlLoadProcedure caused an exception. messagePropertyKey = {messagePropertyKey}");
                 Log.Error(ex.Message);
                 SaveSessionState(SessionState.ErrorSession, SessionId, _option.DataBaseServSettings.DataSourceID, string.Format("{0}, Error: {1}", processQuery, ex.Message));
-                throw new Exception($@"RunEtlLoadProcedure caused an exception. messagePropertyKey = {(messagePropertyKey.Length == 0 ? "All" : messagePropertyKey)}. {ex.Message}");
+                throw new Exception($@"RunEtlLoadProcedure caused an exception.messagePropertyKey = {messagePropertyKey}, {ex.Message}");
             }
         }
-        public void RunEtlThread(string messagePropertyKey = "")
+        public void RunEtlThread(string? messagePropertyKey)
         {
             if (_cancellationToken.IsCancellationRequested)
             {
@@ -200,11 +200,16 @@ namespace MQ.bll
             try
             {
 
-                if (messagePropertyKey.Length != 0 && messagePropertyKey != "All")
+                if (messagePropertyKey != "All")
                 {
                     MQMessagePropertyKey? ms = GetMQMessagePropertyKey(messagePropertyKey);
-                    if (ms == null) throw new Exception(@$"Not found messagePropertyKey = {messagePropertyKey}.");
-                    ms.StartEtlThread(_cancellationToken);
+                    if (ms != null)
+                    {
+                        ms.StartEtlThread(_cancellationToken);
+                    }else
+                    {
+                        Log.Debug("Empty StartEtlThread List");
+                    }
                 }
                 else
                 {
@@ -234,13 +239,14 @@ namespace MQ.bll
 
                 List<Metamap> mms = dbHelper.GetMappingSetup(_option.DataBaseServSettings.MetaAdapterId);
                 //.Where<MsgMappingSetup>(c => (c.TableName.Contains("msgqueue") || c.TableName.Contains("TABLE_REPL")))
+                Log.Debug("Для адаптера MetaAdapterId={0}, в базе [{1}]. Будет настроенно Count={2} MessagePropertyKeyList", _option.DataBaseServSettings.MetaAdapterId, _option.DataBaseServSettings.DataBase, mms.Count);
                 foreach (Metamap m in mms)
                 {
                     MQMessagePropertyKey ms = new MQMessagePropertyKey(_option, m.MsgKey, m.TableName, m.EtlQuery ?? "", SessionId, _cancellationToken);
                     MQMessagePropertyKeyList.Add(m.MsgKey, ms);
                 }
-                if (mms.Count > 0 && !MQMessagePropertyKeyList.ContainsKey("Unknown"))
-                    throw new Exception("Hav't Unknown Message Key");
+                if ((mms.Count > 0 && !MQMessagePropertyKeyList.ContainsKey("Unknown")) || MQMessagePropertyKeyList.Count == 0)
+                    throw new Exception(string.Format("Отсутствует Unknown Message Key для адаптера MetaAdapterId {0}", _option.DataBaseServSettings.MetaAdapterId));
                 return 0;
             }
             catch (Exception ex)
@@ -265,7 +271,7 @@ namespace MQ.bll
             }
         }
 
-        public async Task SaveMsgToDataBaseAsync(string messageId, string body, string messageKey, CancellationToken cancellationToken)
+        public async Task SaveMsgToDataBaseAsync(string messageId, string body, string? messageKey, CancellationToken cancellationToken)
         {
             string tableName = GetTableName(messageKey);
             int messageTypeId = 1; //Тестируем  Bulk запись, парсинг процедурой load_orders_log

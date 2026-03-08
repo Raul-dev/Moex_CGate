@@ -23,7 +23,6 @@ DECLARE @metamap TABLE
 )
 INSERT @metamap ([metamap_id], [msg_key], [table_name], [metaadapter_id], [namespace], [namespace_ver], [etl_query], [import_query], [is_enable])
 VALUES
-(1, N'Unknown', 'msgqueue', 5, CAST(N'https://nevacgate.ru/CatalogObject.Unknown' AS varchar(255)), CAST('https://nevacgate.ru/CatalogObject.Unknown/version1' AS varchar(255)), NULL, NULL, 0),
 (3, N'Unknown', N'[audit].[LogText_buffer]', 3, N'audit.LogText', N'audit.AuditLT/version1.01', N'[audit].[load_LogText]', NULL, 1),
 (4, N'Unknown', N'[audit].[LogError_buffer]', 4, N'audit.LogError', N'audit.AuditErr/version1.01', N'[audit].[load_LogError]', NULL, 0)
 

@@ -45,9 +45,6 @@ namespace MQ.WebService.Extensions
                 .Build();
 
             var cfg = new LoggerConfiguration()
-                 .Enrich.WithThreadId()
-                 .Enrich.FromLogContext()
-                 .Enrich.With(new CustomPropertyEnricher("WorkerLogPrefix", "SYS"))
                 .ReadFrom.Configuration(config);
 
             return cfg;
@@ -59,7 +56,6 @@ namespace MQ.WebService.Extensions
         public static WebApplicationBuilder LogStartUp(this WebApplicationBuilder builder, string connection = "")
         {
             string env = builder.Environment.EnvironmentName;
-
             Log.Logger.Debug($"Environment ASPNETCORE_ENVIRONMENT: {env}");
 
             //if (!builder.Environment.IsProduction())

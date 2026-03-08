@@ -29,6 +29,7 @@
     <Recovery>SIMPLE</Recovery>
     <TargetFrameworkProfile />
     <Trustworthy>True</Trustworthy>
+    <PermissionSet>UNSAFE</PermissionSet>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release\</OutputPath>
@@ -174,14 +175,15 @@
     <None Include="README.MD" />
     <None Include="ScriptsFolder\dbdeploy.ps1" />
     <None Include="ScriptsFolder\MSqlDeploymentFunc.psm1" />
-    <None Include="ScriptsFolder\Test001.sql" />
     <None Include="Dictionaries\AuditSetup.sql" />
     <None Include="Dictionaries\assembly.sql" />
     <None Include="Assemblies\RabbitMQSqlClr4.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  
     </None>
     <None Include="Assemblies\RabbitMQ.Client.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  
     </None>
   </ItemGroup>
   <ItemGroup>

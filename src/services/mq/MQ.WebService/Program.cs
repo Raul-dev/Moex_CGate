@@ -1,11 +1,17 @@
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services?view=aspnetcore-8.0&tabs=visual-studio
+using Microsoft.DotNet.Scaffolding.Shared;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration.Json;
 using MQ.bll.Common;
 using MQ.dal.Models;
 using MQ.WebService;
 using MQ.WebService.Controllers;
 using MQ.WebService.Extensions;
+using MQ.WebService.Interface;
 using Serilog;
+using Serilog.AspNetCore;
+using Serilog.Context;
+using System.IO;
 
 var builder = WebApplication.CreateBuilder(args);
 DataBaseSettings databaseSettings = builder.Configuration.GetRequiredSection(nameof(DataBaseSettings)).Get<DataBaseSettings>() ?? throw new ArgumentNullException();
@@ -36,9 +42,20 @@ builder.Services.AddSwaggerGen();
 
 
 //_ = SingletonProcessingService.Instance.Start(builder.Configuration);
-await SingletonProcessingService.Instance.Start(builder.Configuration);
+//await SingletonProcessingService.Instance.Start(builder.Configuration);
 
+builder.Services.AddSingleton<IMqService, SingletonProcessingService>();
+builder.Services.AddHostedService<MqStartupService>();
 var app = builder.Build();
+
+
+string confVal = app.Configuration["Serilog:WriteTo:1:Args:path"]?.ToString() ?? "";
+Log.Debug("File log path: {0}", confVal);
+confVal = app.Configuration["Serilog:WriteTo:1:Args:formatter:template"]?.ToString() ?? "";
+Log.Debug("File log template: {0}", confVal);
+
+// Регистрируем Middleware
+app.UseMiddleware<LogEnrichmentMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -52,5 +69,14 @@ if (app.Environment.IsDevelopment())
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Подписка на событие запуска
+var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+lifetime.ApplicationStarted.Register(() =>
+{
+    var myService = app.Services.GetRequiredService<IMqService>();
+    
+});
+app.UseSerilogRequestLogging();
 
 app.Run();

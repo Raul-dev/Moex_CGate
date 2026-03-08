@@ -1,7 +1,6 @@
 ﻿/*
-
 */
-CREATE   PROCEDURE [audit].[load_LogText]
+CREATE     PROCEDURE [audit].[load_LogText]
   @SessionId         bigint         = NULL,
   @BufferHistoryMode tinyint        = 0,   -- 0 - Do not delete the buffering history.
                                            -- 1 - Delete the buffering history.
@@ -51,26 +50,6 @@ CREATE TABLE #LockedList (
     [msgtype_id] tinyint
 )
 
-CREATE TABLE #orders_log(
-    [LogID]            BIGINT        IDENTITY (1, 1) NOT NULL,
-    [ObjectId]         int           NULL,
-    [KeyField]         VARCHAR (128) NULL,
-    [KeyValue]         bigint  NULL,
-    [MessageCode]      VARCHAR (50) NULL,
-    [Message]          VARCHAR (MAX) NULL,
-    [TransactionCount] int       NULL,
-    [DateCreate]       DATETIME2 (4) ,
-    [SysUserName]      VARCHAR (256) ,
-    [SysHostName]      VARCHAR (100) ,
-    [SysDbName]        VARCHAR (128) ,
-    [SysAppName]       VARCHAR (128) ,
-    [SPID]             INT           ,
---PRIMARY KEY CLUSTERED 
---(
---	[private_order_id] ASC
---)
-)
-
 BEGIN TRY
   BEGIN TRANSACTION
 
@@ -103,259 +82,86 @@ BEGIN TRY
         COMMIT TRANSACTION
         RETURN 0
     END
-/*
 
-    INSERT #orders_log (
-       [replID]
-      ,[replRev]
-      ,[replAct]
-      ,[public_order_id]
-      ,[sess_id]
-      ,[isin_id]
-      ,[public_amount]
-      ,[public_amount_rest]
-      ,[id_deal]
-      ,[xstatus]
-      ,[xstatus2]
-      ,[price]
-      ,[moment]
-      ,[moment_ns]
-      ,[dir]
-      ,[public_action]
-      ,[deal_price]
-      ,[client_code]
-      ,[login_from]
-      ,[comment]
-      ,[ext_id]
-      ,[broker_to]
-      ,[broker_to_rts]
-      ,[broker_from_rts]
-      ,[date_exp]
-      ,[id_ord1]
-      ,[aspref]
-      ,[private_order_id]
-      ,[private_amount]
-      ,[private_amount_rest]
-      ,[variance_amount]
-      ,[disclose_const_amount]
-      ,[private_action]
-      ,[reason]
-      ,[match_ref]
-      ,[compliance_id]
-      ,[edition]
+    INSERT [audit].[LogText](
+        [ObjectId],
+        [KeyField],
+        [KeyValue],
+        [MessageCode],
+        [Message],
+        [TransactionCount],
+        [DateCreate],
+        [SysDbName],
+        [SysUserName],
+        [SysHostName],
+        [SysAppName],
+        [SPID] 
     )
-
-    SELECT *
-    FROM (
-      SELECT 
-           [replID]
-          ,[replRev]
-          ,[replAct]
-          ,[public_order_id]
-          ,[sess_id]
-          ,[isin_id]
-          ,[public_amount]
-          ,[public_amount_rest]
-          ,[id_deal]
-          ,[xstatus]
-          ,[xstatus2]
-          ,[price]
-          ,[moment] = CONVERT([datetime2](3), [moment], 102)
-          ,[moment_ns]
-          ,[dir]
-          ,[public_action]
-          ,[deal_price]
-          ,[client_code]
-          ,[login_from]
-          ,[comment]
-          ,[ext_id]
-          ,[broker_to]
-          ,[broker_to_rts]
-          ,[broker_from_rts]
-          ,[date_exp] = CONVERT([datetime2](3), [date_exp], 102)
-          ,[id_ord1]
-          ,[aspref]
-          ,[private_order_id]
-          ,[private_amount]
-          ,[private_amount_rest]
-          ,[variance_amount]
-          ,[disclose_const_amount]
-          ,[private_action]
-          ,[reason]
-          ,[match_ref]
-          ,[compliance_id]
-          ,[edition] = ROW_NUMBER() OVER (PARTITION BY [private_order_id] ORDER BY [replRev] DESC)
-        FROM #LockedList L 
-        INNER JOIN [audit].[LogText_buffer] b ON b.[buffer_id] = L.[buffer_id]
-        CROSS APPLY (
-          SELECT *
-          FROM OPENJSON(b.msg,'$')
-          WITH 
-          (
-	          [replID] [bigint] '$[0]',
-	          [replRev] [bigint] '$[1]',
-	          [replAct] [bigint] '$[2]',
-	          [public_order_id] [bigint] '$[3]',
-	          [sess_id] [int] '$[4]',
-	          [isin_id] [int] '$[5]',
-	          [public_amount] [bigint] '$[6]',
-	          [public_amount_rest] [bigint] '$[7]',
-	          [id_deal] [bigint] '$[8]',
-	          [xstatus] [bigint] '$[9]',
-	          [xstatus2] [bigint] '$[10]',
-	          [price] [decimal](16, 5) '$[11]',
-	          [moment] varchar(50) '$[12]',
-	          [moment_ns] [decimal](20, 0) '$[13]',
-	          [dir] [tinyint] '$[14]',
-	          [public_action] [tinyint] '$[15]',
-	          [deal_price] [decimal](16, 5) '$[16]',
-	          [client_code] [nvarchar](7) '$[17]',
-	          [login_from] [nvarchar](20) '$[18]',
-	          [comment] [nvarchar](20) '$[19]',
-	          [ext_id] [int] '$[20]',
-	          [broker_to] [nvarchar](7) '$[21]',
-	          [broker_to_rts] [nvarchar](7) '$[22]',
-	          [broker_from_rts] [nvarchar](7) '$[23]',
-	          [date_exp] varchar(50) '$[24]',
-	          [id_ord1] [bigint] '$[25]',
-	          [aspref] [int] '$[26]',
-              [private_order_id] [bigint] '$[27]',
-              [private_amount] [bigint] '$[28]',
-              [private_amount_rest] [bigint] '$[29]',
-              [variance_amount] [bigint] '$[30]',
-              [disclose_const_amount] [bigint] '$[31]',
-              [private_action] [tinyint] '$[32]',
-              [reason] [int] '$[33]',
-              [match_ref] varchar(10) '$[34]',
-              [compliance_id] varchar(1) '$[35]'
-          ) 
-        ) OL
-      ) H
-      WHERE [edition] = 1
-
-    MERGE INTO [crs].[orders_log] trg
-    USING #orders_log AS src
-    ON src.[private_order_id] = trg.[private_order_id] WHEN MATCHED THEN 
-    UPDATE SET
-      [replID] = src.[replID],
-      [replRev] = src.[replRev],
-      [replAct] = src.[replAct],
-      [public_order_id] = src.[public_order_id],
-      [sess_id] = src.[sess_id],
-      [isin_id] = src.[isin_id],
-      [public_amount] = src.[public_amount],
-      [public_amount_rest] = src.[public_amount_rest],
-      [id_deal] = src.[id_deal],
-      [xstatus] = src.[xstatus],
-      [xstatus2] = src.[xstatus2],
-      [price] = src.[price],
-      --,[moment] = src.[moment],
-      [moment_ns] = src.[moment_ns],
-      [dir] = src.[dir],
-      [public_action] = src.[public_action],
-      [deal_price] = src.[deal_price],
-      [client_code] = src.[client_code],
-      [login_from] = src.[login_from],
-      [comment] = src.[comment],
-      [ext_id] = src.[ext_id],
-      [broker_to] = src.[broker_to],
-      [broker_to_rts] = src.[broker_to_rts],
-      [broker_from_rts] = src.[broker_from_rts],
-      [date_exp] = src.[date_exp],
-      [id_ord1] = src.[id_ord1],
-      [aspref] = src.[aspref],
-      [private_order_id] = src.[private_order_id],
-      [private_amount] = src.[private_amount],
-      [private_amount_rest] = src.[private_amount_rest],
-      [variance_amount] = src.[variance_amount],
-      [disclose_const_amount] = src.[disclose_const_amount],
-      [private_action] = src.[private_action],
-      [reason] = src.[reason],
-      [match_ref] = src.[match_ref],
-      [compliance_id] = src.[compliance_id]
-
-    WHEN NOT MATCHED BY TARGET
-    THEN INSERT (
-        [replID]
-      ,[replRev]
-      ,[replAct]
-      ,[public_order_id]
-      ,[sess_id]
-      ,[isin_id]
-      ,[public_amount]
-      ,[public_amount_rest]
-      ,[id_deal]
-      ,[xstatus]
-      ,[xstatus2]
-      ,[price]
-      ,[moment]
-      ,[moment_ns]
-      ,[dir]
-      ,[public_action]
-      ,[deal_price]
-      ,[client_code]
-      ,[login_from]
-      ,[comment]
-      ,[ext_id]
-      ,[broker_to]
-      ,[broker_to_rts]
-      ,[broker_from_rts]
-      ,[date_exp]
-      ,[id_ord1]
-      ,[aspref]
-      ,[private_order_id]
-      ,[private_amount]
-      ,[private_amount_rest]
-      ,[variance_amount]
-      ,[disclose_const_amount]
-      ,[private_action]
-      ,[reason]
-      ,[match_ref]
-      ,[compliance_id]
-    )
-    VALUES
+    SELECT 
+        [ObjectId]      = TRY_CAST(ObjectId AS int),
+        [KeyField]      = NULLIF([KeyField],'NULL'),
+        [KeyValue]      = NULLIF([KeyValue],'NULL'),
+        [MessageCode]   = NULLIF([MessageCode],'NULL'),
+        [Message]       = NULLIF([Message],'NULL'),
+        [TransactionCount] = TRY_CAST([TransactionCount] AS int),
+        [DateCreate]    = [DateCreate],
+        [SysDbName]     = NULLIF([SysDbName],'NULL'),
+        [SysUserName]   = NULLIF([SysUserName],'NULL'),
+        [SysHostName]   = NULLIF([SysHostName],'NULL'),
+        [SysAppName]    = NULLIF([SysAppName],'NULL'),
+        [SPID]          = TRY_CAST([SPID] AS int)
+    FROM [audit].[LogText_buffer] b
+    OUTER APPLY OPENJSON(b.msg,'$') 
+    WITH 
     (
-       src.[replID],
-      src.[replRev],
-      src.[replAct],
-      src.[public_order_id],
-      src.[sess_id],
-      src.[isin_id],
-      src.[public_amount],
-      src.[public_amount_rest],
-      src.[id_deal],
-      src.[xstatus],
-      src.[xstatus2],
-      src.[price],
-      src.[moment],
-      src.[moment_ns],
-      src.[dir],
-      src.[public_action],
-      src.[deal_price],
-      src.[client_code],
-      src.[login_from],
-      src.[comment],
-      src.[ext_id],
-      src.[broker_to],
-      src.[broker_to_rts],
-      src.[broker_from_rts],
-      src.[date_exp],
-      src.[id_ord1],
-      src.[aspref],
-      src.[private_order_id],
-      src.[private_amount],
-      src.[private_amount_rest],
-      src.[variance_amount],
-      src.[disclose_const_amount],
-      src.[private_action],
-      src.[reason],
-      src.[match_ref],
-      src.[compliance_id]
-    );
-    */
+        [ObjectId]     varchar(50)   '$[0]',
+        [KeyField]     varchar(128)  '$[1]',
+        [KeyValue]     varchar(128)  '$[2]',
+        [MessageCode]  varchar(50)   '$[3]',
+        [Message]      varchar(50)   '$[4]',
+        [TransactionCount] varchar(50)  '$[5]',
+        [DateCreate]   datetime2(4)  '$[6]',
+        [SysDbName]    varchar(128)  '$[7]',
+        [SysUserName]  varchar(256)  '$[8]',
+        [SysHostName]  varchar(128)  '$[9]',
+        [SysAppName]   varchar(128)  '$[10]',
+        [SPID]         varchar(50)   '$[11]'
+    ) M
+
     SET @BufferId = (SELECT MAX([buffer_id]) FROM #LockedList)
     IF @Debug = 1 BEGIN
-      SELECT [@BufferId] = @BufferId
+        SELECT 
+            [ObjectId]      = TRY_CAST(ObjectId AS int),
+            [KeyField]      = NULLIF([KeyField],'NULL'),
+            [KeyValue]      = NULLIF([KeyValue],'NULL'),
+            [MessageCode]   = NULLIF([MessageCode],'NULL'),
+            [Message]       = NULLIF([Message],'NULL'),
+            [TransactionCount] = TRY_CAST([TransactionCount] AS int),
+            [DateCreate]    = [DateCreate],
+            [SysDbName]     = NULLIF([SysDbName],'NULL'),
+            [SysUserName]   = NULLIF([SysUserName],'NULL'),
+            [SysHostName]   = NULLIF([SysHostName],'NULL'),
+            [SysAppName]    = NULLIF([SysAppName],'NULL'),
+            [SPID]          = TRY_CAST([SPID] AS int)
+        FROM [audit].[LogText_buffer] b
+        OUTER APPLY OPENJSON(b.msg,'$') 
+        WITH 
+        (
+            [ObjectId]     varchar(50)   '$[0]',
+            [KeyField]     varchar(128)  '$[1]',
+            [KeyValue]     varchar(128)  '$[2]',
+            [MessageCode]  varchar(50)   '$[3]',
+            [Message]      varchar(50)   '$[4]',
+            [TransactionCount] varchar(50)  '$[5]',
+            [DateCreate]   datetime2(4)  '$[6]',
+            [SysDbName]    varchar(128)  '$[7]',
+            [SysUserName]  varchar(256)  '$[8]',
+            [SysHostName]  varchar(128)  '$[9]',
+            [SysAppName]   varchar(128)  '$[10]',
+            [SPID]         varchar(50)   '$[11]'
+        ) M
+
+        SELECT [@BufferId] = @BufferId
     END    
     
     -- Update buffer table

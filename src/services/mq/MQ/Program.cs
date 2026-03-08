@@ -19,9 +19,9 @@ class Program
             .Build();
 
         Log.Logger = new LoggerConfiguration()
-            .Enrich.WithThreadId()
-            .Enrich.FromLogContext()
-            .Enrich.With(new CustomPropertyEnricher("WorkerLogPrefix", "SYS"))
+            //.Enrich.WithThreadId()
+            //.Enrich.FromLogContext()
+            //.Enrich.With(new CustomPropertyEnricher("WorkerLogPrefix", "SYS"))
             .ReadFrom.Configuration(configuration)
             .CreateLogger();
         
