@@ -15,3 +15,7 @@ IF USER_ID('CGateUser') IS NULL
 
 ALTER ROLE db_owner ADD MEMBER [CGateUser];
 GRANT CONNECT TO [CGateUser]; 
+
+IF NOT EXISTS(SELECT 1 FROM [dbo].[Setting] WHERE SettingID = 'FullAuditEnabled' )
+INSERT INTO [dbo].[Setting] (SettingID, StrValue) values('FullAuditEnabled', N'FullAuditEnabled')
+
