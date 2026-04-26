@@ -10,5 +10,4 @@ Post-Deployment Script Template
 --------------------------------------------------------------------------------------
 */
 :r .\AuditSetup.sql
-:r .\session_state.sql
-:r .\metamap.sql
+
