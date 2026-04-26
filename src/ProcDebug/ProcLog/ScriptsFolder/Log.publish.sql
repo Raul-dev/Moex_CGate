@@ -611,6 +611,9 @@ GO
 IF NOT EXISTS(SELECT 1 FROM [dbo].[Setting] WHERE SettingID = 'FullAuditEnabled' )
 INSERT INTO [dbo].[Setting] (SettingID, StrValue) values('FullAuditEnabled', N'FullAuditEnabled')
 
+IF NOT EXISTS(SELECT 1 FROM [audit].[Setting] WHERE ID = 1 )
+INSERT [audit].[Setting](ID,IntValue,Code,StrValue)
+VALUES(1,1,1,1)
 
 GO
 PRINT N'Update complete.';
