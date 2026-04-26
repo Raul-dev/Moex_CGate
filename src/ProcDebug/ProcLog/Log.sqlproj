@@ -91,9 +91,6 @@
     </Build>
     <Build Include="Security\audit.sql" />
     <Build Include="Security\CGateUser.sql" />
-    <None Include="Dictionaries\metamap.sql">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <Build Include="Security\RoleMemberships.sql" />
     <PreDeploy Include="Dictionaries\Script.PreDeployment1.sql">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -104,13 +101,11 @@
     <PostDeploy Include="Dictionaries\Script.PostDeployment1.sql">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </PostDeploy>
-    <None Include="Dictionaries\session_state.sql">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <None Include="Dictionaries\AuditSetup.sql">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <Build Include="audit\Functions\fn_GetEstimatedStringLength.sql" />
+    <None Include="ScriptsFolder\Log.publish.sql" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ScriptsFolder\dbdeploy.ps1" />
