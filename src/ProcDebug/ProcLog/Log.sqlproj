@@ -107,6 +107,8 @@
     <Build Include="audit\Functions\fn_GetEstimatedStringLength.sql" />
     <None Include="ScriptsFolder\Log.publish.sql" />
     <Build Include="dbo\Tables\Setting.sql" />
+    <Build Include="audit\Functions\fn_BuildProcedureParams.sql" />
+    <Build Include="audit\Functions\fn_BuildExceptType.sql" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ScriptsFolder\dbdeploy.ps1" />

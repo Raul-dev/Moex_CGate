@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ApplyProcLog": {
+      "commandName": "Project",
+      "commandLineArgs": "generate --clean"
+    }
+  }
+}

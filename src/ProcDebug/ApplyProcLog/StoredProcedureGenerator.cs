@@ -14,22 +14,15 @@ namespace ApplyProcLog
         /// </summary>
         public async Task CreateProcedureFilesAsync(IEnumerable<StoredProcedureInfo> procedures, string targetDirectory = "PROC")
         {
-            // Получаем путь к текущей директории приложения
-            if (targetDirectory == "PROC")
-            {
-                targetDirectory = Path.Combine(Directory.GetCurrentDirectory(), targetDirectory);
-                if (!Directory.Exists(targetDirectory))
-                {
-                    Directory.CreateDirectory(targetDirectory);
-                }
-            }
+            string resolvedPath = GetProcDirectory(targetDirectory);
+            Log.Information("Целевая папка: {TargetDir}", resolvedPath);
 
-            // Папка для оригинальных процедур
-            string originalDirectory = Path.Combine(targetDirectory, "Original");
+            if (!Directory.Exists(resolvedPath))
+                Directory.CreateDirectory(resolvedPath);
+
+            string originalDirectory = Path.Combine(resolvedPath, "Original");
             if (!Directory.Exists(originalDirectory))
-            {
                 Directory.CreateDirectory(originalDirectory);
-            }
 
             foreach (var proc in procedures)
             {
@@ -41,7 +34,7 @@ namespace ApplyProcLog
                     fileName = fileName.Replace(c, '_');
                 }
 
-                string filePath = Path.Combine(targetDirectory, fileName);
+                string filePath = Path.Combine(resolvedPath, fileName);
 
                 try
                 {
@@ -99,9 +92,9 @@ namespace ApplyProcLog
             if (body.Contains("[audit].[sp_log_Start]") || body.Contains("[audit].[sp_log_Finish]"))
                 return body;
 
-            string startPrint = $"\r\nDECLARE @LogID int, @ProcedureName varchar(510), @ProcedureParams varchar(max), @ProcedureInfo varchar(max), @ErrorMessageLog varchar(max), @RowCountLog int = 0, @AuditEnable nvarchar(256)\r\nSET @AuditEnable = [dbo].[fn_GetSettingValue]('FullAuditEnabled')\r\nSET @ProcedureName = '[' + OBJECT_SCHEMA_NAME(@@PROCID)+'].['+OBJECT_NAME(@@PROCID)+']'\r\nIF @AuditEnable IS NOT NULL \r\nBEGIN\r\n  IF OBJECT_ID('tempdb..#LogProc') IS NULL\r\n     SELECT * INTO #LogProc FROM [audit].[Template_LogProc]()\r\n  \r\n  SET @ProcedureParams = {procedureParams} \r\nEND\r\nIF @AuditEnable IS NOT NULL\r\n  EXEC [audit].[sp_log_Start] @AuditEnable = @AuditEnable, @ProcedureName = @ProcedureName, @ProcedureParams = @ProcedureParams, @LogID = @LogID OUTPUT\r\n";
-            string endPrint = $"\r\n    EXEC [audit].[sp_log_Finish] @LogID = @LogID, @RowCount = @RowCountLog;\r\n";
-            string endPrintErr = $"\r\n  SET @ErrorMessageLog = ERROR_MESSAGE() \r\n  EXEC [audit].[sp_log_Finish] @LogID = @LogID, @RowCount = @RowCountLog, @ErrorMessage = @ErrorMessageLog;\r\n";
+            string startPrint = $"\r\nDECLARE @AuditLogID int, @AuditProcedureName varchar(510), @AuditProcedureParams varchar(max), @AuditProcedureInfo varchar(max), @AuditErrorMessage varchar(max), @AuditRowCount int = 0, @AuditEnable nvarchar(256)\r\nSET @AuditEnable = 'FullAuditEnabled'\r\nSET @AuditProcedureName = '[' + OBJECT_SCHEMA_NAME(@@PROCID)+'].['+OBJECT_NAME(@@PROCID)+']'\r\nIF @AuditEnable IS NOT NULL \r\nBEGIN\r\n  IF OBJECT_ID('tempdb..#LogProc') IS NULL\r\n     SELECT * INTO #LogProc FROM [audit].[Template_LogProc]()\r\n  \r\n  SET @AuditProcedureParams = {procedureParams} \r\nEND\r\nIF @AuditEnable IS NOT NULL\r\n  EXEC [audit].[sp_log_Start] @AuditEnable = @AuditEnable, @ProcedureName = @AuditProcedureName, @ProcedureParams = @AuditProcedureParams, @LogID = @AuditLogID OUTPUT\r\n";
+            string endPrint = $"\r\n    EXEC [audit].[sp_log_Finish] @LogID = @AuditLogID, @RowCount = @AuditRowCount;\r\n";
+            string endPrintErr = $"\r\n  SET @AuditErrorMessage = ERROR_MESSAGE() \r\n  EXEC [audit].[sp_log_Finish] @LogID = @AuditLogID, @RowCount = @AuditRowCount, @ErrorMessage = @AuditErrorMessage;\r\n";
 
             // Ищем ключевое слово AS (игнорируя регистр)
             // Если есть WITH EXECUTE AS — ищем AS только после него
@@ -146,79 +139,108 @@ namespace ApplyProcLog
                 }
 
                 if (lastEndTryIndex != -1)
-                {
                     body = body.Insert(lastEndTryIndex, endPrint);
-                }
                 else
+                    body += endPrint;
+            }
+
+            // Ищем главный (самый внешний) блок CATCH — с конца тела процедуры
+            int catchEndIdx = body.LastIndexOf("END CATCH", StringComparison.OrdinalIgnoreCase);
+            if (catchEndIdx < 0)
+                return body;
+
+            int catchStartIdx = body.LastIndexOf("BEGIN CATCH", catchEndIdx, StringComparison.OrdinalIgnoreCase);
+            if (catchStartIdx < 0)
+                return body;
+
+            // Ищем начало области поиска: от BEGIN CATCH до END CATCH
+            int searchRegionEnd = catchEndIdx;
+
+            int insertBeforeIdx = -1;
+
+            // Ищем ReRaiseError — но нужно начало строки с EXEC
+            int raiseErrIdx = body.IndexOf("[System].[ReRaiseError]", catchStartIdx, searchRegionEnd - catchStartIdx, StringComparison.OrdinalIgnoreCase);
+            if (raiseErrIdx >= 0 && raiseErrIdx < searchRegionEnd)
+            {
+                // Двигаемся назад до начала строки и ищем там EXEC
+                int lineStart = raiseErrIdx;
+                while (lineStart > 0 && body[lineStart - 1] != '\n')
+                    lineStart--;
+                string lineBefore = body.Substring(lineStart, raiseErrIdx - lineStart);
+                if (lineBefore.Contains("EXEC"))
                 {
-                    // Fallback: ищем последнее END перед END CATCH или в конце
-                    int catchIndex = body.LastIndexOf("END CATCH", StringComparison.OrdinalIgnoreCase);
-                    if (catchIndex != -1)
-                    {
-                        body = body.Insert(catchIndex, endPrint);
-                    }
-                    else
-                    {
-                        int lastEndIndex = body.LastIndexOf("END", StringComparison.OrdinalIgnoreCase);
-                        if (lastEndIndex != -1)
-                        {
-                            body = body.Insert(lastEndIndex, endPrint);
-                        }
-                        else
-                        {
-                            body += endPrint;
-                        }
-                    }
+                    insertBeforeIdx = lineStart;
                 }
             }
 
-            // Ищем блок BEGIN CATCH и вставляем endPrintErr перед ReRaiseError/THROW или перед END CATCH
-            int catchStartIdx = body.IndexOf("BEGIN CATCH", StringComparison.OrdinalIgnoreCase);
-            if (catchStartIdx >= 0)
+            // Ищем THROW (начало строки)
+            if (insertBeforeIdx == -1)
             {
-                // Ищем начало области поиска: от BEGIN CATCH до END CATCH
-                int catchEndIdx = body.IndexOf("END CATCH", catchStartIdx, StringComparison.OrdinalIgnoreCase);
-                int searchRegionEnd = catchEndIdx >= 0 ? catchEndIdx : body.Length;
-
-                int insertBeforeIdx = -1;
-
-                // Ищем ReRaiseError — но нужно начало строки с EXEC
-                int raiseErrIdx = body.IndexOf("[System].[ReRaiseError]", catchStartIdx, searchRegionEnd - catchStartIdx, StringComparison.OrdinalIgnoreCase);
-                if (raiseErrIdx >= 0 && raiseErrIdx < searchRegionEnd)
+                int throwIdx = body.IndexOf("THROW", catchStartIdx, searchRegionEnd - catchStartIdx, StringComparison.OrdinalIgnoreCase);
+                if (throwIdx >= 0 && throwIdx < searchRegionEnd)
                 {
-                    // Двигаемся назад до начала строки и ищем там EXEC
-                    int lineStart = raiseErrIdx;
+                    int lineStart = throwIdx;
                     while (lineStart > 0 && body[lineStart - 1] != '\n')
                         lineStart--;
-                    string lineBefore = body.Substring(lineStart, raiseErrIdx - lineStart);
-                    if (lineBefore.Contains("EXEC"))
-                    {
-                        insertBeforeIdx = lineStart;
-                    }
+                    insertBeforeIdx = lineStart;
                 }
-
-                // Ищем THROW (начало строки)
-                if (insertBeforeIdx == -1)
-                {
-                    int throwIdx = body.IndexOf("THROW", catchStartIdx, searchRegionEnd - catchStartIdx, StringComparison.OrdinalIgnoreCase);
-                    if (throwIdx >= 0 && throwIdx < searchRegionEnd)
-                    {
-                        int lineStart = throwIdx;
-                        while (lineStart > 0 && body[lineStart - 1] != '\n')
-                            lineStart--;
-                        insertBeforeIdx = lineStart;
-                    }
-                }
-
-                // Fallback на END CATCH
-                if (insertBeforeIdx == -1 && catchEndIdx >= 0)
-                    insertBeforeIdx = catchEndIdx;
-
-                if (insertBeforeIdx >= 0)
-                    body = body.Insert(insertBeforeIdx, endPrintErr);
             }
 
+            // Fallback на END CATCH
+            if (insertBeforeIdx == -1)
+                insertBeforeIdx = catchEndIdx;
+
+            if (insertBeforeIdx >= 0)
+                body = body.Insert(insertBeforeIdx, endPrintErr);
+
             return body;
+        }
+
+        /// <summary>
+        /// Возвращает абсолютный путь к папке PROC.
+        /// </summary>
+        public string GetProcDirectory(string targetDirectory = "PROC")
+        {
+            if (Path.IsPathRooted(targetDirectory))
+                return targetDirectory;
+
+            return Path.Combine(Directory.GetCurrentDirectory(), targetDirectory);
+        }
+
+        /// <summary>
+        /// Очищает папки Proc и Original перед генерацией.
+        /// </summary>
+        public void CleanOutputDirectories(string targetDirectory = "PROC")
+        {
+            string resolvedPath = GetProcDirectory(targetDirectory);
+            Log.Information("Очистка папки: {TargetDir}", resolvedPath);
+
+            var originalDir = Path.Combine(resolvedPath, "Original");
+            int procFiles = CleanSqlFiles(resolvedPath);
+            int originalFiles = CleanSqlFiles(originalDir);
+
+            Log.Information("Очистка завершена: Proc={ProcFiles} файлов, Original={OriginalFiles} файлов",
+                procFiles, originalFiles);
+        }
+
+        private static int CleanSqlFiles(string directory)
+        {
+            if (!Directory.Exists(directory))
+                return 0;
+
+            var files = Directory.GetFiles(directory, "*.sql");
+            foreach (var file in files)
+            {
+                try
+                {
+                    File.Delete(file);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning("Не удалось удалить {File}: {Error}", file, ex.Message);
+                }
+            }
+            return files.Length;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿
+﻿print 1
 GO
 
 GO
@@ -85,6 +85,18 @@ CREATE TABLE [audit].[Setting] (
 
 
 GO
+PRINT N'Creating Table [dbo].[Setting]...';
+
+
+GO
+CREATE TABLE [dbo].[Setting] (
+    [SettingID] VARCHAR (50)   NOT NULL,
+    [StrValue]  NVARCHAR (256) NULL,
+    CONSTRAINT [PK_Setting] PRIMARY KEY NONCLUSTERED ([SettingID] ASC) ON [PRIMARY]
+) ON [PRIMARY];
+
+
+GO
 PRINT N'Creating Default Constraint [audit].[DF_LogProcedures_start_datetime]...';
 
 
@@ -129,37 +141,6 @@ ALTER TABLE [audit].[LogProcedures]
     ADD CONSTRAINT [DF_LogProcedures_spid] DEFAULT (@@spid) FOR [SPID];
 
 
-GO
-PRINT N'Creating Function [audit].[fn_log_IsLnk]...';
-
-
-GO
-CREATE FUNCTION [audit].[fn_log_IsLnk](
-)RETURNS BIT
-AS
-BEGIN
-  RETURN IIF( EXISTS(SELECT * from sys.databases WITH(nolock) WHERE database_id = DB_ID() AND snapshot_isolation_state_desc = 'ON')  
-              OR EXISTS(SELECT * FROM sys.dm_exec_sessions WITH(nolock) WHERE session_id = @@SPID AND transaction_isolation_level = 5),
-              0,1
-            )
-END
-GO
-PRINT N'Creating Function [audit].[fn_GetAuditTypeSP]...';
-
-
-GO
-CREATE   FUNCTION [audit].[fn_GetAuditTypeSP](
-    @AuditEnable nvarchar(256) = NULL
-)RETURNS int
-AS
-BEGIN
-
-    IF @AuditEnable = 'FullAuditEnabled'
-        RETURN ISNULL((SELECT [IntValue] FROM [audit].[Setting] WHERE [ID] = 1), 0)
-    ELSE
-        RETURN ISNULL((SELECT [IntValue] FROM [audit].[Setting] WHERE [Code] = @AuditEnable), 0)
-    RETURN 0 
-END
 GO
 PRINT N'Creating Function [audit].[fn_GetEstimatedStringLength]...';
 
@@ -213,6 +194,39 @@ BEGIN
     RETURN @result;
 END;
 GO
+PRINT N'Creating Function [audit].[fn_log_IsLnk]...';
+
+
+GO
+CREATE FUNCTION [audit].[fn_log_IsLnk](
+)RETURNS BIT
+AS
+BEGIN
+  RETURN IIF( EXISTS(SELECT * from sys.databases WITH(nolock) WHERE database_id = DB_ID() AND snapshot_isolation_state_desc = 'ON')  
+              OR EXISTS(SELECT * FROM sys.dm_exec_sessions WITH(nolock) WHERE session_id = @@SPID AND transaction_isolation_level = 5),
+              0,1
+            )
+END
+GO
+PRINT N'Creating Function [audit].[fn_GetAuditTypeSP]...';
+
+
+GO
+CREATE   FUNCTION [audit].[fn_GetAuditTypeSP](
+    @AuditEnable nvarchar(256) = NULL
+)RETURNS int
+AS
+BEGIN
+
+    IF @AuditEnable = 'FullAuditEnabled'
+        RETURN 1 --simple enable
+        --for advanced setup:
+        --RETURN ISNULL((SELECT [IntValue] FROM [audit].[Setting] WHERE [ID] = 1), 0)
+    ELSE
+        RETURN ISNULL((SELECT [IntValue] FROM [audit].[Setting] WHERE [Code] = @AuditEnable), 0)
+    RETURN 0 
+END
+GO
 PRINT N'Creating Function [dbo].[fn_GetSettingInt]...';
 
 
@@ -251,6 +265,71 @@ CREATE   FUNCTION [audit].[Template_LogProc](
 AS
 BEGIN
   RETURN
+END
+GO
+PRINT N'Creating Function [audit].[fn_BuildExceptType]...';
+
+
+GO
+
+CREATE FUNCTION [audit].fn_BuildExceptType()
+RETURNS @Result TABLE (
+    TypeName nvarchar(128) NOT NULL
+)
+AS
+BEGIN
+    INSERT INTO @Result (TypeName) VALUES ('тип1');
+    INSERT INTO @Result (TypeName) VALUES ('тип2');
+    INSERT INTO @Result (TypeName) VALUES ('TBigList');
+    RETURN;
+END;
+GO
+PRINT N'Creating Function [audit].[fn_BuildProcedureParams]...';
+
+
+GO
+
+CREATE FUNCTION [audit].fn_BuildProcedureParams(@ObjectId INT)
+RETURNS NVARCHAR(MAX)
+AS
+BEGIN
+    DECLARE @Result NVARCHAR(MAX) ;
+    DECLARE @SchemaName NVARCHAR(128);
+    DECLARE @ProcName NVARCHAR(128),
+    @IsOutput bit,
+    @LastParam sysname
+
+    SELECT @SchemaName = SCHEMA_NAME(o.schema_id), @ProcName = o.name FROM sys.objects o WHERE o.object_id = @ObjectId AND o.type IN ('P', 'PC');
+    IF @SchemaName IS NULL RETURN N'-- Object not found or not a procedure';
+
+    --SET @Result = @Result + N'[' + @SchemaName + N'].[' + @ProcName + N'] ';
+
+    SELECT @Result = ISNULL(@Result + '   ','') + '''' +
+        IIF((EXC.[TypeName] IS NULL), 
+          CASE WHEN p.is_output = 1 THEN + IIF((EXC.[TypeName] IS NULL), '/*', '') + t.name + IIF((EXC.[TypeName] IS NULL), '*/', '') + p.name + N'=' + p.name + N' OUTPUT ''' ELSE
+              CASE WHEN t.name IN ('varchar','nvarchar','char','nchar','text','ntext') THEN
+                  p.name + N'=''+ISNULL(''''''''+' + 'LTRIM(CAST(' + p.name + N' AS varchar(' + [audit].[fn_GetEstimatedStringLength](p.user_type_id, p.max_length, p.precision) + N')))' + '+'''''''',''NULL'')' ELSE
+                  p.name + N'=''+ISNULL(LTRIM(CAST(' + p.name + N' AS varchar(' + [audit].[fn_GetEstimatedStringLength](p.user_type_id, p.max_length, p.precision) + N'))),''NULL'')'
+              END
+          END 
+         , '/*' +t.name + ' ' + p.name +' = ' + p.name+ '*/'''
+        ) + N'+'',''+' +
+        CHAR(13) + CHAR(10),
+        @IsOutput = p.is_output,
+        @LastParam = t.name
+    FROM sys.parameters p JOIN sys.types t ON p.user_type_id = t.user_type_id
+    LEFT JOIN [audit].[fn_BuildExceptType]() EXC ON t.[name] = EXC.[TypeName]
+    WHERE p.object_id = @ObjectId ORDER BY p.parameter_id;
+
+    IF @Result IS NULL
+      SET @Result =N'''''';
+    ELSE
+      IF @LastParam IN ('varchar','nvarchar','char','nchar','text','ntext') 
+        SET @Result = LEFT(@Result, LEN(@Result) - 7) ;
+      ELSE
+        SET @Result = LEFT(@Result, LEN(@Result) - 7) ;
+
+    RETURN @Result;
 END
 GO
 PRINT N'Creating Procedure [audit].[sp_Print]...';
@@ -605,15 +684,15 @@ IF USER_ID('CGateUser') IS NULL
 ALTER ROLE db_owner ADD MEMBER [CGateUser];
 GRANT CONNECT TO [CGateUser]; 
 
-
-GO
-
 IF NOT EXISTS(SELECT 1 FROM [dbo].[Setting] WHERE SettingID = 'FullAuditEnabled' )
 INSERT INTO [dbo].[Setting] (SettingID, StrValue) values('FullAuditEnabled', N'FullAuditEnabled')
 
 IF NOT EXISTS(SELECT 1 FROM [audit].[Setting] WHERE ID = 1 )
 INSERT [audit].[Setting](ID,IntValue,Code,StrValue)
 VALUES(1,1,1,1)
+
+
+GO
 
 GO
 PRINT N'Update complete.';
