@@ -36,7 +36,7 @@ public class ExecOptions
         public int Timeout { get; set; } = 300;
     }
 
-    [Verb("exec-all", HelpText = "Применить PROC (Table + Base + Original)")]
+    [Verb("exec-all", HelpText = "Применить PROC (рекурсивно)")]
     public class ExecAll
     {
         [Option('s', "server", Required = false, Default = "localhost", HelpText = "Имя сервера")]
@@ -50,15 +50,6 @@ public class ExecOptions
 
         [Option('t', "timeout", Required = false, Default = 300, HelpText = "Таймаут команды (сек)")]
         public int Timeout { get; set; } = 300;
-
-        [Option("no-table", Required = false, HelpText = "Не применять Table")]
-        public bool NoTable { get; set; }
-
-        [Option("no-base", Required = false, HelpText = "Не применять Base")]
-        public bool NoBase { get; set; }
-
-        [Option("no-original", Required = false, HelpText = "Не применять Original")]
-        public bool NoOriginal { get; set; }
     }
 
     [Verb("export-data", HelpText = "Экспорт данных таблиц в SQL-файлы (INSERT)")]
@@ -67,7 +58,7 @@ public class ExecOptions
         [Option('s', "server", Required = false, Default = "localhost", HelpText = "Имя сервера")]
         public string ServerName { get; set; } = "localhost";
 
-        [Option('d', "database", Required = false, Default = "DBTest", HelpText = "Имя базы данных")]
+        [Option('d', "database", Required = false, Default = "DBTestNew", HelpText = "Имя базы данных")]
         public string DatabaseName { get; set; } = "DBTest";
 
         [Option('t', "tables", Required = false, HelpText = "Фильтр таблиц (через запятую: dbo.Users,DBTest.Accounts или маска SQL: dbo.% или %.Accounts). Пусто = все.")]
@@ -90,5 +81,11 @@ public class ExecOptions
 
         [Option("exclude-types", Required = false, HelpText = "Исключить типы колонок (через запятую: varbinary,xml,text). По умолчанию: varbinary,binary,image,xml,text,ntext")]
         public string? ExcludeTypes { get; set; }
+
+        [Option("clean", Required = false, HelpText = "Очистить выходную папку перед экспортом")]
+        public bool Clean { get; set; }
+
+        [Option("withreturn", Required = false, HelpText = "Оборачивать RETURN в блок с печатью номера строки")]
+        public bool WithReturn { get; set; }
     }
 }

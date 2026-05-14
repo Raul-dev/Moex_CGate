@@ -142,4 +142,5 @@ static void ShowHelp()
     Console.WriteLine();
     Console.WriteLine("Usage: ScriptTables.exe -s <server> -d <database> -t \"Schema.Table1,Schema.Table2\" [-o <output>]");
     Console.WriteLine();
+}
     

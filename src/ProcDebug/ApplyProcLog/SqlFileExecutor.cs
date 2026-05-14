@@ -39,7 +39,7 @@ public class SqlFileExecutor
             };
         }
 
-        var files = Directory.GetFiles(folder, "*.sql", SearchOption.AllDirectories)
+        var files = Directory.GetFiles(folder, "*.sql", SearchOption.TopDirectoryOnly)
                              .OrderBy(f => f)
                              .ToList();
 
@@ -73,6 +73,7 @@ public class SqlFileExecutor
                     var errorMsg = $"[{fileName}] ERROR: {ex.Message}";
                     result.ErrorMessages.Add(errorMsg);
                     Log.Error("[{FileName}] -> ERROR: {Message}", fileName, ex.Message);
+                    MoveToWithErrorFolder(file, folder);
                 }
             }
             catch (Exception ex)
@@ -81,6 +82,7 @@ public class SqlFileExecutor
                 var errorMsg = $"[{fileName}] ERROR: {ex.Message}";
                 result.ErrorMessages.Add(errorMsg);
                 Log.Error("[{FileName}] -> ERROR: {Message}", fileName, ex.Message);
+                MoveToWithErrorFolder(file, folder);
             }
         }
 
@@ -88,6 +90,33 @@ public class SqlFileExecutor
             result.Applied, result.Skipped, result.Errors);
 
         return result;
+    }
+
+    /// <summary>
+    /// Перемещает файл с ошибкой в подпапку WithError.
+    /// </summary>
+    private static void MoveToWithErrorFolder(string filePath, string baseFolder)
+    {
+        try
+        {
+            var errorFolder = Path.Combine(baseFolder, "WithError");
+            if (!Directory.Exists(errorFolder))
+                Directory.CreateDirectory(errorFolder);
+
+            var fileName = Path.GetFileName(filePath);
+            var destPath = Path.Combine(errorFolder, fileName);
+
+            // Если файл уже есть в WithError — удаляем старый
+            if (File.Exists(destPath))
+                File.Delete(destPath);
+
+            File.Move(filePath, destPath);
+            Log.Warning("[{FileName}] перемещён в WithError", fileName);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Не удалось переместить {File} в WithError: {Error}", filePath, ex.Message);
+        }
     }
 
     /// <summary>

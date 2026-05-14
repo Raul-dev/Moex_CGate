@@ -12,9 +12,9 @@ namespace ApplyProcLog
         /// <summary>
         /// Создает SQL файлы для каждой процедуры в текущей директории.
         /// </summary>
-        public async Task CreateProcedureFilesAsync(IEnumerable<StoredProcedureInfo> procedures, string targetDirectory = "PROC")
+        public async Task CreateProcedureFilesAsync(IEnumerable<StoredProcedureInfo> procedures, string targetDirectory = "PROC", bool withReturn = false)
         {
-            string resolvedPath = GetProcDirectory(targetDirectory);
+            string resolvedPath = FilePathHelper.GetProcDirectory(targetDirectory);
             Log.Information("Целевая папка: {TargetDir}", resolvedPath);
 
             if (!Directory.Exists(resolvedPath))
@@ -39,6 +39,8 @@ namespace ApplyProcLog
                 try
                 {
                     string body = WrapProcedureWithPrint(proc.ProcedureBody, proc.ProcedureName, proc.ProcedureParams);
+                    if (withReturn)
+                        body = WrapReturnStatements(body);
                     // CREATE OR ALTER вместо CREATE PROCEDURE (CREATE с 1-3 пробелами)
                     body = Regex.Replace(body, @"(?i)\bCREATE\s+PROCEDURE\b", "CREATE OR ALTER PROCEDURE");
                     // Добавляем метаданные в начало файла (опционально)
@@ -197,30 +199,32 @@ namespace ApplyProcLog
         }
 
         /// <summary>
-        /// Возвращает абсолютный путь к папке PROC.
-        /// </summary>
-        public string GetProcDirectory(string targetDirectory = "PROC")
-        {
-            if (Path.IsPathRooted(targetDirectory))
-                return targetDirectory;
-
-            return Path.Combine(Directory.GetCurrentDirectory(), targetDirectory);
-        }
-
-        /// <summary>
         /// Очищает папки Proc и Original перед генерацией.
         /// </summary>
         public void CleanOutputDirectories(string targetDirectory = "PROC")
         {
-            string resolvedPath = GetProcDirectory(targetDirectory);
+            string resolvedPath = FilePathHelper.GetProcDirectory(targetDirectory);
             Log.Information("Очистка папки: {TargetDir}", resolvedPath);
 
-            var originalDir = Path.Combine(resolvedPath, "Original");
-            int procFiles = CleanSqlFiles(resolvedPath);
-            int originalFiles = CleanSqlFiles(originalDir);
+            int totalFiles = CleanSqlFilesRecursive(resolvedPath);
 
-            Log.Information("Очистка завершена: Proc={ProcFiles} файлов, Original={OriginalFiles} файлов",
-                procFiles, originalFiles);
+            // Удаляем пустые подпапки (WithError, Original и т.д.)
+            foreach (var subDir in Directory.GetDirectories(resolvedPath, "*", SearchOption.TopDirectoryOnly))
+            {
+                if (!Directory.EnumerateFileSystemEntries(subDir).Any())
+                {
+                    try
+                    {
+                        Directory.Delete(subDir);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Warning("Не удалось удалить пустую папку {Dir}: {Error}", subDir, ex.Message);
+                    }
+                }
+            }
+
+            Log.Information("Очистка завершена: {TotalFiles} файлов", totalFiles);
         }
 
         private static int CleanSqlFiles(string directory)
@@ -242,6 +246,130 @@ namespace ApplyProcLog
             }
             return files.Length;
         }
+
+        private static int CleanSqlFilesRecursive(string directory)
+        {
+            int totalFiles = CleanSqlFiles(directory);
+
+            foreach (var subDir in Directory.GetDirectories(directory, "*", SearchOption.TopDirectoryOnly))
+            {
+                totalFiles += CleanSqlFilesRecursive(subDir);
+            }
+
+            return totalFiles;
+        }
+
+        /// <summary>
+        /// Оборачивает каждый RETURN блоком, печатающим номер строки.
+        /// </summary>
+        public string WrapReturnStatements(string body)
+        {
+            if (string.IsNullOrWhiteSpace(body))
+                return body;
+
+            // Если уже обёрнут — не добавляем повторно
+            if (body.Contains("Return line number"))
+            {
+                Log.Debug("WrapReturnStatements: пропуск — уже обёрнут");
+                return body;
+            }
+
+            var result = new StringBuilder();
+            int lineNumber = 0;
+            int processedReturns = 0;
+
+            string[] lines = body.Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string rawLine = lines[i];
+
+                // Trim trailing \r (from \r\n line endings)
+                if (rawLine.EndsWith("\r"))
+                    rawLine = rawLine.Substring(0, rawLine.Length - 1);
+
+                lineNumber++;
+
+                string lineContent = rawLine.TrimStart();
+                string leading = rawLine.Substring(0, rawLine.Length - lineContent.Length);
+                string trimmed = lineContent.TrimEnd();
+
+                // Пропускаем line comments
+                if (trimmed.StartsWith("--"))
+                {
+                    result.Append(rawLine);
+                    if (i < lines.Length - 1) result.Append('\n');
+                    continue;
+                }
+
+                // Убираем block comments для поиска RETURN
+                string withoutBlockComments = RemoveBlockComments(trimmed);
+
+                // RETURN на строке
+                if (withoutBlockComments.TrimStart().StartsWith("RETURN", StringComparison.OrdinalIgnoreCase) &&
+                    !char.IsLetterOrDigit(GetTrailingNonSpace(withoutBlockComments, "RETURN")))
+                {
+                    Log.Debug("WrapReturnStatements: RETURN на строке {Line}", lineNumber);
+                    processedReturns++;
+                    string indent = leading + "  ";
+                    result.Append(leading);
+                    result.Append("BEGIN");
+                    result.Append('\n');
+                    result.Append(indent);
+                    result.Append("EXEC [audit].[sp_log_Finish] @LogID = @AuditLogID, @RowCount = @AuditRowCount, @ProcedureInfo = 'Return line number: " + lineNumber + "';");
+                    result.Append('\n');
+                    result.Append(indent);
+                    result.Append("EXEC [audit].[sp_Print] 'Return line number: " + lineNumber + "'");
+                    result.Append('\n');
+                    result.Append(indent);
+                    result.Append("RETURN;");
+                    result.Append('\n');
+                    result.Append(leading);
+                    result.Append("END");
+                }
+                else
+                {
+                    result.Append(rawLine);
+                }
+
+                if (i < lines.Length - 1) result.Append('\n');
+            }
+
+            Log.Information("WrapReturnStatements: обработано RETURN={Count}, строк={Total}", processedReturns, lineNumber);
+            return result.ToString();
+        }
+
+        private static string RemoveBlockComments(string s)
+        {
+            var sb = new StringBuilder();
+            int i = 0;
+            while (i < s.Length)
+            {
+                if (i + 1 < s.Length && s.Substring(i, 2) == "/*")
+                {
+                    int end = s.IndexOf("*/", i + 2);
+                    if (end >= 0)
+                    {
+                        i = end + 2;
+                    }
+                    else
+                    {
+                        break; // незакрытый block comment
+                    }
+                }
+                else
+                {
+                    sb.Append(s[i]);
+                    i++;
+                }
+            }
+            return sb.ToString();
+        }
+
+        private static char GetTrailingNonSpace(string s, string keyword)
+        {
+            int idx = s.LastIndexOf(keyword, StringComparison.OrdinalIgnoreCase) + keyword.Length;
+            while (idx < s.Length && (s[idx] == ' ' || s[idx] == '\t')) idx++;
+            return idx < s.Length ? s[idx] : '\0';
+        }
     }
 }
-

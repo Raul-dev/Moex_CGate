@@ -59,10 +59,10 @@ class Program
             else Log.Warning(err.ToString());
         }
         Console.WriteLine("Usage:");
-        Console.WriteLine("  ApplyProcLog.exe generate [--clean] [--filter <маска>] [--except <схема исключения>] [--use-config]");
+        Console.WriteLine("  ApplyProcLog.exe generate [--clean] [--filter <маска>] [--except <схема исключения>] [--use-config] [--withreturn]");
         Console.WriteLine("  ApplyProcLog.exe exec-file -f <path>     Выполнить один SQL-файл");
         Console.WriteLine("  ApplyProcLog.exe exec-folder -f <path>   Выполнить SQL из папки");
-        Console.WriteLine("  ApplyProcLog.exe exec-all                Применить Table + Base + Original");
+        Console.WriteLine("  ApplyProcLog.exe exec-all                Применить PROC рекурсивно");
         Console.WriteLine("  ApplyProcLog.exe export-data             Экспорт данных таблиц");
         Console.WriteLine();
         Console.WriteLine("Примеры exec-file:");
@@ -74,8 +74,16 @@ class Program
         Console.WriteLine("  export-data -s localhost -d DBTest -t \"dbo.Users,schema.Accounts\"");
         Console.WriteLine("  export-data -s localhost -d DBTest --max-size 500 --batch-size 5000");
     }
-
-    static async Task<int> LaunchApplyProcLog(CmdOption opts, IConfiguration configuration)
+	/*
+     * SELECT '"' +SCHEMA_NAME(schema_id) +'.' +name + '",'
+      FROM sys.objects
+      WHERE type = 'P'
+      and SCHEMA_NAME(schema_id) <> 'audit'
+      and SCHEMA_NAME(schema_id) <> 'uts'
+      ORDER BY SCHEMA_NAME(schema_id), name
+      ApplyProcLog.exe generate --clean --use-config --withreturn
+     * */
+	static async Task<int> LaunchApplyProcLog(CmdOption opts, IConfiguration configuration)
     {
         if (string.IsNullOrEmpty(opts.ExceptFilter))
             opts.ExceptFilter = "audit%";
@@ -121,7 +129,7 @@ class Program
         }
 
         Log.Information("Найдено процедур: {Count}", storedProcedures.Count);
-        spg.CreateProcedureFilesAsync(storedProcedures).Wait();
+        spg.CreateProcedureFilesAsync(storedProcedures, withReturn: opts.WithReturn).Wait();
         return 0;
     }
 
@@ -151,7 +159,10 @@ class Program
 		var connStr = BuildConnectionString(opts.ServerName, opts.DatabaseName);
 		var executor = new SqlFileExecutor(connStr, opts.Timeout);
 
-        var result = await executor.ExecuteFolderAsync(opts.Folder);
+        var folder = FilePathHelper.GetProcDirectory(opts.Folder);
+        Log.Information("Применение SQL из {Folder} на {Server}.{DB}", folder, opts.ServerName, opts.DatabaseName);
+
+        var result = await executor.ExecuteFolderAsync(folder);
 
         if (result.HasErrors)
         {
@@ -165,56 +176,22 @@ class Program
 
     static async Task<int> ExecuteAll(ExecOptions.ExecAll opts)
     {
-        var procFolder = opts.ProcFolder ?? Path.Combine(Directory.GetCurrentDirectory(), "PROC");
+        var procFolder = FilePathHelper.GetProcDirectory(opts.ProcFolder ?? "PROC");
         var connStr = BuildConnectionString(opts.ServerName, opts.DatabaseName);
         var executor = new SqlFileExecutor(connStr, opts.Timeout);
 
         Log.Information("Применение PROC из {Folder} на {Server}.{DB}", procFolder, opts.ServerName, opts.DatabaseName);
 
-        if (!opts.NoTable)
+        var result = await executor.ExecuteFolderAsync(procFolder);
+
+        if (result.HasErrors)
         {
-            var tableFolder = Path.Combine(procFolder, "Table");
-            if (Directory.Exists(tableFolder))
-            {
-                Log.Information("=== Применение Table ===");
-                await executor.ExecuteFolderAsync(tableFolder);
-            }
-            else
-            {
-                Log.Warning("Папка Table не найдена: {Path}", tableFolder);
-            }
+            Log.Error("Errors: {Errors}", result.Errors);
+            foreach (var msg in result.ErrorMessages)
+                Log.Error(msg);
         }
 
-        if (!opts.NoBase)
-        {
-            var baseFolder = Path.Combine(procFolder, "Base");
-            if (Directory.Exists(baseFolder))
-            {
-                Log.Information("=== Применение Base ===");
-                await executor.ExecuteFolderAsync(baseFolder);
-            }
-            else
-            {
-                Log.Warning("Папка Base не найдена: {Path}", baseFolder);
-            }
-        }
-
-        if (!opts.NoOriginal)
-        {
-            var originalFolder = Path.Combine(procFolder, "Original");
-            if (Directory.Exists(originalFolder))
-            {
-                Log.Information("=== Применение Original ===");
-                await executor.ExecuteFolderAsync(originalFolder);
-            }
-            else
-            {
-                Log.Warning("Папка Original не найдена: {Path}", originalFolder);
-            }
-        }
-
-        Log.Information("Готово");
-        return 0;
+        return result.HasErrors ? 1 : 0;
     }
 
     static async Task<int> ExportData(ExecOptions.ExportData opts)
@@ -233,6 +210,24 @@ class Program
             AppendGoAfterInsert = opts.AppendGo,
             IncludeSchemaInFileName = opts.IncludeSchema
         };
+
+        if (!string.IsNullOrWhiteSpace(opts.ExcludeTypes))
+        {
+            extractor.ExcludedColumnTypes.Clear();
+            foreach (var t in opts.ExcludeTypes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                extractor.ExcludedColumnTypes.Add(t);
+        }
+
+        if (opts.Clean && Directory.Exists(outputDir))
+        {
+            var files = Directory.GetFiles(outputDir, "*.sql", SearchOption.AllDirectories);
+            var count = files.Length;
+            foreach (var f in files)
+            {
+                try { File.Delete(f); } catch { }
+            }
+            Log.Information("Очистка выходной папки: {Count} файлов", count);
+        }
 
         List<TableInfo> tables;
 

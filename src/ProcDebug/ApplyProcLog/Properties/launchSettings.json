@@ -2,7 +2,7 @@
   "profiles": {
     "ApplyProcLog": {
       "commandName": "Project",
-      "commandLineArgs": "generate --clean"
+      "commandLineArgs": "exec-folder"
     }
   }
 }
