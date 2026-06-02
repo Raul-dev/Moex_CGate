@@ -1,5 +1,5 @@
 ﻿
-CREATE FUNCTION [audit].fn_BuildProcedureParams(@ObjectId INT)
+CREATE FUNCTION [audit].fn_BuildProcedureParams(@ObjectId INT, @NumberId INT)
 RETURNS NVARCHAR(MAX)
 AS
 BEGIN
@@ -8,7 +8,8 @@ BEGIN
     DECLARE @ProcName NVARCHAR(128),
     @IsOutput bit,
     @LastParam sysname
-
+    IF ISNULL(@NumberID, 1) > 1 --TODO param for versioned proc
+      RETURN '';
     SELECT @SchemaName = SCHEMA_NAME(o.schema_id), @ProcName = o.name FROM sys.objects o WHERE o.object_id = @ObjectId AND o.type IN ('P', 'PC');
     IF @SchemaName IS NULL RETURN N'-- Object not found or not a procedure';
 
