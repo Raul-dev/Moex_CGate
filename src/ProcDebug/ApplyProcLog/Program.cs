@@ -182,6 +182,26 @@ class Program
 
         Log.Information("Применение PROC из {Folder} на {Server}.{DB}", procFolder, opts.ServerName, opts.DatabaseName);
 
+        // Шаг 1: выполняем CreateEmpty (пустые заглушки для numbered procedures)
+        var createEmptyFolder = Path.Combine(procFolder, "CreateEmpty");
+        if (Directory.Exists(createEmptyFolder))
+        {
+            Log.Information("[CreateEmpty] Накат пустых заглушек...");
+            var emptyResult = await executor.ExecuteFolderAsync(createEmptyFolder);
+            Log.Information("CreateEmpty: applied={Applied}, skipped={Skipped}, errors={Errors}",
+                emptyResult.Applied, emptyResult.Skipped, emptyResult.Errors);
+            if (emptyResult.HasErrors)
+            {
+                foreach (var msg in emptyResult.ErrorMessages)
+                    Log.Error(msg);
+            }
+        }
+        else
+        {
+            Log.Warning("Папка CreateEmpty не найдена: {Folder}", createEmptyFolder);
+        }
+
+        // Шаг 2: выполняем основные процедуры
         var result = await executor.ExecuteFolderAsync(procFolder);
 
         if (result.HasErrors)

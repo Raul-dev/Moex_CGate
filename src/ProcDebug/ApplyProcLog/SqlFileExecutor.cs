@@ -40,7 +40,7 @@ public class SqlFileExecutor
         }
 
         var files = Directory.GetFiles(folder, "*.sql", SearchOption.TopDirectoryOnly)
-                             .OrderBy(f => f)
+                             .OrderBy(f => f, new NumberedProcedureComparer())
                              .ToList();
 
         Log.Information("Найдено {Count} SQL файлов в {Folder}", files.Count, folder);
@@ -195,4 +195,38 @@ public class SqlExecutionResult
     public int Errors { get; set; }
     public List<string> ErrorMessages { get; set; } = new();
     public bool HasErrors => Errors > 0;
+}
+
+/// <summary>
+/// Сравнивает имена файлов хранимых процедур: сначала по схеме/имени, затем по номеру версии.
+/// Безномерные (base) идут первыми, затем по возрастанию номера.
+/// Это нужно для numbered procedures: ;1 должна создаться до ;2 и ;23.
+/// </summary>
+public class NumberedProcedureComparer : IComparer<string>
+{
+    public int Compare(string? x, string? y)
+    {
+        if (x == null && y == null) return 0;
+        if (x == null) return -1;
+        if (y == null) return 1;
+
+        // Извлекаем базовое имя (без расширения) и номер версии
+        var (baseX, verX) = ParseName(Path.GetFileNameWithoutExtension(x));
+        var (baseY, verY) = ParseName(Path.GetFileNameWithoutExtension(y));
+
+        int baseCmp = string.Compare(baseX, baseY, StringComparison.OrdinalIgnoreCase);
+        if (baseCmp != 0) return baseCmp;
+
+        return verX.CompareTo(verY);
+    }
+
+    private static (string baseName, int version) ParseName(string name)
+    {
+        // Имя вида: BackOffice.Commisses__Depo__View;23 или BackOffice.Commisses__Depo__View
+        int semi = name.LastIndexOf(';');
+        if (semi < 0) return (name, 0); // без номера — базовая, first
+        if (int.TryParse(name.Substring(semi + 1), out int ver))
+            return (name.Substring(0, semi), ver);
+        return (name, int.MaxValue); // нечисловой суффикс — в конец
+    }
 }

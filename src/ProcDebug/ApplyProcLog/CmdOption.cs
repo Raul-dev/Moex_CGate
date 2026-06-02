@@ -11,7 +11,7 @@ namespace ApplyProcLog
         [Option('s', "Database Server name.", Required = false, Default = "localhost", HelpText = "Database Server name.")]
         public string ServerName { get; set; } = "";
 
-        [Option('d', "Database name.", Required = false, Default = @"DBTestNew", HelpText = "Database name.")]
+        [Option('d', "Database name.", Required = false, Default = "DBTest", HelpText = "Database name.")]
         public string DatabaseName { get; set; } = "";
 
         [Option('t', "DB server type.", Required = false, Default = "mssql", HelpText = "mssql или psql.")]

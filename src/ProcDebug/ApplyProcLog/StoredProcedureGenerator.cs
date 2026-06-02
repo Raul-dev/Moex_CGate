@@ -9,8 +9,36 @@ namespace ApplyProcLog
 {
     public class StoredProcedureGenerator
     {
+        private const string CreateEmptyFolderName = "CreateEmpty";
+
+        /// <summary>
+        /// Формирует безопасное имя файла для процедуры.
+        /// </summary>
+        private static string MakeProcFileName(string schema, string procedureName)
+        {
+            // Определяем версию до замены ; на ;__
+            var verMatch = Regex.Match(procedureName, @";(\d+)$");
+            bool noVersion = !verMatch.Success;
+            bool hasVersion1 = verMatch.Success && verMatch.Groups[1].Value == "1";
+
+            string safeName = procedureName
+                .Replace("::", "_")
+                .Replace(":", "_")
+                .Replace(";", ";__");
+
+            // Добавляем ;__1 только если версии не было вообще (необнумерованная)
+            if (noVersion)
+                safeName += ";__1";
+
+            string fileName = $"{schema}.{safeName}.sql";
+            foreach (char c in Path.GetInvalidFileNameChars())
+                fileName = fileName.Replace(c, '_');
+            return fileName;
+        }
+
         /// <summary>
         /// Создает SQL файлы для каждой процедуры в текущей директории.
+        /// Одновременно генерирует пустые заглушки в подпапке CreateEmpty.
         /// </summary>
         public async Task CreateProcedureFilesAsync(IEnumerable<StoredProcedureInfo> procedures, string targetDirectory = "PROC", bool withReturn = false)
         {
@@ -24,16 +52,15 @@ namespace ApplyProcLog
             if (!Directory.Exists(originalDirectory))
                 Directory.CreateDirectory(originalDirectory);
 
-            foreach (var proc in procedures)
-            {
-                // Формируем безопасное имя файла: Schema.Name.sql
-                // Используем GetInvalidFileNameChars на случай специфических символов в именах
-                string fileName = $"{proc.SchemaName}.{proc.ProcedureName}.sql";
-                foreach (char c in Path.GetInvalidFileNameChars())
-                {
-                    fileName = fileName.Replace(c, '_');
-                }
+            string createEmptyDirectory = Path.Combine(resolvedPath, CreateEmptyFolderName);
+            if (!Directory.Exists(createEmptyDirectory))
+                Directory.CreateDirectory(createEmptyDirectory);
 
+            var procList = procedures.ToList();
+
+            foreach (var proc in procList)
+            {
+                string fileName = MakeProcFileName(proc.SchemaName, proc.ProcedureName);
                 string filePath = Path.Combine(resolvedPath, fileName);
 
                 try
@@ -41,29 +68,50 @@ namespace ApplyProcLog
                     string body = WrapProcedureWithPrint(proc.ProcedureBody, proc.ProcedureName, proc.ProcedureParams);
                     if (withReturn)
                         body = WrapReturnStatements(body);
-                    // CREATE OR ALTER вместо CREATE PROCEDURE (CREATE с 1-3 пробелами)
-                    body = Regex.Replace(body, @"(?i)\bCREATE\s+PROCEDURE\b", "CREATE OR ALTER PROCEDURE");
+                    body = Regex.Replace(body, @"(?i)\bCREATE\s+PROCEDURE\b", "ALTER PROCEDURE");
                     // Добавляем метаданные в начало файла (опционально)
                     string content = $"-- Object ID: {proc.ObjectId}\n" +
                                      $"-- Created: {proc.CreateDate}\n" +
                                      $"-- Modified: {proc.ModifyDate}\n" +
                                      $"{body}";
 
-                    // Сохраняем оригинальную процедуру (без обёртки аудита) с CREATE OR ALTER
-                    string originalBody = Regex.Replace(proc.ProcedureBody, @"(?i)\bCREATE\s+PROCEDURE\b", "CREATE OR ALTER PROCEDURE");
+                    string originalBody = Regex.Replace(proc.ProcedureBody, @"(?i)\bCREATE\s+PROCEDURE\b", "ALTER PROCEDURE");
                     string originalContent = $"{originalBody}";
                     string originalFilePath = Path.Combine(originalDirectory, fileName);
                     await File.WriteAllTextAsync(originalFilePath, originalContent, Encoding.UTF8);
 
                     // Асинхронная запись в файл с кодировкой UTF-8
                     await File.WriteAllTextAsync(filePath, content, Encoding.UTF8);
-                    Log.Information($"Успешно создан: {fileName} (и Original)");
+
+                    // Генерация пустой заглушки в CreateEmpty
+                    string emptyContent = GenerateEmptyProcedure(proc.ProcedureBody, proc.ProcedureName);
+                    string emptyFilePath = Path.Combine(createEmptyDirectory, fileName);
+                    await File.WriteAllTextAsync(emptyFilePath, emptyContent, Encoding.UTF8);
+
+                    Log.Information($"Успешно создан: {fileName} (Original + CreateEmpty)");
 
                 }
                 catch (Exception ex)
                 {
                     Log.Error($"Ошибка при сохранении {fileName}: {ex.Message}");
                 }
+            }
+
+            // Генерируем заглушки для missing version 1: если в списке есть ;3, но нет ;1
+            var missingStubs = GenerateMissingVersion1Stubs(procList);
+            Log.Information("GenerateMissingVersion1Stubs: stubCount={Count}", missingStubs.Count);
+            foreach (var stubBody in missingStubs)
+            {
+                var sig = ParseSignatureShort(stubBody);
+                if (sig == null) continue;
+                var (schema, name, version) = sig.Value;
+
+                string stubFileName = MakeProcFileName(schema, $"{name};{version}");
+                string stubPath = Path.Combine(createEmptyDirectory, stubFileName);
+
+                string emptyContent = GenerateEmptyProcedure(stubBody, $"[{schema}].[{name}];{version}");
+                File.WriteAllText(stubPath, emptyContent, Encoding.UTF8);
+                Log.Information($"Auto-stub создан: {stubFileName}");
             }
         }
         /// <summary>
@@ -199,12 +247,204 @@ namespace ApplyProcLog
         }
 
         /// <summary>
+        /// Из тела процедуры извлекает схему, имя, версию и параметры.
+        /// Параметры парсятся с учётом вложенных скобок и кавычек.
+        /// </summary>
+        private static (string fullName, int version, string parameters, int schemaDotIdx)?
+            ParseProcedureSignature(string body)
+        {
+            // Ищем ALTER/CREATE PROCEDURE [Schema].[Name];N ... AS
+            var match = Regex.Match(body, @"(?i)(?:CREATE|ALTER)\s+PROCEDURE\s+(\[[^\]]+\])\.(\[[^\]]+\])(?:;(\d+))?", RegexOptions.Singleline);
+            if (!match.Success) return null;
+
+            string fullName = match.Groups[1].Value + "." + match.Groups[2].Value;  // [Schema].[Name]
+            string versionStr = match.Groups[3].Value;
+            int version = string.IsNullOrEmpty(versionStr) ? 0 : int.Parse(versionStr);
+
+            int procEnd = match.Index + match.Length;
+
+            // Ищем начало параметров: '(' после конца сигнатуры
+            int parenStart = -1;
+            for (int i = procEnd; i < body.Length; i++)
+            {
+                if (char.IsWhiteSpace(body[i])) continue;
+                if (body[i] == '(') { parenStart = i; break; }
+                if (body[i] == 'A' || body[i] == 'a') break; // AS
+            }
+
+            // Ищем конец параметров: ')', с учётом вложенности и кавычек
+            string parameters = "";
+            if (parenStart >= 0)
+            {
+                int depth = 0;
+                bool inQuotes = false;
+                int parenEnd = -1;
+                for (int i = parenStart; i < body.Length; i++)
+                {
+                    char c = body[i];
+                    if (c == '\'' && (i == 0 || body[i - 1] != '\''))
+                        inQuotes = !inQuotes;
+                    else if (!inQuotes)
+                    {
+                        if (c == '(') depth++;
+                        else if (c == ')')
+                        {
+                            depth--;
+                            if (depth == 0) { parenEnd = i; break; }
+                        }
+                    }
+                }
+                if (parenEnd > parenStart)
+                    parameters = body.Substring(parenStart, parenEnd - parenStart + 1);
+            }
+
+            // Ищем schema.name boundary
+            int schemaEnd = fullName.IndexOf('.');
+            return (fullName, version, parameters, schemaEnd);
+        }
+
+        /// <summary>
+        /// Генерирует пустую заглушку процедуры: CREATE + IF NOT EXISTS + минимальное тело.
+        /// Для numbered procedures SQL Server требует сначала создать базовую версию (group number 1),
+        /// иначе ALTER с group number > 1 выдаёт ошибку.
+        /// </summary>
+        public string GenerateEmptyProcedure(string procedureBody, string procedureName)
+        {
+            if (string.IsNullOrWhiteSpace(procedureBody))
+                return string.Empty;
+
+            var parsed = ParseProcedureSignature(procedureBody);
+            if (parsed == null)
+                return string.Empty;
+
+            var (fullName, ver, parameters, schemaDotIdx) = parsed.Value;
+
+            // ver=0 — необнумерованная, treated as version 1
+            if (ver == 0)
+                ver = 1;
+
+            string schema = fullName.Substring(0, schemaDotIdx);
+            string schemaName = StripBrackets(schema);
+            string nameNoBracket = StripBrackets(fullName.Substring(schemaDotIdx + 1));
+
+            string npCondition = ver == 1
+                ? "(np.procedure_number = 0 OR np.object_id IS NULL)"
+                : $"np.procedure_number = {ver - 1}";
+
+            string fullNameWithVersion = fullName + ";" + ver;
+
+            return $@"IF NOT EXISTS (
+    SELECT 1
+    FROM sys.procedures p
+    INNER JOIN sys.schemas s ON p.schema_id = s.schema_id
+    LEFT JOIN sys.numbered_procedures np ON np.object_id = p.object_id
+    WHERE p.name = '{nameNoBracket}' AND s.name = '{schemaName}' AND {npCondition}
+)
+  EXEC('CREATE PROCEDURE {fullNameWithVersion}{parameters}
+    AS
+    BEGIN
+      SET NOCOUNT ON;
+    END')
+";
+        }
+
+        /// <summary>
+        /// Из тела процедуры извлекает (schema, name, version). Возвращает null если не удалось.
+        /// </summary>
+        private static (string schema, string name, int version)? ParseSignatureShort(string body)
+        {
+            var match = Regex.Match(
+                body,
+                @"(?i)(?:CREATE|ALTER)\s+PROCEDURE\s+(\[[^\]]+\])\.(\[[^\]]+\])(?:;(\d+))?",
+                RegexOptions.Singleline);
+            if (!match.Success) return null;
+
+            string schema = StripBrackets(match.Groups[1].Value);
+            string name = StripBrackets(match.Groups[2].Value);
+            string verStr = match.Groups[3].Value;
+            int version = string.IsNullOrEmpty(verStr) ? 0 : int.Parse(verStr);
+            return (schema, name, version);
+        }
+
+        /// <summary>
+        /// Находит все numbered families (схема.имя), у которых есть версии, но нет версии 1.
+        /// Возвращает список stub-тел (минимальные CREATE PROCEDURE с параметрами) для версий 1.
+        /// </summary>
+        public List<string> GenerateMissingVersion1Stubs(IEnumerable<StoredProcedureInfo> procedures)
+        {
+            var procList = procedures.ToList();
+
+            // Группируем по (schema, name)
+            var families = new Dictionary<(string schema, string name), HashSet<int>>();
+
+            foreach (var proc in procList)
+            {
+                if (string.IsNullOrWhiteSpace(proc.ProcedureBody)) continue;
+                var sig = ParseSignatureShort(proc.ProcedureBody);
+                if (sig == null) continue;
+                var (schema, name, version) = sig.Value;
+                var key = (schema, name);
+                if (!families.TryGetValue(key, out var versions))
+                {
+                    versions = new HashSet<int>();
+                    families[key] = versions;
+                }
+                versions.Add(version);
+            }
+
+            // Собираем stub-ы для семейств без версии 1
+            var stubs = new List<string>();
+            foreach (var kvp in families)
+            {
+                var (schema, name) = kvp.Key;
+                var versions = kvp.Value;
+
+                // Если нет версии 1 (и есть другие версии) — создаём stub
+                if (!versions.Contains(1) && versions.Count > 0)
+                {
+                    Log.Information("Auto-stub: версия 1 для {Schema}.{Name} не найдена, генерирую заглушку",
+                        schema, name);
+                    // Генерируем минимальный stub с пустыми параметрами
+                    string stubBody = $"CREATE PROCEDURE [{schema}].[{name}];1\n  AS\n  BEGIN\n    SET NOCOUNT ON;\n  END\n";
+                    stubs.Add(stubBody);
+                }
+            }
+
+            return stubs;
+        }
+
+        private static string StripBrackets(string s)
+        {
+            // "[Schema]" -> "Schema", "[Name]" -> "Name"
+            return s.Trim('[', ']');
+        }
+
+        private static string StripGroupNumber(string fullName)
+        {
+            // [Schema].[Name;N] -> [Schema].[Name]
+            int semiIdx = fullName.LastIndexOf(';');
+            if (semiIdx > 0)
+            {
+                string after = fullName.Substring(semiIdx + 1).Trim('[', ']');
+                if (int.TryParse(after, out _))
+                    return fullName.Substring(0, semiIdx);
+            }
+            return fullName;
+        }
+
+        /// <summary>
         /// Очищает папки Proc и Original перед генерацией.
         /// </summary>
         public void CleanOutputDirectories(string targetDirectory = "PROC")
         {
             string resolvedPath = FilePathHelper.GetProcDirectory(targetDirectory);
             Log.Information("Очистка папки: {TargetDir}", resolvedPath);
+
+            if (!Directory.Exists(resolvedPath))
+            {
+                Log.Information("Папка не существует, пропускаем очистку");
+                return;
+            }
 
             int totalFiles = CleanSqlFilesRecursive(resolvedPath);
 
@@ -232,7 +472,7 @@ namespace ApplyProcLog
             if (!Directory.Exists(directory))
                 return 0;
 
-            var files = Directory.GetFiles(directory, "*.sql");
+            var files = Directory.GetFiles(directory, "*.sql", SearchOption.TopDirectoryOnly);
             foreach (var file in files)
             {
                 try
@@ -257,6 +497,24 @@ namespace ApplyProcLog
             }
 
             return totalFiles;
+        }
+
+        /// <summary>
+        /// Убирает суффикс версии ;N из имени процедуры.
+        /// </summary>
+        private static string StripVersion(string procName)
+        {
+            if (string.IsNullOrEmpty(procName))
+                return procName;
+
+            int versionIndex = procName.LastIndexOf(';');
+            if (versionIndex > 0)
+            {
+                string afterSemi = procName.Substring(versionIndex + 1);
+                if (int.TryParse(afterSemi, out _))
+                    return procName.Substring(0, versionIndex);
+            }
+            return procName;
         }
 
         /// <summary>

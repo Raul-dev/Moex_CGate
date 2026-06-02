@@ -58,7 +58,7 @@ public class ExecOptions
         [Option('s', "server", Required = false, Default = "localhost", HelpText = "Имя сервера")]
         public string ServerName { get; set; } = "localhost";
 
-        [Option('d', "database", Required = false, Default = "DBTestNew", HelpText = "Имя базы данных")]
+        [Option('d', "database", Required = false, Default = "DBTest", HelpText = "Имя базы данных")]
         public string DatabaseName { get; set; } = "DBTest";
 
         [Option('t', "tables", Required = false, HelpText = "Фильтр таблиц (через запятую: dbo.Users,DBTest.Accounts или маска SQL: dbo.% или %.Accounts). Пусто = все.")]

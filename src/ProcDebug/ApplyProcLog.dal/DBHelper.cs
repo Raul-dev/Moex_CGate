@@ -89,6 +89,9 @@ ORDER BY SchemaName, ProcedureName;
 
         /// <summary>
         /// Получает список процедур по конкретным именам из appsettings.json.
+        /// Поддерживает версионные процедуры SQL Server (Numbered Procedures, ;N).
+        /// Формат appsettings: Schema.Name::SubName;V
+        /// В БД: sys.procedures + sys.numbered_procedures
         /// </summary>
         public async Task<List<StoredProcedureInfo>> GetSqlProceduresByNamesAsync(
             IEnumerable<string> procedureNames, CancellationToken cancellationToken)
@@ -97,14 +100,32 @@ ORDER BY SchemaName, ProcedureName;
             if (namesList.Count == 0)
                 return new List<StoredProcedureInfo>();
 
-            string namePlaceholders = string.Join(",", namesList.Select((_, i) => $"@p{i}"));
-            string sqlcmd = $@"
+            // Разделяем: первая точка — схема, остаток — имя в БД
+            var parsed = namesList
+                .Select(n => ParseFullNameToSchemaAndDbName(n))
+                .ToList();
+
+            var uniqueSchemas = parsed
+                .Select(p => p.schema)
+                .Where(s => !string.IsNullOrEmpty(s))
+                .Distinct()
+                .ToList();
+
+            if (uniqueSchemas.Count == 0)
+                return new List<StoredProcedureInfo>();
+
+            // Экранируем ' для SQL
+            var safeSchemas = uniqueSchemas.Select(s => s.Replace("'", "''")).ToList();
+            string schemaFilter = string.Join(",", safeSchemas.Select(s => $"'{s}'"));
+
+            // 1. Базовая процедура (number = 0) — из sys.sql_modules
+            string baseQuery = $@"
 SELECT
     p.[object_id] AS ObjectId,
     SCHEMA_NAME(p.schema_id) AS SchemaName,
     p.name AS ProcedureName,
     m.[definition] AS ProcedureBody,
-    ISNULL([audit].fn_BuildProcedureParams(p.[object_id]), '''''') AS ProcedureParams,
+    ISNULL([audit].fn_BuildProcedureParams(p.[object_id], 0), '''''') AS ProcedureParams,
     p.[create_date]  AS CreateDate,
     p.[modify_date]  AS ModifyDate
 FROM
@@ -112,17 +133,155 @@ FROM
 JOIN sys.sql_modules AS m ON p.object_id = m.object_id
 WHERE
     p.is_ms_shipped = 0
-    AND SCHEMA_NAME(p.schema_id) + '.' + p.name IN ({namePlaceholders})
-ORDER BY SchemaName, ProcedureName;
-                        ";
+    AND SCHEMA_NAME(p.schema_id) IN ({schemaFilter});
+";
 
-            var parameters = namesList
-                .Select((name, i) => new SqlParameter($"@p{i}", name))
-                .ToArray();
+            // 2. Версионные процедуры (number > 0) — из sys.syscomments
+            //CROSS APPLY собирает все строки текста (colid) через FOR XML PATH
+            string versionQuery = $@"
+SELECT
+    p.[object_id] AS ObjectId,
+    SCHEMA_NAME(p.schema_id) AS SchemaName,
+    p.name + ';' + CAST(v.number AS VARCHAR(10)) AS ProcedureName,
+    v.ProcText AS ProcedureBody,
+    ISNULL([audit].fn_BuildProcedureParams(p.[object_id], v.number), '''''') AS ProcedureParams,
+    p.[create_date]  AS CreateDate,
+    p.[modify_date]  AS ModifyDate
+FROM
+    sys.procedures AS p
+CROSS APPLY (
+    SELECT DISTINCT c.number,
+        (SELECT c2.text FROM sys.syscomments c2
+         WHERE c2.id = p.object_id AND c2.number = c.number
+         ORDER BY c2.colid
+         FOR XML PATH(''), TYPE).value('.', 'nvarchar(max)') AS ProcText
+    FROM sys.syscomments c
+    WHERE c.id = p.object_id AND c.number > 0
+) AS v
+WHERE
+    p.is_ms_shipped = 0
+    AND SCHEMA_NAME(p.schema_id) IN ({schemaFilter});
+";
 
-            return await AudiTestDBContext.Database
-                .SqlQueryRaw<StoredProcedureInfo>(sqlcmd, parameters)
+            // Выполняем последовательно (DbContext не поддерживает параллельные операции)
+            var baseProcedures = await AudiTestDBContext.Database
+                .SqlQueryRaw<StoredProcedureInfo>(baseQuery)
                 .ToListAsync(cancellationToken: cancellationToken);
+
+            var versionProcedures = await AudiTestDBContext.Database
+                .SqlQueryRaw<StoredProcedureInfo>(versionQuery)
+                .ToListAsync(cancellationToken: cancellationToken);
+
+            // Для версионных процедур переопределяем параметры из тела (fn_BuildProcedureParams берёт от версии 0)
+            foreach (var proc in versionProcedures)
+            {
+                proc.ProcedureParams = ExtractParamsFromBody(proc.ProcedureBody);
+            }
+
+            var allProcedures = baseProcedures.Concat(versionProcedures).ToList();
+
+            // Точные ключи: schema.name для фильтрации
+            var targetKeys = new HashSet<string>(parsed.Count * 2, StringComparer.OrdinalIgnoreCase);
+            foreach (var (schema, dbName) in parsed)
+            {
+                if (string.IsNullOrEmpty(schema) || string.IsNullOrEmpty(dbName))
+                    continue;
+                targetKeys.Add($"{schema}.{dbName}");
+            }
+
+            return allProcedures.Where(proc =>
+                targetKeys.Contains($"{proc.SchemaName}.{proc.ProcedureName}"))
+                .ToList();
+        }
+
+        private static string EscapeSql(string s) => s.Replace("'", "''");
+
+        /// <summary>
+        /// Извлекает параметры процедуры из её тела (для версионных процедур, 
+        /// где fn_BuildProcedureParams возвращает параметры версии 0).
+        /// Ищет: ALTER PROCEDURE [Schema].[Name] (param1, param2, ...)
+        /// </summary>
+        private static string ExtractParamsFromBody(string body)
+        {
+            if (string.IsNullOrWhiteSpace(body))
+                return "''''";
+
+            // Ищем скобки с параметрами после ALTER PROCEDURE [Schema].[Name]
+            var match = System.Text.RegularExpressions.Regex.Match(
+                body,
+                @"ALTER\s+PROCEDURE\s+\[[^\]]+\]\.\[[^\]]+\](;\d+)?\s*(\([^)]*\))",
+                System.Text.RegularExpressions.RegexOptions.Singleline
+                | System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            if (match.Success && !string.IsNullOrWhiteSpace(match.Groups[2].Value))
+            {
+                string rawParams = match.Groups[2].Value;
+                // Экранируем одинарные кавычки для SQL-строки
+                return "'" + rawParams.Replace("'", "''") + "'";
+            }
+
+            return "''''";
+        }
+
+        /// <summary>
+        /// Разделяет полное имя из конфига на схему и имя в БД.
+        /// Формат конфига: Schema.Name::SubName;V (первая точка — разделитель схемы)
+        /// В БД: Schema = Schema, name = Name::SubName;V
+        /// </summary>
+        private static (string schema, string dbName) ParseFullNameToSchemaAndDbName(string fullName)
+        {
+            // Первая точка отделяет схему от имени процедуры
+            int dotIndex = fullName.IndexOf('.');
+            if (dotIndex > 0)
+            {
+                string schema = fullName.Substring(0, dotIndex);
+                string dbName = fullName.Substring(dotIndex + 1);
+                return (schema, dbName);
+            }
+
+            return (fullName, "");
+        }
+
+        /// <summary>
+        /// Парсит полное имя процедуры из appsettings.json.
+        /// Поддерживает: Schema.Name;V, Schema.Name::SubName;V, Schema.SubName;V
+        /// </summary>
+        private static (string schema, string name, string? version) ParseProcedureName(string fullName)
+        {
+            // Отделяем версию ;N
+            string nameWithoutVersion = fullName;
+            string? version = null;
+            int versionIndex = fullName.LastIndexOf(';');
+            if (versionIndex > 0)
+            {
+                string afterSemi = fullName.Substring(versionIndex + 1);
+                // После ; должен быть номер версии (цифры)
+                if (int.TryParse(afterSemi, out _))
+                {
+                    nameWithoutVersion = fullName.Substring(0, versionIndex);
+                    version = afterSemi;
+                }
+            }
+
+            // Ищем :: — разделитель схемы и имени в конфиге
+            int sepIndex = nameWithoutVersion.IndexOf("::");
+            if (sepIndex > 0)
+            {
+                string schema = nameWithoutVersion.Substring(0, sepIndex);
+                string name = nameWithoutVersion.Substring(sepIndex + 2);
+                return (schema, name, version);
+            }
+
+            // Обычное Schema.Name
+            int dotIndex = nameWithoutVersion.IndexOf('.');
+            if (dotIndex > 0)
+            {
+                string schema = nameWithoutVersion.Substring(0, dotIndex);
+                string name = nameWithoutVersion.Substring(dotIndex + 1);
+                return (schema, name, version);
+            }
+
+            return (nameWithoutVersion, "", version);
         }
 
         public void AddLogMessage(string? sKeyField = null, string? sKeyValue = null, string? sMessageCode = null, string? sMessage = null)
