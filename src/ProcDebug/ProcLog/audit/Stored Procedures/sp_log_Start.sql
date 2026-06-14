@@ -5,7 +5,6 @@ DECLARE @LogID int
 EXEC [audit].sp_log_Start @AuditEnable ='FullAuditEnabled', @LogID = @LogID output
 SELECT @LogID
 
-SELECT [dbo].[fn_GetSettingValue]('FullAuditEnabled')
 SELECT * FROM [audit].[LogProcedures]
 ROLLBACk
 

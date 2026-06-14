@@ -6,13 +6,6 @@ using ApplyProcLog.dal;
 using Serilog;
 using Serilog.Context;
 
-public class ProcedureSettings
-{
-    public string DefaultFilter { get; set; } = "%";
-    public List<string> ExcludeSchemas { get; set; } = new();
-    public List<string> Procedures { get; set; } = new();
-}
-
 class Program
 {
     static async Task<int> Main(string[] args)
@@ -101,26 +94,36 @@ class Program
 
         if (opts.UseConfig)
         {
-            var section = configuration.GetSection("ProcedureSettings");
-            var settings = new ProcedureSettings();
-            section.Bind(settings);
+            var settingsList = new ProcedureSettingsList(configuration);
+            var allSettings = settingsList.GetAll().ToList();
 
-            if (settings.Procedures.Count > 0)
+            if (allSettings.Count == 0)
             {
-                Log.Information("Используется список из appsettings.json: {Count} процедур", settings.Procedures.Count);
-                foreach (var p in settings.Procedures)
-                    Log.Debug("  {Proc}", p);
-
-                var filteredProcedures = settings.Procedures
-                    .Where(n => !settings.ExcludeSchemas.Any(s => n.StartsWith(s + ".", StringComparison.OrdinalIgnoreCase)))
-                    .ToList();
-
-                storedProcedures = await dbset.GetSqlProceduresByNamesAsync(filteredProcedures, ct).ConfigureAwait(false);
+                Log.Warning("Секции ProcedureSettings в appsettings.json не найдены, используется --filter");
+                storedProcedures = await dbset.GetSqlProcedures(opts.Filter, ct, opts.ExceptFilter).ConfigureAwait(false);
             }
             else
             {
-                Log.Warning("ProcedureSettings.Procedures в appsettings.json пуст, используется --filter");
-                storedProcedures = await dbset.GetSqlProcedures(opts.Filter, ct, opts.ExceptFilter).ConfigureAwait(false);
+                foreach (var section in allSettings)
+                {
+                    var enabledDesc = section.Enabled ? "" : " [DISABLED]";
+                    Log.Information("Секция {Section}: {Desc}{Enabled} ({Count} процедур, AuditCode={Code})",
+                        section.Description, section.Description, enabledDesc,
+                        section.Procedures.Count, section.AuditEnabledCode);
+                }
+
+                var procedureNames = settingsList.GetProcedureNames().ToList();
+                if (procedureNames.Count > 0)
+                {
+                    Log.Information("Итого: {Count} процедур для генерации", procedureNames.Count);
+                    var auditCodeMap = settingsList.BuildNameToAuditCodeMap();
+                    storedProcedures = await dbset.GetSqlProceduresByNamesAsync(procedureNames, auditCodeMap, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    Log.Warning("Нет процедур для генерации (все секции пусты или отключены)");
+                    storedProcedures = new List<StoredProcedureInfo>();
+                }
             }
         }
         else

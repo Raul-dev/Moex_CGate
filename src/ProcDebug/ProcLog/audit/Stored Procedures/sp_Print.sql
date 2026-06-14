@@ -12,7 +12,7 @@ BEGIN
     IF @PrintLevel >= 6
         RETURN 0
     DECLARE @AuditPrintLevel int
-    SELECT @AuditPrintLevel = ISNULL([dbo].[fn_GetSettingInt]('AuditPrintLevel'), 0)
+    SELECT @AuditPrintLevel = ISNULL(/*[dbo].[fn_GetSettingInt]('AuditPrintLevel')*/ 0, 0)
 
     IF @PrintLevel < @AuditPrintLevel
         RETURN 0

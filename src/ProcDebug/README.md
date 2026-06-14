@@ -87,9 +87,51 @@ ApplyProcLog.exe export-data [-s <сервер>] [-d <база>] [-t <табли
 | Класс | Назначение |
 |-------|------------|
 | `DBContext` | EF Core контекст (таблицы, процедуры, настройки) |
-| `DBHelper` | Запросы процедур из БД (`GetSqlProcedures`, `GetSqlProceduresByNamesAsync`) |
+| `DBHelper` | Запросы процедур из БД (`GetSqlProceduresObjecIdAsync`, `GetSqlProceduresByNamesAsync`, `GetSqlProceduresByNumber`) |
 | `StoredProcedureInfo` | Модель процедуры (ObjectId, SchemaName, ProcedureName, Body, Params, Dates) |
 | `TableDataExtractor` | Экспорт данных таблиц в INSERT-файлы с батчами и ограничением размера |
+| `ProcedureParamParser` | Парсер параметров процедуры из тела или из sys.parameters |
+| `DefaultSqlTypes` | Статическая коллекция 34 встроенных типов SQL Server |
+| `ProcedureParameter` | Модель параметра процедуры (имя, тип, MaxLength, Precision, Scale, IsOutput, IsIgnore и др.) |
+
+#### ProcedureParamParser
+
+Парсит параметры процедуры двумя способами:
+
+**Конструктор 1:** `(int objectId, string connectionString)` — загрузка из `sys.parameters` + `sys.types`.
+
+**Конструктор 2:** `(string procedureBody)` — извлечение из текста процедуры (CREATE/ALTER PROCEDURE). Парсит:
+- Имя параметра, тип, аргументы (precision, scale, max_length)
+- Значение по умолчанию, флаг OUTPUT
+- `IsUserDefined` и `IsIgnore` через `DefaultSqlTypes`
+
+**Ключевые методы:**
+
+- `GetParametersForAudit()` — параметры в формате `fn_BuildProcedureParams`:
+  - String types (`varchar`, `nvarchar`, `char`, `nchar`, `text`, `ntext`) — с кавычками: `'@p='''+ISNULL(''''+...,''NULL'')+'`
+  - Остальные built-in типы — без кавычек: `'@p='+ISNULL(LTRIM(CAST(@p AS varchar(n))),'NULL')`
+  - OUTPUT — `'/*typename*/@p=@p OUTPUT'` или `'/*typename @p = @p*/'` для IsIgnore
+  - IsIgnore (неизвестные типы) — `'/*typename @p = @p*/'`
+  - Каждый параметр на новой строке
+
+- `GetParametersForDeclare()` — объявление параметров: `@p int, @p2 varchar(100) OUTPUT`
+
+- `BuildExecParams()` — параметры для EXEC-обёртки (без IsIgnore)
+
+- `BuildExecCall(fullName)` — вызов процедуры: `'EXEC [schema].[proc] @p1, @p2'`
+
+#### DefaultSqlTypes
+
+Статический класс с 34 встроенными типами SQL Server (`bigint`, `int`, `nvarchar`, `datetime2` и др.).
+
+```csharp
+DefaultSqlTypes.IsBuiltIn("varchar")     // true
+DefaultSqlTypes.IsBuiltIn("my_custom_type") // false
+DefaultSqlTypes.IsNullableByDefault("int")  // false (NOT NULL по умолчанию)
+DefaultSqlTypes.IsNullableByDefault("varchar") // true
+```
+
+Коллекция используется для определения `IsIgnore` — параметры неизвестных типов оборачиваются в SQL-комментарий в `GetParametersForAudit()`.
 
 ---
 
@@ -116,20 +158,18 @@ ApplyProcLog.Smo.exe -s <сервер> -d <база> -t "Schema.Table1,Schema.Ta
 
 ### ProcLog
 
-SSDT-проект (SQL Server Database Project) — схема БД аудита. Создаёт таблицы и процедуры в схемах `dbo` и `audit`.
+SSDT-проект (SQL Server Database Project) — схема БД аудита. Создаёт таблицы и процедуры в схеме `audit`.
 
 **Таблицы:**
-- `dbo.Setting` — настройки (ключ-значение)
 - `audit.AuditTypeSP` — типы аудита
 - `audit.LogProcedures` — основной лог вызовов процедур (время, параметры, ошибки, RowCount)
 - `audit.Setting` — настройки аудита
 
 **Функции:**
-- `dbo.fn_GetSettingValue / fn_GetSettingInt` — чтение настроек
 - `audit.fn_GetAuditTypeSP` — тип аудита
 - `audit.fn_log_IsLnk` — проверка линковки
 - `audit.Template_LogProc` — шаблон таблицы #LogProc
-- `audit.fn_BuildProcedureParams` — сериализация параметров
+- `audit.fn_BuildProcedureParams` — сериализация параметров (логика дублируется в `ProcedureParamParser.GetParametersForAudit()`)
 - `audit.fn_BuildExceptType` — построение исключений
 - `audit.fn_GetEstimatedStringLength` — оценка длины строки
 

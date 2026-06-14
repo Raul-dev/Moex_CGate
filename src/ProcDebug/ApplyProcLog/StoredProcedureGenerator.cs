@@ -37,6 +37,25 @@ namespace ApplyProcLog
         }
 
         /// <summary>
+        /// Формирует SQL Имя процедуры.
+        /// </summary>
+        private static string MakeProcSqlName(string schema, string procedureName)
+        {
+            // Определяем версию до замены ; на ;__
+            var verMatch = Regex.Match(procedureName, @";(\d+)$");
+            bool noVersion = !verMatch.Success;
+            bool hasVersion1 = verMatch.Success && verMatch.Groups[1].Value == "1";
+            string sqlName = "";
+            if (noVersion)
+            {
+                sqlName = $"[{schema}].[{procedureName}]";
+            }
+            else {
+                sqlName = $"[{schema}].[{procedureName.Substring(0, procedureName.IndexOf(';'))}];{verMatch.Groups[1]}";
+            }
+            return sqlName;
+        }
+        /// <summary>
         /// Создает SQL файлы для каждой процедуры в текущей директории.
         /// Одновременно генерирует пустые заглушки в подпапке CreateEmpty.
         /// </summary>
@@ -65,7 +84,7 @@ namespace ApplyProcLog
 
                 try
                 {
-                    string body = WrapProcedureWithPrint(proc.ProcedureBody, proc.ProcedureName, proc.ProcedureParams);
+                    string body = WrapProcedureWithAudit(proc.ProcedureBody, proc.SchemaName, proc.ProcedureName, proc.ProcedureParams, proc.AuditEnabledCode);
                     if (withReturn)
                         body = WrapReturnStatements(body);
                     body = Regex.Replace(body, @"(?i)\bCREATE\s+PROCEDURE\b", "ALTER PROCEDURE");
@@ -122,7 +141,7 @@ namespace ApplyProcLog
             foreach (var proc in procedures)
             {
                 // Модифицируем тело перед сохранением
-                proc.ProcedureBody = WrapProcedureWithPrint(proc.ProcedureBody, proc.ProcedureName);
+                proc.ProcedureBody = WrapProcedureWithAudit(proc.ProcedureBody, proc.SchemaName, proc.ProcedureName, auditEnabledCode: proc.AuditEnabledCode);
 
                 string fileName = $"{proc.SchemaName}.{proc.ProcedureName}.sql";
                 string filePath = Path.Combine(Directory.GetCurrentDirectory(), fileName);
@@ -134,7 +153,7 @@ namespace ApplyProcLog
 		/// <summary>
 		/// Вставляет EXEC audit.sp_log_... в начало и конец тела процедуры.
 		/// </summary>
-		public string WrapProcedureWithPrint(string body, string procName, string procedureParams = "")
+		public string WrapProcedureWithAudit(string body, string  schemaName, string procName, string procedureParams = "", string auditEnabledCode = "FullAuditEnabled")
         {
             if (string.IsNullOrWhiteSpace(body)) return body;
 
@@ -142,9 +161,10 @@ namespace ApplyProcLog
             if (body.Contains("[audit].[sp_log_Start]") || body.Contains("[audit].[sp_log_Finish]"))
                 return body;
 
-            string startPrint = $"\r\nDECLARE @AuditLogID int, @AuditProcedureName varchar(510), @AuditProcedureParams varchar(max), @AuditProcedureInfo varchar(max), @AuditErrorMessage varchar(max), @AuditRowCount int = 0, @AuditEnable nvarchar(256)\r\nSET @AuditEnable = 'FullAuditEnabled'\r\nSET @AuditProcedureName = '[' + OBJECT_SCHEMA_NAME(@@PROCID)+'].['+OBJECT_NAME(@@PROCID)+']'\r\nIF @AuditEnable IS NOT NULL \r\nBEGIN\r\n  IF OBJECT_ID('tempdb..#LogProc') IS NULL\r\n     SELECT * INTO #LogProc FROM [audit].[Template_LogProc]()\r\n  \r\n  SET @AuditProcedureParams = {procedureParams} \r\nEND\r\nIF @AuditEnable IS NOT NULL\r\n  EXEC [audit].[sp_log_Start] @AuditEnable = @AuditEnable, @ProcedureName = @AuditProcedureName, @ProcedureParams = @AuditProcedureParams, @LogID = @AuditLogID OUTPUT\r\n";
-            string endPrint = $"\r\n    EXEC [audit].[sp_log_Finish] @LogID = @AuditLogID, @RowCount = @AuditRowCount;\r\n";
-            string endPrintErr = $"\r\n  SET @AuditErrorMessage = ERROR_MESSAGE() \r\n  EXEC [audit].[sp_log_Finish] @LogID = @AuditLogID, @RowCount = @AuditRowCount, @ErrorMessage = @AuditErrorMessage;\r\n";
+            string procNameSql = MakeProcSqlName(schemaName, procName);
+            string startAudit = $"\r\nDECLARE @AuditLogID int, @AuditProcedureName varchar(510), @AuditProcedureParams varchar(max), @AuditProcedureInfo varchar(max), @AuditErrorMessage varchar(max), @AuditRowCount int = 0, @AuditEnable nvarchar(256)\r\nSET @AuditEnable = [audit].[fn_GetAuditEnableSP]('{auditEnabledCode}')\r\nIF @AuditEnable IS NOT NULL \r\nBEGIN\r\n  SET @AuditProcedureName = '{procNameSql}'\r\n  IF OBJECT_ID('tempdb..#LogProc') IS NULL\r\n     SELECT * INTO #LogProc FROM [audit].[Template_LogProc]()\r\n  \r\n  SET @AuditProcedureParams = {procedureParams} \r\n  EXEC [audit].[sp_log_Start] @AuditEnable = @AuditEnable, @ProcedureName = @AuditProcedureName, @ProcedureParams = @AuditProcedureParams, @LogID = @AuditLogID OUTPUT\r\nEND\r\n";
+            string endAudit = $"\r\n    EXEC [audit].[sp_log_Finish] @LogID = @AuditLogID, @RowCount = @AuditRowCount;\r\n";
+            string endAuditErr = $"\r\n  SET @AuditErrorMessage = ERROR_MESSAGE() \r\n  EXEC [audit].[sp_log_Finish] @LogID = @AuditLogID, @RowCount = @AuditRowCount, @ErrorMessage = @AuditErrorMessage;\r\n";
 
             // Ищем ключевое слово AS (игнорируя регистр)
             // Если есть WITH EXECUTE AS — ищем AS только после него
@@ -168,7 +188,7 @@ namespace ApplyProcLog
                 int insertIndex = match.Index + match.Length;
 
                 // Вставляем начало
-                body = body.Insert(insertIndex, startPrint);
+                body = body.Insert(insertIndex, startAudit);
 
                 // Ищем последнее END TRY (без END CATCH сразу после) для вставки endPrint
                 int lastEndTryIndex = -1;
@@ -189,9 +209,9 @@ namespace ApplyProcLog
                 }
 
                 if (lastEndTryIndex != -1)
-                    body = body.Insert(lastEndTryIndex, endPrint);
+                    body = body.Insert(lastEndTryIndex, endAudit);
                 else
-                    body += endPrint;
+                    body += endAudit;
             }
 
             // Ищем главный (самый внешний) блок CATCH — с конца тела процедуры
@@ -241,7 +261,7 @@ namespace ApplyProcLog
                 insertBeforeIdx = catchEndIdx;
 
             if (insertBeforeIdx >= 0)
-                body = body.Insert(insertBeforeIdx, endPrintErr);
+                body = body.Insert(insertBeforeIdx, endAuditErr);
 
             return body;
         }

@@ -59,25 +59,21 @@
   <Import Condition="'$(SQLDBExtensionsRefPath)' == ''" Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
   <ItemGroup>
     <Folder Include="Properties" />
-    <Folder Include="dbo\" />
-    <Folder Include="dbo\Tables\" />
     <Folder Include="audit\" />
     <Folder Include="audit\Tables\" />
     <Folder Include="Security\" />
-    <Folder Include="dbo\Functions\" />
     <Folder Include="audit\Functions\" />
-    <Folder Include="dbo\Stored Procedures\" />
     <Folder Include="audit\Stored Procedures\" />
     <Folder Include="Assemblies\" />
     <Folder Include="Dictionaries" />
     <Folder Include="ScriptsFolder" />
+    <Folder Include="uts" />
+    <Folder Include="uts\Stored Procedures" />
   </ItemGroup>
   <ItemGroup>
     <Build Include="audit\Tables\Setting.sql" />
     <Build Include="audit\Tables\AuditTypeSP.sql" />
     <Build Include="audit\Tables\LogProcedures.sql" />
-    <Build Include="dbo\Functions\fn_GetSettingValue.sql" />
-    <Build Include="dbo\Functions\fn_GetSettingInt.sql" />
     <Build Include="audit\Functions\fn_GetAuditTypeSP.sql" />
     <Build Include="audit\Functions\fn_log_IsLnk.sql" />
     <Build Include="audit\Functions\Template_LogProc.sql" />
@@ -106,9 +102,11 @@
     </None>
     <Build Include="audit\Functions\fn_GetEstimatedStringLength.sql" />
     <None Include="ScriptsFolder\Log.publish.sql" />
-    <Build Include="dbo\Tables\Setting.sql" />
     <Build Include="audit\Functions\fn_BuildProcedureParams.sql" />
     <Build Include="audit\Functions\fn_BuildExceptType.sql" />
+    <Build Include="audit\Functions\fn_GetAuditEnableSP.sql" />
+    <Build Include="Security\uts.sql" />
+    <Build Include="uts\Stored Procedures\Proc_For_Test0001.sql" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ScriptsFolder\dbdeploy.ps1" />

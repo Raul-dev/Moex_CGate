@@ -222,7 +222,7 @@ public class NumberedProcedureComparer : IComparer<string>
 
     private static (string baseName, int version) ParseName(string name)
     {
-        // Имя вида: BackOffice.Commisses__Depo__View;23 или BackOffice.Commisses__Depo__View
+        // Имя вида: Proc1;23 или Proc1
         int semi = name.LastIndexOf(';');
         if (semi < 0) return (name, 0); // без номера — базовая, first
         if (int.TryParse(name.Substring(semi + 1), out int ver))
