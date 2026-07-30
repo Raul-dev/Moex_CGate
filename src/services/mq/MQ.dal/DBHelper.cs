@@ -563,7 +563,56 @@ END CATCH
             return dbs; // uniqOrder.Values.ToList(); 
            
         }
+
+        public async Task EnsureCopyBufferTableAsync(string qualifiedTableName, CancellationToken cancellationToken = default)
+        {
+            if (ServerType != SqlServerType.mssql)
+                throw new NotSupportedException($"EnsureCopyBufferTableAsync is not supported for {ServerType}.");
+
+            var (schema, table) = BufferTableSqlHelper.ParseQualifiedName(qualifiedTableName);
+            var sql = BufferTableSqlHelper.BuildCreateBufferTableSql(schema, table);
+            await MetastorageDbContext.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+        }
+
+        public async Task TruncateTableAsync(string qualifiedTableName, CancellationToken cancellationToken = default)
+        {
+            if (ServerType != SqlServerType.mssql)
+                throw new NotSupportedException($"TruncateTableAsync is not supported for {ServerType}.");
+
+            var (schema, table) = BufferTableSqlHelper.ParseQualifiedName(qualifiedTableName);
+            var sql = BufferTableSqlHelper.BuildTruncateSql(schema, table);
+            await MetastorageDbContext.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+        }
+
+        public async Task SaveMsgToBufferAsync(
+            long sessionId,
+            string qualifiedTableName,
+            string? messageId,   // RabbitMQ BasicProperties.MessageId -> [msg_id]
+            string body,
+            string messageKey,   // RabbitMQ BasicProperties.Type -> [msg_key]
+            int messageTypeId,
+            CancellationToken cancellationToken = default)
+        {
+            if (ServerType != SqlServerType.mssql)
+                throw new NotSupportedException($"SaveMsgToBufferAsync is not supported for {ServerType}.");
+
+            var (schema, table) = BufferTableSqlHelper.ParseQualifiedName(qualifiedTableName);
+            var msgId = new SqlParameter("@msg_id", messageId is null ? Guid.NewGuid() : new Guid(messageId));
+            var msg = new SqlParameter("@msg", body);
+            var msgKey = new SqlParameter("@msg_key", messageKey);
+            var msgTypeId = new SqlParameter("@msgtype_id", messageTypeId);
+            var session = new SqlParameter("@session_id", sessionId);
+
+            var cmd = $@"
+INSERT INTO [{schema}].[{table}]
+    ([session_id], [msg_key], [msg_id], [msg], [msgtype_id])
+VALUES (@session_id, @msg_key, @msg_id, @msg, @msgtype_id);";
+
+            await MetastorageDbContext.Database.ExecuteSqlRawAsync(
+                cmd,
+                new object[] { session, msgKey, msgId, msg, msgTypeId },
+                cancellationToken);
+        }
     }
-
-
 }
+

@@ -6,7 +6,7 @@
 # $IsDockerSql=$true - Run docker MSSQL server container with database CGate from \images\mssql\dacpac\CGate.dacpac
 #
 # Send test messages FROM table [CGate].[dbo].[msgqueue] to Rabbit by command:
-# .\services\mq\MQ\bin\Release\net9.0\MQ.exe SendMsg -d CGate -t mssql
+# .\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -d CGate -t mssql
 
 Param (
     [parameter(Mandatory=$false)][bool]$IsUpdate=$false,
@@ -72,7 +72,7 @@ try{
 
 	if($IsUpdate -eq $true){
 		try{
-			Invoke-RestMethod  -Uri http://localhost:8090/api/Home/Stop -ErrorAction SilentlyContinue
+			Invoke-RestMethod -Method Post -Uri http://localhost:8090/v1/mq/service/stop -ErrorAction SilentlyContinue
 		} catch {
 		}
 	}
@@ -138,7 +138,7 @@ try{
 	dotnet dev-certs https --trust
 	if($IsUpdate -eq $true){
 		try{
-			Invoke-RestMethod  -Uri http://localhost:8090/api/Home/Start -ErrorAction SilentlyContinue
+			Invoke-RestMethod -Method Post -Uri http://localhost:8090/v1/mq/service/start -ErrorAction SilentlyContinue
 		} catch {
 		}
 		exit

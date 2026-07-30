@@ -4,7 +4,7 @@ using MQ.dal.Models;
 
 namespace MQ.WebService.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("v1/mq/meta-maps")]
     [ApiController]
     public class MetaMapsController : ControllerBase
     {
@@ -15,7 +15,7 @@ namespace MQ.WebService.Controllers
             _context = context;
         }
 
-        // GET: api/MetaMaps
+        // GET: v1/mq/meta-maps
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Metamap>>> GetMetamaps()
         {
@@ -23,7 +23,7 @@ namespace MQ.WebService.Controllers
             return await _context.Metamaps.ToListAsync();
         }   
 
-        // GET: api/MetaMaps/5
+        // GET: v1/mq/meta-maps/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Metamap>> GetMetamap(short id)
         {
@@ -37,7 +37,7 @@ namespace MQ.WebService.Controllers
             return metamap;
         }
 
-        // PUT: api/MetaMaps/5
+        // PUT: v1/mq/meta-maps/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutMetamap(short id, Metamap metamap)
@@ -68,7 +68,7 @@ namespace MQ.WebService.Controllers
             return NoContent();
         }
 
-        // DELETE: api/MetaMaps/5
+        // DELETE: v1/mq/meta-maps/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteMetamap(short id)
         {

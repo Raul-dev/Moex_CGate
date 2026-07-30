@@ -101,27 +101,30 @@ MQ.exe GetMsg -d CGate -t mssql -k $true -g whileget
 
 | Контроллер | Маршрут | Описание |
 |------------|---------|----------|
-| `HomeController` | `/api/home` | Управление сервисом (Start/Stop/Reset/Status) |
-| `MetaMapsController` | `/api/metamaps` | CRUD-операции для метаданных映射 |
+| `ServiceController` | `/v1/mq/service` | Управление сервисом (start/stop/reset/status/config) |
+| `MetaMapsController` | `/v1/mq/meta-maps` | CRUD-операции для метаданных |
 
-**Эндпоинты HomeController:**
+**Эндпоинты ServiceController:**
 
 | Метод | Маршрут | Описание |
 |-------|---------|----------|
-| GET | `/api/home/Start` | Запуск сервиса |
-| GET | `/api/home/Stop` | Остановка сервиса |
-| GET | `/api/home/Reset` | Перезапуск с указанием режима |
-| GET | `/api/home/Status` | Проверка статуса |
-| GET | `/api/home/Config` | Получение текущей конфигурации |
+| POST | `/v1/mq/service/start` | Запуск сервиса |
+| POST | `/v1/mq/service/stop` | Остановка сервиса |
+| POST | `/v1/mq/service/reset` | Перезапуск с указанием режима |
+| GET | `/v1/mq/service/status` | Проверка статуса |
+| GET | `/v1/mq/service/config` | Получение текущей конфигурации |
+| GET | `/v1/mq/health` | Общий health check (БД + processing) |
+| GET | `/v1/mq/health/live` | Liveness — процесс жив |
+| GET | `/v1/mq/health/ready` | Readiness — БД и MQ processing |
 
 **Эндпоинты MetaMapsController:**
 
 | Метод | Маршрут | Описание |
 |-------|---------|----------|
-| GET | `/api/metamaps` | Получить все映射 |
-| GET | `/api/metamaps/{id}` | Получить映射 по ID |
-| PUT | `/api/metamaps/{id}` | Обновить映射 |
-| DELETE | `/api/metamaps/{id}` | Удалить映射 |
+| GET | `/v1/mq/meta-maps` | Получить все метамаппинги |
+| GET | `/v1/mq/meta-maps/{id}` | Получить метамаппинг по ID |
+| PUT | `/v1/mq/meta-maps/{id}` | Обновить метамаппинг |
+| DELETE | `/v1/mq/meta-maps/{id}` | Удалить метамаппинг |
 
 ### 3.4 MQ.bll (Бизнес-логика)
 
@@ -369,25 +372,25 @@ dotnet ef migrations remove --project MQ.dal
 ### Запуск сервиса
 
 ```bash
-curl http://localhost:5000/api/home/Start
+curl -X POST http://localhost:5000/v1/mq/service/start
 ```
 
 ### Проверка статуса
 
 ```bash
-curl http://localhost:5000/api/home/Status
+curl http://localhost:5000/v1/mq/service/status
 ```
 
 ### Получение конфигурации
 
 ```bash
-curl http://localhost:5000/api/home/Config
+curl http://localhost:5000/v1/mq/service/config
 ```
 
 ### Получение списка метакарт
 
 ```bash
-curl http://localhost:5000/api/metamaps
+curl http://localhost:5000/v1/mq/meta-maps
 ```
 
 ---

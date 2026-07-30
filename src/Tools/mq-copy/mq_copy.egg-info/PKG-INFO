@@ -1,0 +1,134 @@
+Metadata-Version: 2.4
+Name: mq-copy
+Version: 0.1.0
+Summary: Copy messages from RabbitMQ queue to MS SQL Server table
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: pika>=1.3.2
+Requires-Dist: pyodbc>=5.1.0
+
+# mq-copy
+
+Копирование сообщений из очереди RabbitMQ в buffer-таблицу MS SQL Server.
+
+Аналог команды `MQ.exe CopyMsg` на Python.
+
+## Установка
+
+```powershell
+cd src/Tools/mq-copy
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e .
+```
+
+Требуется **ODBC Driver 18 for SQL Server**.
+
+## Где настройки RabbitMQ и SQL
+
+### 1. Файл `copy-config.json` (рекомендуется)
+
+```powershell
+copy copy-config.example.json copy-config.json
+```
+
+Структура:
+
+```json
+{
+  "rabbitmq": {
+    "host": "localhost",
+    "port": 5672,
+    "virtual_host": "/",
+    "username": "admin",
+    "password": "admin",
+    "queue": "Cgate_FORTS_TRADE_REPL"
+  },
+  "database": {
+    "server": "localhost,54321",
+    "database": "CGate",
+    "user": "CGateUser",
+    "password": "MyPassword321",
+    "driver": "ODBC Driver 18 for SQL Server"
+  },
+  "copy": {
+    "target_table": "dbo.Upload",
+    "truncate_before_copy": false
+  }
+}
+```
+
+| Секция | Поле | Описание |
+|--------|------|----------|
+| `rabbitmq` | `host` | Хост RabbitMQ |
+| `rabbitmq` | `port` | Порт (обычно 5672) |
+| `rabbitmq` | `virtual_host` | VHost (обычно `/`) |
+| `rabbitmq` | `username` | Логин |
+| `rabbitmq` | `password` | Пароль |
+| `rabbitmq` | `queue` | Имя очереди |
+| `database` | `server` | SQL Server (`host,port`) |
+| `database` | `database` | Имя БД |
+| `database` | `user` | SQL-пользователь |
+| `database` | `password` | SQL-пароль |
+| `database` | `driver` | ODBC-драйвер |
+| `copy` | `target_table` | Целевая таблица |
+| `copy` | `truncate_before_copy` | Очистить таблицу перед копированием |
+
+### 2. Параметры командной строки (перекрывают JSON)
+
+**RabbitMQ:**
+
+| Параметр | Описание |
+|----------|----------|
+| `--rabbit-host` | Хост |
+| `--rabbit-port` | Порт |
+| `--rabbit-vhost` | Virtual host |
+| `--rabbit-user` | Логин |
+| `--rabbit-password` | **Пароль RabbitMQ** |
+| `--rabbit-queue` | Очередь |
+
+**MS SQL:**
+
+| Параметр | Описание |
+|----------|----------|
+| `-s` / `--db-server` | Сервер |
+| `-d` / `--db-name` | База |
+| `-u` / `--db-user` | Пользователь |
+| `-w` / `--db-password` | Пароль SQL |
+| `--db-driver` | ODBC driver |
+
+Если `copy-config.json` отсутствует, можно передать всё через CLI.
+
+## Примеры запуска
+
+```powershell
+# Конфиг + переопределить пароль Rabbit из командной строки
+python -m mq_copy -c copy-config.json --rabbit-password admin -q dbo.Upload
+
+# Без файла конфига — все параметры в CLI
+python -m mq_copy `
+  --rabbit-host localhost `
+  --rabbit-port 5672 `
+  --rabbit-user admin `
+  --rabbit-password admin `
+  --rabbit-queue Cgate_FORTS_TRADE_REPL `
+  -s "localhost,54321" `
+  -d CGate `
+  -u CGateUser `
+  -w MyPassword321 `
+  -q dbo.Upload
+
+# Очистить buffer-таблицу перед загрузкой
+python -m mq_copy -c copy-config.json --rabbit-password admin -q dbo.Upload -f true
+
+# Лимит сообщений
+python -m mq_copy -c copy-config.json --rabbit-password admin -q dbo.Upload -n 1000
+```
+
+## C# аналог
+
+```powershell
+.\MQ.exe CopyMsg -t mssql -s "localhost,54321" -d CGate -u CGateUser -w MyPassword321 -q dbo.Upload
+```
+
+Настройки RabbitMQ в C# берутся из `services\mq\MQ\appsettings.json` → секция `RabbitMQSettings`.

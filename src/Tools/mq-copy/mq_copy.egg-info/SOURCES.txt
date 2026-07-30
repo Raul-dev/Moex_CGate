@@ -1,0 +1,13 @@
+README.md
+pyproject.toml
+mq_copy/__init__.py
+mq_copy/__main__.py
+mq_copy/buffer_table.py
+mq_copy/config.py
+mq_copy/copy.py
+mq_copy.egg-info/PKG-INFO
+mq_copy.egg-info/SOURCES.txt
+mq_copy.egg-info/dependency_links.txt
+mq_copy.egg-info/entry_points.txt
+mq_copy.egg-info/requires.txt
+mq_copy.egg-info/top_level.txt

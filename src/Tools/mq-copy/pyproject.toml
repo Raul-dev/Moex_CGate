@@ -1,0 +1,21 @@
+[project]
+name = "mq-copy"
+version = "0.1.0"
+description = "Copy messages from RabbitMQ queue to MS SQL Server table"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pika>=1.3.2",
+    "pyodbc>=5.1.0",
+]
+
+[project.scripts]
+mq-copy = "mq_copy.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mq_copy*"]

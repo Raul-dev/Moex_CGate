@@ -1,0 +1,31 @@
+{
+  "rabbitmq": {
+    "host": "localhost",
+    "port": 5672,
+    "virtual_host": "/",
+    "username": "admin",
+    "password": "admin",
+    "queue": "Cgate_FORTS_TRADE_REPL"
+  },
+  "database": {
+    "server": "localhost,1433",
+    "database": "CGate",
+    "user": "CGateUser",
+    "password": "MyPassword321",
+    "driver": ""
+  },
+  "copy": {
+    "max_messages": 0,
+    "target_table": "dbo.Upload",
+    "use_metamap_routing": true,
+    "meta_adapter_id": 1,
+    "data_source_id": 1,
+    "clear_queue": true,
+    "pause_ms_when_empty": 100,
+    "empty_poll_attempts": 3,
+    "message_type_id": 2,
+    "ensure_buffer_table": true,
+    "append_buffer_suffix": true,
+    "truncate_before_copy": false
+  }
+}

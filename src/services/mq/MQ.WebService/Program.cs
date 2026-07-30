@@ -1,11 +1,9 @@
 //https://learn.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services?view=aspnetcore-8.0&tabs=visual-studio
-using Microsoft.DotNet.Scaffolding.Shared;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration.Json;
+using Microsoft.OpenApi;
 using MQ.bll.Common;
 using MQ.dal.Models;
 using MQ.WebService;
-using MQ.WebService.Controllers;
 using MQ.WebService.Extensions;
 using MQ.WebService.Interface;
 using Serilog;
@@ -33,9 +31,18 @@ else
         options => options.UseSqlServer(connection));
 
 builder.Services.AddControllers();
+builder.Services.AddMqHealthChecks();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "MQ WebService API",
+        Version = "v1",
+        Description = "MOEX CGate Message Queue Service"
+    });
+});
 
 //builder.Services.AddHostedService<ConsumeScopedServiceHostedService>();
 //builder.Services.AddScoped<IScopedProcessingService, ScopedProcessingService>();
@@ -54,7 +61,7 @@ Log.Debug("File log path: {0}", confVal);
 confVal = app.Configuration["Serilog:WriteTo:1:Args:formatter:template"]?.ToString() ?? "";
 Log.Debug("File log template: {0}", confVal);
 
-// Регистрируем Middleware
+//  Middleware
 app.UseMiddleware<LogEnrichmentMiddleware>();
 
 // Configure the HTTP request pipeline.
@@ -69,8 +76,9 @@ if (app.Environment.IsDevelopment())
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapMqHealthChecks();
 
-// Подписка на событие запуска
+//    
 var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
 lifetime.ApplicationStarted.Register(() =>
 {

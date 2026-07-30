@@ -91,16 +91,24 @@ src/
 
 | Контроллер | Описание |
 |------------|----------|
-| `HomeController.cs` | Главная страница API |
+| `ServiceController.cs` | Управление сервисом (start/stop/reset/status/config) |
 | `MetaMapsController.cs` | REST API для работы с метаданными (metamap) |
 
 **Примеры endpoints:**
 
 ```
-GET    /api/MetaMaps           # Получить все метамаппинги
-GET    /api/MetaMaps/{id}      # Получить метамаппинг по ID
-PUT    /api/MetaMaps/{id}      # Обновить метамаппинг
-DELETE /api/MetaMaps/{id}      # Удалить метамаппинг
+POST   /v1/mq/service/start
+POST   /v1/mq/service/stop
+POST   /v1/mq/service/reset?sessionMode=FullMode
+GET    /v1/mq/service/status
+GET    /v1/mq/service/config
+GET    /v1/mq/health                # общий health check
+GET    /v1/mq/health/live           # liveness
+GET    /v1/mq/health/ready          # readiness (БД + processing)
+GET    /v1/mq/meta-maps           # Получить все метамаппинги
+GET    /v1/mq/meta-maps/{id}      # Получить метамаппинг по ID
+PUT    /v1/mq/meta-maps/{id}      # Обновить метамаппинг
+DELETE /v1/mq/meta-maps/{id}      # Удалить метамаппинг
 ```
 
 ---

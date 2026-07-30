@@ -1,0 +1,2 @@
+[console_scripts]
+mq-copy = mq_copy.__main__:main

@@ -22,6 +22,12 @@ services:
     build:
       context: ./services/mq
       dockerfile: MQ.WebService/Dockerfile
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/v1/mq/health/live || exit 1"]
+      start_period: 30s
+      interval: 15s
+      timeout: 5s
+      retries: 5
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80

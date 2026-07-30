@@ -25,20 +25,21 @@ class Program
             .ReadFrom.Configuration(configuration)
             .CreateLogger();
         
-        var cmdRes = CommandLine.Parser.Default.ParseArguments<SendMsgOptions, GetMsgOptions, ConfigMsgOptions>(args)
+        var cmdRes = CommandLine.Parser.Default.ParseArguments<SendMsgOptions, GetMsgOptions, ConfigMsgOptions, CopyMsgOptions>(args)
                                 .WithNotParsed(HandleCmdError);
 
         var isOk = cmdRes.MapResult(
                                   (SendMsgOptions opts) => SendMsgExecute(opts, configuration).Result,
                                   (GetMsgOptions opts) => GetMsgExecute(opts, configuration).Result,
                                   (ConfigMsgOptions opts) => ConfigMsgExecute(opts, configuration).Result,
+                                  (CopyMsgOptions opts) => CopyMsgExecute(opts, configuration).Result,
                                   errs => 1);
         Log.Logger.Information("MQ console App finished");
     }
 
     static void HandleCmdError(IEnumerable<Error> errs)
     {
-        Console.WriteLine("Simple Usage: MQ.exe GetMsg/SendMsg -s ServerName -d DataBaseName ");
+        Console.WriteLine("Simple Usage: MQ.exe GetMsg/SendMsg/CopyMsg -s ServerName -d DataBaseName ");
     }
 
     //Debug docker sql cmd SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 10000
@@ -55,7 +56,7 @@ class Program
     }
     static async Task<int> GetMsgExecute(GetMsgOptions options, IConfiguration configuration)
     {
-            BllOption bo = new() { DataBaseServSettings = new DataBaseSettings() };
+        BllOption bo = new() { DataBaseServSettings = new DataBaseSettings() };
         options.InitBllOption(bo, configuration);
 
         CancellationTokenSource cts = new CancellationTokenSource();
@@ -65,7 +66,29 @@ class Program
         tsk.Wait();
         return 0;
     }
- 
+
+    static async Task<int> CopyMsgExecute(CopyMsgOptions options, IConfiguration configuration)
+    {
+        BllOption bo = new() { DataBaseServSettings = new DataBaseSettings() };
+        options.InitBllOption(bo, configuration);
+
+        if (bo.CopyMsgSettings is null)
+            throw new InvalidOperationException("CopyMsgSettings is not configured.");
+
+        using var cts = new CancellationTokenSource();
+        var copier = new CopyMessages(bo, bo.CopyMsgSettings, cts.Token);
+        var result = await copier.ProcessAsync();
+
+        if (!result.IsSuccess)
+        {
+            Log.Error("CopyMsg failed: {Error}", result.ErrorMessage);
+            return 1;
+        }
+
+        Log.Information("CopyMsg copied {Count} messages.", result.CopiedCount);
+        return 0;
+    }
+
     static async Task<int> ConfigMsgExecute(ConfigMsgOptions options, IConfiguration configuration)
     {
         CancellationTokenSource cts = new CancellationTokenSource();

@@ -17,27 +17,23 @@ https://github.com/confluentinc/cp-demo
 http://localhost:9021
 
 '''
-.\services\mq\MQ\bin\Debug\net9.0
-//отправляем сообщения из SQL in Rabbit
+.\services\mq\MQ\bin\Release\net10.0
 
-/For Rabbit
-.\services\mq\MQ\bin\Debug\net9.0\MQ.exe SendMsg -d CGateBuf -t mssql -i 2
-.\services\mq\MQ\bin\Debug\net9.0\MQ.exe SendMsg -d CGate -t mssql -i 0 -a 200
+// DB → RabbitMQ
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -d CGate -t mssql
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 500
 
-.\services\mq\MQ\bin\Debug\net9.0\MQ.exe SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 500
+// RabbitMQ → SQL (buffer-таблица, dbo.Upload -> dbo.Upload_buffer)
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -q dbo.Upload
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -q dbo.Upload -f -n 1000
 
-/For kafka
-./MQ.exe SendMsg -d CGate -t mssql -k $true -i 0 -a 200
-.\services\mq\MQ\bin\Debug\net9.0\MQ.exe SendMsg -d CGate -t mssql -k $true -i 0 -a 200
+// RabbitMQ → SQL (непрерывный consumer + ETL)
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe GetMsg -d CGate -t mssql
+GetMsg -d CGate -t mssql -g whileget
 
-
-//For Rabbit в SQL
-.\services\mq\MQ\bin\Debug\net9.0\MQ.exe GetMsg -d CGate -t mssql 
-
-for VS debug command (сообщения забираются в цикле): GetMsg -d CGate -t mssql -g whileget 
-
-/For kafka
-.\services\mq\MQ\bin\Debug\net9.0\MQ.exe GetMsg -d CGate -t mssql -k $true -g whileget 
+// Kafka (опционально)
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -d CGate -t mssql -k $true -i 0 -a 200
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe GetMsg -d CGate -t mssql -k $true -g whileget
 '''
 
 '''
@@ -49,6 +45,7 @@ http://localhost:9000
 http://localhost:8082
 Ent:
 http://localhost:8090/swagger
+http://localhost:8090/v1/mq/service/status
 docker-compose -f docker-compose.sqldacpac.yml down -v
  SELECT * FROM [dbo].[msgqueue]  
  TRUNCATE TABLE [dbo].[msgqueue]  

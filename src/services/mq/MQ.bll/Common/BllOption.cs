@@ -36,6 +36,7 @@ namespace MQ.bll.Common
         public bool IsMultipleMessages { get; set; } = false; // Bulk insert
         public KafkaSettings? KafkaServSettings { get; set; }
         public RabbitMQSettings? RabbitMQServSettings { get; set; }
+        public CopyMsgSettings? CopyMsgSettings { get; set; }
         public required DataBaseSettings DataBaseServSettings { get; set; } = new DataBaseSettings();
         //Mongo
         //MongoSettings
