@@ -30,6 +30,8 @@
     <TargetFrameworkProfile />
     <Trustworthy>True</Trustworthy>
     <PermissionSet>UNSAFE</PermissionSet>
+    <RestoreEnabled Condition="'$(NetCoreBuild)' != 'true'">false</RestoreEnabled>
+    <RestoreProjectStyle Condition="'$(NetCoreBuild)' != 'true'">None</RestoreProjectStyle>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release\</OutputPath>
@@ -64,9 +66,6 @@
   <Import Condition="'$(NetCoreBuild)' != 'true' AND '$(SQLDBExtensionsRefPath)' != ''" Project="$(SQLDBExtensionsRefPath)\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
   <Import Condition="'$(NetCoreBuild)' != 'true' AND '$(SQLDBExtensionsRefPath)' == ''" Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
   <ItemGroup>
-    <PackageReference Condition="'$(NetCoreBuild)' == 'true'" Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.0" PrivateAssets="All" />
-  </ItemGroup>
-  <ItemGroup>
     <Folder Include="Properties" />
     <Folder Include="dbo\" />
     <Folder Include="dbo\Tables\" />
@@ -85,49 +84,54 @@
     <Folder Include="rmq\Tables\" />
     <Folder Include="rmq\Stored Procedures\" />
     <Folder Include="Assemblies\" />
+    <Folder Include="mq\" />
+    <Folder Include="mq\Tables\" />
+    <Folder Include="mq\Stored Procedures\" />
     <Folder Include="ScriptsFolder" />
   </ItemGroup>
   <ItemGroup>
     <Build Include="dbo\Tables\Setting.sql" />
-    <Build Include="dbo\Tables\session_state.sql" />
-    <Build Include="dbo\Tables\session_log.sql" />
-    <Build Include="dbo\Tables\session.sql" />
-    <Build Include="dbo\Tables\msgqueue.sql" />
-    <Build Include="dbo\Tables\metamap.sql" />
     <Build Include="dbo\Tables\DataGeneration.sql" />
-    <Build Include="crs\Tables\orders_log.sql" />
-    <Build Include="crs\Tables\multileg_orders_log.sql" />
-    <Build Include="crs\Tables\user_deal.sql" />
-    <Build Include="crs\Tables\user_multileg_deal.sql" />
+    <Build Include="mq\Tables\DataSource.sql" />
+    <Build Include="mq\Tables\SessionState.sql" />
+    <Build Include="mq\Tables\SessionLog.sql" />
+    <Build Include="mq\Tables\Session.sql" />
+    <Build Include="mq\Tables\MessageQueue.sql" />
+    <Build Include="mq\Tables\MetaMap.sql" />
+    <Build Include="mq\Tables\MessageType.sql" />
+    <Build Include="mq\Tables\MetaAdapter.sql" />
+    <Build Include="mq\Tables\UploadBuffer.sql" />
+    <Build Include="mq\Stored Procedures\sp_SaveSessionState.sql" />
+    <Build Include="crs\Tables\OrdersLog.sql" />
+    <Build Include="crs\Tables\MultiLegOrdersLog.sql" />
+    <Build Include="crs\Tables\UserDeal.sql" />
+    <Build Include="crs\Tables\UserMultiLegDeal.sql" />
     <Build Include="crs\Tables\heartbeat.sql" />
-    <Build Include="crs\Tables\sys_events.sql" />
-    <Build Include="crs\Tables\orders_log_buffer.sql" />
+    <Build Include="crs\Tables\SysEvents.sql" />
+    <Build Include="crs\Tables\OrdersLogBuffer.sql" />
     <Build Include="audit\Tables\LogProcedures.sql" />
     <Build Include="dbo\Functions\fn_GetSettingValue.sql" />
-    <Build Include="dbo\Stored Procedures\sp_SaveSessionState.sql" />
-    <Build Include="crs\Stored Procedures\load_orders_log.sql" />
-    <Build Include="audit\Stored Procedures\sp_lnk_Insert.sql" />
-    <Build Include="audit\Stored Procedures\sp_log_Info.sql" />
-    <Build Include="audit\Stored Procedures\sp_log_Start.sql" />
+    <Build Include="crs\Stored Procedures\load_OrdersLog.sql" />
+    <Build Include="audit\Stored Procedures\sp_LnkInsert.sql" />
+    <Build Include="audit\Stored Procedures\sp_LogInfo.sql" />
+    <Build Include="audit\Stored Procedures\sp_LogStart.sql" />
     <Build Include="audit\Stored Procedures\sp_Print.sql">
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>
-    <Build Include="audit\Stored Procedures\sp_lnk_Update.sql" />
-    <Build Include="audit\Stored Procedures\sp_log_Finish.sql" />
+    <Build Include="audit\Stored Procedures\sp_LnkUpdate.sql" />
+    <Build Include="audit\Stored Procedures\sp_LogFinish.sql" />
     <Build Include="Security\crs.sql" />
     <Build Include="Security\audit.sql" />
     <Build Include="dbo\Functions\fn_GenerationRandomField.sql" />
     <Build Include="dbo\Stored Procedures\sp_GenerationRandomArray.sql" />
     <None Include="Dictionaries\metamap.sql" />
     <None Include="Dictionaries\session_state.sql" />
-    <Build Include="dbo\Tables\data_source.sql" />
-    <Build Include="dbo\Tables\msgtype.sql" />
-    <Build Include="dbo\Tables\metaadapter.sql" />
+    <Build Include="Security\mq.sql" />
     <Build Include="Security\CGateUser.sql" />
     <Build Include="dbo\Functions\fn_GetBufferingDays.sql" />
     <Build Include="dbo\Functions\fn_GetSettingInt.sql" />
     <Build Include="audit\Functions\fn_log_IsLnk.sql" />
-    <Build Include="crs\Stored Procedures\load_orders_log_array.sql" />
+    <Build Include="crs\Stored Procedures\load_OrdersLogArray.sql" />
     <Build Include="Security\rmqRole.sql" />
     <Build Include="rmq\Stored Procedures\sp_clr_ReloadRabbitEndpoints.sql" />
     <Build Include="rmq\Stored Procedures\sp_clr_PostRabbitMsg.sql" />
@@ -144,18 +148,18 @@
     <Build Include="audit\Tables\AuditTypeSP.sql" />
     <Build Include="audit\Functions\fn_GetAuditTypeSP.sql" />
     <Build Include="audit\Functions\Template_LogProc.sql" />
-    <Build Include="audit\Stored Procedures\sp_rmq_PostSp.sql" />
+    <Build Include="audit\Stored Procedures\sp_RmqPostSp.sql" />
     <Build Include="audit\Stored Procedures\sp_Initialise.sql" />
     <Build Include="audit\Tables\LogText.sql" />
-    <Build Include="audit\Stored Procedures\sp_LogText_Add.sql" />
-    <Build Include="audit\Stored Procedures\sp_rmq_PostLT.sql" />
+    <Build Include="audit\Stored Procedures\sp_LogTextAdd.sql" />
+    <Build Include="audit\Stored Procedures\sp_RmqPostLt.sql" />
     <Build Include="audit\Functions\fn_GetAuditTypeLT.sql" />
     <Build Include="audit\Tables\AuditTypeLT.sql" />
-    <Build Include="audit\Stored Procedures\sp_lnkLT_Insert.sql" />
+    <Build Include="audit\Stored Procedures\sp_LnkLtInsert.sql" />
     <Build Include="audit\Tables\LogError.sql" />
     <Build Include="audit\Stored Procedures\load_LogText.sql" />
-    <Build Include="audit\Tables\LogText_buffer.sql" />
-    <Build Include="audit\Tables\LogError_buffer.sql" />
+    <Build Include="audit\Tables\LogTextBuffer.sql" />
+    <Build Include="audit\Tables\LogErrorBuffer.sql" />
     <Build Include="audit\Stored Procedures\load_LogError.sql" />
   </ItemGroup>
   <ItemGroup>

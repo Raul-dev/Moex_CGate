@@ -1,4 +1,4 @@
-﻿/*
+/*
 */
 CREATE     PROCEDURE [audit].[load_LogText]
   @SessionId         bigint         = NULL,
@@ -12,21 +12,21 @@ CREATE     PROCEDURE [audit].[load_LogText]
   @Debug             bit            = 0
 AS
 BEGIN
-  
+
 SET CONCAT_NULL_YIELDS_NULL ON
 SET NOCOUNT ON
 DECLARE @LogID int, @ProcedureName varchar(510), @ProcedureParams varchar(max), @ProcedureInfo varchar(max), @AuditEnable nvarchar(256)
 SET @AuditEnable = [dbo].[fn_GetSettingValue]('FullAuditEnabled')
 SET @ProcedureName = '[' + OBJECT_SCHEMA_NAME(@@PROCID)+'].['+OBJECT_NAME(@@PROCID)+']'
-IF @AuditEnable IS NOT NULL 
+IF @AuditEnable IS NOT NULL
 BEGIN
   IF OBJECT_ID('tempdb..#LogProc') IS NULL
      SELECT * INTO #LogProc FROM [audit].[Template_LogProc]()
-  
+
   SET @ProcedureParams =
     '@SessionId=' + ISNULL(LTRIM(STR(@SessionId, 30)),'NULL') + ', ' +
     '@BufferHistoryMode=' + ISNULL(LTRIM(STR(@BufferHistoryMode, 30)),'NULL') + ', ' +
-    '@BufferId=' + ISNULL(LTRIM(STR(@BufferId, 30)),'NULL') 
+    '@BufferId=' + ISNULL(LTRIM(STR(@BufferId, 30)),'NULL')
 END
 SET XACT_ABORT OFF
 
@@ -45,40 +45,40 @@ ELSE
   SET @BufferHistoryDays = dbo.fn_GetBufferingDays(@ProcedureName)
 
 CREATE TABLE #LockedList (
-    [buffer_id] bigint Primary key,
-    [msg_id] uniqueidentifier,
-    [msgtype_id] tinyint
+    [BufferId] bigint Primary key,
+    [MessageId] uniqueidentifier,
+    [MessageTypeId] tinyint
 )
 
 BEGIN TRY
   BEGIN TRANSACTION
 
-    IF @AuditEnable IS NOT NULL 
-        EXEC [audit].[sp_log_Start] @AuditEnable = @AuditEnable, @ProcedureName = @ProcedureName, @ProcedureParams = @ProcedureParams, @LogID = @LogID OUTPUT
+    IF @AuditEnable IS NOT NULL
+        EXEC [audit].[sp_LogStart] @AuditEnable = @AuditEnable, @ProcedureName = @ProcedureName, @ProcedureParams = @ProcedureParams, @LogID = @LogID OUTPUT
 
     IF ISNULL(@BufferId, 0) = 0
       INSERT INTO #LockedList
-      SELECT TOP 200000 [buffer_id], [msg_id], [msgtype_id]
-      FROM [audit].[LogText_buffer] b 
-      WHERE b.[dt_update] = @MinDate
-      ORDER BY [buffer_id]
+      SELECT TOP 200000 [BufferId], [MessageId], [MessageTypeId]
+      FROM [audit].[LogTextBuffer] b
+      WHERE b.[UpdatedAt] = @MinDate
+      ORDER BY [BufferId]
     ELSE
       INSERT INTO #LockedList
-      SELECT TOP 200000 [buffer_id], [msg_id], [msgtype_id]
-      FROM [audit].[LogText_buffer] b 
-      WHERE [buffer_id] >= @BufferId
-        AND b.[dt_update] = @MinDate
-      ORDER BY [buffer_id]
+      SELECT TOP 200000 [BufferId], [MessageId], [MessageTypeId]
+      FROM [audit].[LogTextBuffer] b
+      WHERE [BufferId] >= @BufferId
+        AND b.[UpdatedAt] = @MinDate
+      ORDER BY [BufferId]
 
     SET @RowCount = @@ROWCOUNT;
     IF @Debug = 1 BEGIN
       SELECT [@RowCount] = @RowCount, [@BufferId] = @BufferId
       SELECT '#LockedList', * FROM #LockedList
     END
-    IF @RowCount = 0 
+    IF @RowCount = 0
     BEGIN
-    
-        EXEC [audit].[sp_log_Finish] @LogID = @LogID, @RowCount = 0, @ProcedureInfo = 'Empty buffer'
+
+        EXEC [audit].[sp_LogFinish] @LogID = @LogID, @RowCount = 0, @ProcedureInfo = 'Empty buffer'
         COMMIT TRANSACTION
         RETURN 0
     END
@@ -95,9 +95,9 @@ BEGIN TRY
         [SysUserName],
         [SysHostName],
         [SysAppName],
-        [SPID] 
+        [SPID]
     )
-    SELECT 
+    SELECT
         [ObjectId]      = TRY_CAST(ObjectId AS int),
         [KeyField]      = NULLIF([KeyField],'NULL'),
         [KeyValue]      = NULLIF([KeyValue],'NULL'),
@@ -110,9 +110,9 @@ BEGIN TRY
         [SysHostName]   = NULLIF([SysHostName],'NULL'),
         [SysAppName]    = NULLIF([SysAppName],'NULL'),
         [SPID]          = TRY_CAST([SPID] AS int)
-    FROM [audit].[LogText_buffer] b
-    OUTER APPLY OPENJSON(b.msg,'$') 
-    WITH 
+    FROM [audit].[LogTextBuffer] b
+    OUTER APPLY OPENJSON(b.MessageBody,'$')
+    WITH
     (
         [ObjectId]     varchar(50)   '$[0]',
         [KeyField]     varchar(128)  '$[1]',
@@ -128,9 +128,9 @@ BEGIN TRY
         [SPID]         varchar(50)   '$[11]'
     ) M
 
-    SET @BufferId = (SELECT MAX([buffer_id]) FROM #LockedList)
+    SET @BufferId = (SELECT MAX([BufferId]) FROM #LockedList)
     IF @Debug = 1 BEGIN
-        SELECT 
+        SELECT
             [ObjectId]      = TRY_CAST(ObjectId AS int),
             [KeyField]      = NULLIF([KeyField],'NULL'),
             [KeyValue]      = NULLIF([KeyValue],'NULL'),
@@ -143,9 +143,9 @@ BEGIN TRY
             [SysHostName]   = NULLIF([SysHostName],'NULL'),
             [SysAppName]    = NULLIF([SysAppName],'NULL'),
             [SPID]          = TRY_CAST([SPID] AS int)
-        FROM [audit].[LogText_buffer] b
-        OUTER APPLY OPENJSON(b.msg,'$') 
-        WITH 
+        FROM [audit].[LogTextBuffer] b
+        OUTER APPLY OPENJSON(b.MessageBody,'$')
+        WITH
         (
             [ObjectId]     varchar(50)   '$[0]',
             [KeyField]     varchar(128)  '$[1]',
@@ -162,53 +162,53 @@ BEGIN TRY
         ) M
 
         SELECT [@BufferId] = @BufferId
-    END    
-    
+    END
+
     -- Update buffer table
     UPDATE b SET
-        [dt_update] = @UpdateDate
-    FROM [audit].[LogText_buffer] AS b
-    INNER JOIN #LockedList l ON l.[buffer_id] = b.[buffer_id]
+        [UpdatedAt] = @UpdateDate
+    FROM [audit].[LogTextBuffer] AS b
+    INNER JOIN #LockedList l ON l.[BufferId] = b.[BufferId]
 
-    EXEC [audit].[sp_log_Finish] @LogID = @LogID, @RowCount = @RowCount
+    EXEC [audit].[sp_LogFinish] @LogID = @LogID, @RowCount = @RowCount
 
   COMMIT TRANSACTION
-  
-  IF @BufferHistoryMode = 1 AND NOT EXISTS (SELECT 1 FROM [audit].[LogText_buffer] WHERE [is_error] = 1)
+
+  IF @BufferHistoryMode = 1 AND NOT EXISTS (SELECT 1 FROM [audit].[LogTextBuffer] WHERE [IsError] = 1)
   BEGIN
       DELETE b
-      FROM [audit].[LogText_buffer] b
-      INNER JOIN #LockedList t ON b.[buffer_id] = t.[buffer_id]
+      FROM [audit].[LogTextBuffer] b
+      INNER JOIN #LockedList t ON b.[BufferId] = t.[BufferId]
   END
-   
-  IF @BufferHistoryMode >= 2 AND NOT EXISTS (SELECT 1 FROM [audit].[LogText_buffer] WHERE [is_error] = 1)
+
+  IF @BufferHistoryMode >= 2 AND NOT EXISTS (SELECT 1 FROM [audit].[LogTextBuffer] WHERE [IsError] = 1)
     DELETE b
-    FROM [audit].[LogText_buffer] b
-    WHERE DATEDIFF(DD, @UpdateDate, [dt_update]) > @BufferHistoryDays
+    FROM [audit].[LogTextBuffer] b
+    WHERE DATEDIFF(DD, @UpdateDate, [UpdatedAt]) > @BufferHistoryDays
 
 END TRY
 BEGIN CATCH
   SET @ErrorMessage = ERROR_MESSAGE()
-  IF XACT_STATE() <> 0 AND @@TRANCOUNT > 0 
+  IF XACT_STATE() <> 0 AND @@TRANCOUNT > 0
     ROLLBACK TRANSACTION
 
   DECLARE @err_session_id bigint;
   SET @err_session_id = ISNULL(@SessionId, 0)
-  INSERT [dbo].[session_log] ([session_id], [session_state_id], [error_message])
+  INSERT [mq].[SessionLog] ([SessionId], [SessionStateId], [ErrorMessage])
   SELECT
-    [session_id] = @err_session_id,
-    [session_state_id] = 3,
-    [error_message] = 'Table [audit].[LogText_buffer]. Error: ' + @ErrorMessage
+    [SessionId] = @err_session_id,
+    [SessionStateId] = 3,
+    [ErrorMessage] = 'Table [audit].[LogTextBuffer]. Error: ' + @ErrorMessage
 
-  UPDATE b SET 
-    [session_id] = @err_session_id,
-    [is_error]   = 1,
-    [dt_update]  = ISNULL(@UpdateDate, GetDate())
-  FROM [audit].[LogText_buffer] b
-  INNER JOIN #LockedList l ON b.[buffer_id] = l.[buffer_id]
-  WHERE [is_error] = 0
+  UPDATE b SET
+    [SessionId] = @err_session_id,
+    [IsError]   = 1,
+    [UpdatedAt]  = ISNULL(@UpdateDate, GetDate())
+  FROM [audit].[LogTextBuffer] b
+  INNER JOIN #LockedList l ON b.[BufferId] = l.[BufferId]
+  WHERE [IsError] = 0
 
-  EXEC [audit].[sp_log_Finish] @LogID = @LogID, @RowCount = @RowCount, @ErrorMessage = @ErrorMessage
+  EXEC [audit].[sp_LogFinish] @LogID = @LogID, @RowCount = @RowCount, @ErrorMessage = @ErrorMessage
   EXEC [audit].[sp_Print] @StrPrint = @ErrorMessage
   RETURN -1
 END CATCH

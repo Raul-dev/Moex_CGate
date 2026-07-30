@@ -55,7 +55,7 @@ try{
             Write-Host "Start BUILD "$VSProjectName
             Write-Host " -t:rebuild -p:WarningLevel=0 -p:NoWarn=SQL71562 -p:Configuration=Release "$Projectpath\$Project
 
-            & "$msbuildLocation" -t:rebuild -p:WarningLevel=0 -p:NoWarn=SQL71562 -p:Configuration=Release $Projectpath\$Project
+            & "$msbuildLocation" -restore:false -t:rebuild -p:WarningLevel=0 -p:NoWarn=SQL71562 -p:Configuration=Release -p:RestoreEnabled=false -p:ResolveNuGetPackages=false $Projectpath\$Project
 
             IF ($LASTEXITCODE -ne 0){
                 throw "Build failed."

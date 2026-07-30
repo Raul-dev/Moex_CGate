@@ -74,21 +74,25 @@
     <Folder Include="Assemblies\" />
     <Folder Include="Dictionaries" />
     <Folder Include="ScriptsFolder" />
+    <Folder Include="mq\" />
+    <Folder Include="mq\Tables\" />
+    <Folder Include="mq\Stored Procedures\" />
   </ItemGroup>
   <ItemGroup>
     <Build Include="dbo\Tables\Setting.sql" />
-    <Build Include="dbo\Tables\session_state.sql" />
-    <Build Include="dbo\Tables\session_log.sql" />
-    <Build Include="dbo\Tables\session.sql" />
-    <Build Include="dbo\Tables\msgtype.sql" />
-    <Build Include="dbo\Tables\metamap.sql" />
-    <Build Include="dbo\Tables\metaadapter.sql" />
-    <Build Include="dbo\Tables\data_source.sql" />
+    <Build Include="mq\Tables\DataSource.sql" />
+    <Build Include="mq\Tables\SessionState.sql" />
+    <Build Include="mq\Tables\SessionLog.sql" />
+    <Build Include="mq\Tables\Session.sql" />
+    <Build Include="mq\Tables\MetaMap.sql" />
+    <Build Include="mq\Tables\MessageType.sql" />
+    <Build Include="mq\Tables\MetaAdapter.sql" />
+    <Build Include="mq\Stored Procedures\sp_SaveSessionState.sql" />
     <Build Include="rmq\Tables\RabbitSetting.sql" />
     <Build Include="rmq\Tables\RabbitEndpoint.sql" />
     <Build Include="audit\Tables\LogError.sql" />
-    <Build Include="audit\Tables\LogError_buffer.sql" />
-    <Build Include="audit\Tables\LogText_buffer.sql" />
+    <Build Include="audit\Tables\LogErrorBuffer.sql" />
+    <Build Include="audit\Tables\LogTextBuffer.sql" />
     <Build Include="audit\Tables\Setting.sql" />
     <Build Include="audit\Tables\AuditTypeSP.sql" />
     <Build Include="audit\Tables\LogText.sql" />
@@ -103,7 +107,6 @@
     <Build Include="audit\Functions\fn_GetAuditTypeLT.sql" />
     <Build Include="audit\Functions\fn_log_IsLnk.sql" />
     <Build Include="audit\Functions\Template_LogProc.sql" />
-    <Build Include="dbo\Stored Procedures\sp_SaveSessionState.sql" />
     <Build Include="rmq\Stored Procedures\sp_clr_ReloadRabbitEndpoints.sql" />
     <Build Include="rmq\Stored Procedures\sp_clr_PostRabbitMsg.sql" />
     <Build Include="rmq\Stored Procedures\sp_clr_InitialiseRabbitMq.sql" />
@@ -114,21 +117,22 @@
     <Build Include="rmq\Stored Procedures\sp_UpsertRabbitEndpoint.sql" />
     <Build Include="audit\Stored Procedures\load_LogError.sql" />
     <Build Include="audit\Stored Procedures\load_LogText.sql" />
-    <Build Include="audit\Stored Procedures\sp_log_Start.sql" />
-    <Build Include="audit\Stored Procedures\sp_rmq_PostSp.sql" />
+    <Build Include="audit\Stored Procedures\sp_LogStart.sql" />
+    <Build Include="audit\Stored Procedures\sp_RmqPostSp.sql" />
     <Build Include="audit\Stored Procedures\sp_Initialise.sql" />
-    <Build Include="audit\Stored Procedures\sp_LogText_Add.sql" />
-    <Build Include="audit\Stored Procedures\sp_rmq_PostLT.sql" />
-    <Build Include="audit\Stored Procedures\sp_log_Finish.sql" />
-    <Build Include="audit\Stored Procedures\sp_log_Info.sql" />
-    <Build Include="audit\Stored Procedures\sp_lnkLT_Insert.sql" />
-    <Build Include="audit\Stored Procedures\sp_lnk_Update.sql" />
-    <Build Include="audit\Stored Procedures\sp_lnk_Insert.sql" />
+    <Build Include="audit\Stored Procedures\sp_LogTextAdd.sql" />
+    <Build Include="audit\Stored Procedures\sp_RmqPostLt.sql" />
+    <Build Include="audit\Stored Procedures\sp_LogFinish.sql" />
+    <Build Include="audit\Stored Procedures\sp_LogInfo.sql" />
+    <Build Include="audit\Stored Procedures\sp_LnkLtInsert.sql" />
+    <Build Include="audit\Stored Procedures\sp_LnkUpdate.sql" />
+    <Build Include="audit\Stored Procedures\sp_LnkInsert.sql" />
     <Build Include="audit\Stored Procedures\sp_Print.sql">
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>
     <Build Include="Security\rmq_1.sql" />
     <Build Include="Security\audit.sql" />
+    <Build Include="Security\mq.sql" />
     <Build Include="Security\CGateUser.sql" />
     <None Include="Dictionaries\metamap.sql">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

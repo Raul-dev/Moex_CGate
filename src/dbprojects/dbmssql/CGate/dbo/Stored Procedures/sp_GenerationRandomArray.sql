@@ -1,11 +1,11 @@
-﻿--SELECT  RAND()
-/*TRUNCATE TABLE  [crs].[orders_log_buffer]
-TRUNCATE TABLE [dbo].[msgqueue] 
-SELECT * FROM [crs].[orders_log_buffer]
-SELECT * FROM [dbo].[msgqueue]
-EXEC sp_GenerationRandomArray 'crs','orders_log'
+--SELECT  RAND()
+/*TRUNCATE TABLE  [crs].[OrdersLogBuffer]
+TRUNCATE TABLE [mq].[MessageQueue] 
+SELECT * FROM [crs].[OrdersLogBuffer]
+SELECT * FROM [mq].[MessageQueue]
+EXEC sp_GenerationRandomArray 'crs','OrdersLog'
 SELECT * FROM [dbo].[DataGeneration]
-TRUNCATE TABLE [dbo].[msgqueue]
+TRUNCATE TABLE [mq].[MessageQueue]
 [["55","42","205","90","24","0","176","81","33","106","0.297903","CEE77209-0E03-4CB2-9076-4CC8AACD2B27","0.463252","29","54","0.346265","CE1DEF8B-7F57-462C-91B4-5AE43F9703B2","39F706CF-4E6F-48ED-B66B-231C5D27FD0D","558D5F92-C888-442B-8581-FE854C62F8B8","239","30DDF115-78CA-4CC0-BC69-950E6CCCA660","44BDE929-0C36-42D6-8C1E-A0B126DA2FC8","D00D1BC0-E1BB-4202-8037-77ACA2C4E5DB","6E32C3E0-363D-4879-99D6-E879B9C9DDE3","227","255","78","95","242","44","178","183","234","35","215","178","59"]]
 
 */
@@ -77,7 +77,7 @@ BEGIN
   SET @MsgId = NEWID()
 
   IF NOT @Array IS NULL 
-      INSERT [dbo].[msgqueue] (session_id, msg_id, msg, msg_key)
+      INSERT [mq].[MessageQueue] ([SessionId], [MessageId], [MessageBody], [MessageKey])
       SELECT 0, @MsgId, @Array, @SchemaName + '.' + @TableName
   ELSE BEGIN
     SET @StrMsg = 'NULL msg skip'

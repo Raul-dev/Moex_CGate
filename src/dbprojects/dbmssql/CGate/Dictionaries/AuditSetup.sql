@@ -30,12 +30,12 @@ VALUES
 IF NOT EXISTS(SELECT * FROM [audit].[AuditTypeSP] )
 INSERT [audit].[AuditTypeSP]([AuditTypeID],[Code],[Description])
 VALUES 
-  (1,'LocalTable','Лог добавляется/меняется построчтно sp_log_Start sp_log_Info sp_log_Finish'),
-  (2,'LinkedServer', 'Лог добавляется/меняется построчтно sp_log_Start sp_log_Info sp_log_Finish'),
-  (3,'Rabbit','Лог добавляется только в sp_log_Start, режим отладки'),
-  (4,'LocalTablePackage', 'Лог добавляется пакетом в sp_log_Finish'),
-  (5,'LinkedServerPackage', 'Лог добавляется пакетом в sp_log_Finish'),
-  (6,'RabbitPackage', 'Лог добавляется пакетом в sp_log_Finish')
+  (1,'LocalTable','Лог добавляется/меняется построчтно sp_LogStart sp_LogInfo sp_LogFinish'),
+  (2,'LinkedServer', 'Лог добавляется/меняется построчтно sp_LogStart sp_LogInfo sp_LogFinish'),
+  (3,'Rabbit','Лог добавляется только в sp_LogStart, режим отладки'),
+  (4,'LocalTablePackage', 'Лог добавляется пакетом в sp_LogFinish'),
+  (5,'LinkedServerPackage', 'Лог добавляется пакетом в sp_LogFinish'),
+  (6,'RabbitPackage', 'Лог добавляется пакетом в sp_LogFinish')
 
 DECLARE @database VARCHAR(200) = DB_NAME(),
     @Dbserver NVARCHAR(200) = 'HOMEST', --  '$(LinkSRVLog)' --- TODO Addres variable

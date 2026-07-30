@@ -3,7 +3,7 @@
 ) RETURNS int
 AS 
 BEGIN
-  RETURN CASE @ProcedureName WHEN '[crs].[load_orders_log]' THEN 1
+  RETURN CASE @ProcedureName WHEN '[crs].[load_OrdersLog]' THEN 1
   ELSE 1
   END
 END

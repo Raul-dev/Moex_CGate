@@ -9,4 +9,3 @@
 GO
 CREATE UNIQUE NONCLUSTERED INDEX [IDX_heartbeat_REV_U]
     ON [crs].[heartbeat]([replRev] ASC);
-

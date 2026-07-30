@@ -1,7 +1,7 @@
 
-IF NOT EXISTS(SELECT 1 FROM [dbo].[metaadapter] )
+IF NOT EXISTS(SELECT 1 FROM [mq].[MetaAdapter] )
 BEGIN
-    INSERT INTO [dbo].[metaadapter] ([metaadapter_id], [name]) 
+    INSERT INTO [mq].[MetaAdapter] ([MetaAdapterId], [Name])
     SELECT 1, N'CGateJson'
     UNION ALL SELECT 2, N'CGateAuditSP'
     UNION ALL SELECT 3, N'CGateAuditLT'
@@ -11,52 +11,52 @@ BEGIN
 END
 DECLARE @metamap TABLE
 (
-    [metamap_id]            smallint       NOT NULL,
-    [msg_key]               nvarchar(256)  NOT NULL,
-    [table_name]            nvarchar(128)  NOT NULL,
-    [metaadapter_id]        tinyint        NULL,
-    [namespace]             nvarchar (256) NULL,
-    [namespace_ver]         nvarchar (256) NULL,
-    [etl_query]             nvarchar (256) NULL,
-    [import_query]          nvarchar (256) NULL,
-    [is_enable]             bit            NULL
+    [MetaMapId]        SMALLINT       NOT NULL,
+    [MessageKey]       NVARCHAR(256)  NOT NULL,
+    [TableName]        NVARCHAR(128)  NOT NULL,
+    [MetaAdapterId]    TINYINT        NULL,
+    [Namespace]        NVARCHAR (256) NULL,
+    [NamespaceVersion] NVARCHAR (256) NULL,
+    [EtlProcedure]     NVARCHAR (256) NULL,
+    [ImportQuery]      NVARCHAR (256) NULL,
+    [IsEnabled]        BIT            NULL
 )
-INSERT @metamap ([metamap_id], [msg_key], [table_name], [metaadapter_id], [namespace], [namespace_ver], [etl_query], [import_query], [is_enable])
+INSERT @metamap ([MetaMapId], [MessageKey], [TableName], [MetaAdapterId], [Namespace], [NamespaceVersion], [EtlProcedure], [ImportQuery], [IsEnabled])
 VALUES
-(3, N'Unknown', N'[audit].[LogText_buffer]', 3, N'audit.LogText', N'audit.AuditLT/version1.01', N'[audit].[load_LogText]', NULL, 1),
-(4, N'Unknown', N'[audit].[LogError_buffer]', 4, N'audit.LogError', N'audit.AuditErr/version1.01', N'[audit].[load_LogError]', NULL, 0)
+(3, N'Unknown', N'[audit].[LogTextBuffer]', 3, N'audit.LogText', N'audit.AuditLT/version1.01', N'[audit].[load_LogText]', NULL, 1),
+(4, N'Unknown', N'[audit].[LogErrorBuffer]', 4, N'audit.LogError', N'audit.AuditErr/version1.01', N'[audit].[load_LogError]', NULL, 0)
 
 IF EXISTS ( 
-    SELECT 1 FROM [dbo].[metamap] d 
-    LEFT OUTER JOIN @metamap s ON s.[metamap_id] = d.[metamap_id]
-    WHERE s.[metamap_id] IS NULL) THROW 60000, N'The table [dbo].[metamap] was change.', 1;
+    SELECT 1 FROM [mq].[MetaMap] d
+    LEFT OUTER JOIN @metamap s ON s.[MetaMapId] = d.[MetaMapId]
+    WHERE s.[MetaMapId] IS NULL) THROW 60000, N'The table [mq].[MetaMap] was change.', 1;
 
 
 
-MERGE INTO [dbo].[metamap] trg
+MERGE INTO [mq].[MetaMap] trg
 USING 
-@metamap src ON src.[metamap_id] = trg.[metamap_id]
+@metamap src ON src.[MetaMapId] = trg.[MetaMapId]
 WHEN MATCHED THEN UPDATE SET 
-    [msg_key]        = src.[msg_key],
-    [table_name]     = src.[table_name],
-    [metaadapter_id] = src.[metaadapter_id],
-    [namespace]      = src.[namespace],
-    [namespace_ver]  = src.[namespace_ver],
-    [etl_query]      = src.[etl_query],
-    [import_query]   = src.[import_query],
-    [is_enable]      = src.[is_enable]
+    [MessageKey]       = src.[MessageKey],
+    [TableName]        = src.[TableName],
+    [MetaAdapterId]    = src.[MetaAdapterId],
+    [Namespace]        = src.[Namespace],
+    [NamespaceVersion] = src.[NamespaceVersion],
+    [EtlProcedure]     = src.[EtlProcedure],
+    [ImportQuery]      = src.[ImportQuery],
+    [IsEnabled]        = src.[IsEnabled]
 WHEN NOT MATCHED BY TARGET THEN 
-INSERT ([metamap_id], [msg_key], [table_name], [metaadapter_id], [namespace], [namespace_ver], [etl_query], [import_query], [is_enable])
+INSERT ([MetaMapId], [MessageKey], [TableName], [MetaAdapterId], [Namespace], [NamespaceVersion], [EtlProcedure], [ImportQuery], [IsEnabled])
     VALUES (
-        src.[metamap_id],
-        src.[msg_key],
-        src.[table_name],
-        src.[metaadapter_id],
-        src.[namespace],
-        src.[namespace_ver],
-        src.[etl_query],
-        src.[import_query],
-        src.[is_enable]
+        src.[MetaMapId],
+        src.[MessageKey],
+        src.[TableName],
+        src.[MetaAdapterId],
+        src.[Namespace],
+        src.[NamespaceVersion],
+        src.[EtlProcedure],
+        src.[ImportQuery],
+        src.[IsEnabled]
     )
 WHEN NOT MATCHED BY SOURCE THEN DELETE;
 

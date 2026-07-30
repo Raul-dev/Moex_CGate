@@ -244,15 +244,90 @@ Post-deployment скрипт автоматически выполняет:
 
 ## 6. Правила разработки
 
-### 6.1 Соглашения об именовании
+### 6.1 Соглашения об именовании (целевой стандарт — Microsoft PascalCase)
 
-| Объект | Префикс/Суффикс | Пример |
-|--------|-----------------|--------|
-| Таблицы | Без префикса | `orders_log` |
-| Представления | `v_` | `v_OrdersSummary` |
-| Хранимые процедуры | `sp_` или схема + `_` | `crs.load_orders_log` |
+**Утверждено для рефакторинга:**
+
+| Решение | Значение |
+|---------|----------|
+| Столбец `msg` | → **`MessageBody`** |
+| ETL-процедуры | префикс **`load_`** сохраняется (`crs.load_OrdersLog`, не `usp_Load*`) |
+| Схема сервиса MQ | **`mq`** (metamap, session, msgqueue и т.д.) |
+| Обратная совместимость | **без Synonyms** — правки по всему проекту до рабочего состояния |
+
+| Объект | Правило | Пример |
+|--------|---------|--------|
+| Схема | lowercase, домен | `mq`, `crs`, `audit`, `rmq` |
+| Таблица | PascalCase, единственное число | `MetaMap`, `OrdersLogBuffer` |
+| Столбец | PascalCase | `SessionId`, `MessageKey`, `MessageBody` |
+| Буфер | суффикс `Buffer` | `OrdersLogBuffer`, `LogTextBuffer` |
+| Представления | `v_` | `v_MetaMapActive` |
+| Процедуры (операционные) | `sp_` | `mq.sp_SaveSessionState` |
+| Процедуры (ETL) | **`load_`** | `crs.load_OrdersLog` |
 | Функции | `fn_` | `fn_GetSettingValue` |
 | CLR-процедуры | `sp_clr_` | `rmq.sp_clr_PostRabbitMsg` |
+| PK / FK / DF | `PK_`, `FK_`, `DF_<Schema>_<Table>_<Column>` | `PK_mq_MetaMap` |
+
+**Маппинг частых столбцов (snake_case → PascalCase):**
+
+| Было | Станет |
+|------|--------|
+| `msg` | **`MessageBody`** |
+| `msg_key` | `MessageKey` |
+| `msg_id` | `MessageId` |
+| `msgtype_id` | `MessageTypeId` |
+| `session_id` | `SessionId` |
+| `dt_create` / `dt_update` | `CreatedAt` / `UpdatedAt` |
+| `is_enable` / `is_error` | `IsEnabled` / `IsError` |
+| `buffer_id` | `BufferId` |
+
+*До завершения рефакторинга в коде могут встречаться старые имена (`dbo.metamap`, `msg`).*
+
+### 6.1.1 Схемы после рефакторинга
+
+| Схема | Назначение |
+|-------|------------|
+| `dbo` | Глобальные настройки: `Setting`, `DataGeneration`, общие `fn_*` |
+| **`mq`** | Инфраструктура MQ-сервиса: MetaMap, Session, MessageQueue, UploadBuffer |
+| `crs` | Рабочие данные MOEX + `*_Buffer` + `load_*` |
+| `audit` | Аудит + `*_Buffer` + `load_*` |
+| `rmq` | RabbitMQ CLR/endpoints |
+
+---
+
+## 7. План рефакторинга (mq + PascalCase)
+
+### Фаза 0 — подготовка
+- Inventory объектов SSDT + зависимости (C#, Python, post-deploy)
+- Naming guide (см. §6.1)
+
+### Фаза 1 — схема `mq`
+- `Security/mq.sql`, роль `mq`
+- Перенос из `dbo`: MetaMap, MetaAdapter, MessageType, MessageQueue, Session, SessionState, SessionLog, DataSource, `sp_SaveSessionState`
+- **Synonyms не создаём** — сразу обновлять все ссылки в SSDT, C#, Python, скриптах
+
+### Фаза 2 — PascalCase в `mq`
+- Rename таблиц/столбцов; `msg` → **`MessageBody`**
+- Добавить `mq.UploadBuffer` в SSDT (CopyMsg)
+- Обновить `Dictionaries/metamap.sql`
+
+### Фаза 3 — PascalCase в `crs` / `audit`
+- Buffer → `*Buffer`, ETL: **`load_OrdersLog`**, **`load_LogText`** (префикс `load_` без изменений)
+- Обновить computed columns, MERGE, audit wrappers
+
+### Фаза 4 — приложения
+- `MQ.dal`, `DBHelper`, CopyMsg, Python `mq-copy`
+- `-q mq.Upload` вместо `dbo.Upload`
+
+### Фаза 5 — финализация
+- Regression SendMsg / GetMsg / CopyMsg / load_* на Docker SQL
+- Обновить README / AGENTS.md во всех затронутых модулях
+
+**Не в scope первой волны:** rename CLR/`rmq.sp_clr_*`, linked server.
+
+**Стратегия миграции:** одна ветка, полный проход по репозиторию (БД + сервисы + Tools + post-deploy). Промежуточное состояние «половина старых имён» не поддерживается.
+
+---
 
 ### 6.2 Рекомендации по коду
 

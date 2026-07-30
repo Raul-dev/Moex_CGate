@@ -34,13 +34,13 @@ docker run -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=yourStrong(!)Password" -p 14
 
 TRANSACTION ISOLATION LEVEL READ COMMITTED
 --Performance buffer
-SELECT CONVERT(DATETIME2(0) , dt_create) [Time],  count(DISTINCT msg_id) [Messages], count(*) [Orders], min(dt_create), max(dt_create)
-FROM [crs].[orders_log_buffer]
-GROUP BY  CONVERT(DATETIME2(0), dt_create)
+SELECT CONVERT(DATETIME2(0), [CreatedAt]) [Time], COUNT(DISTINCT [MessageId]) [Messages], COUNT(*) [Orders], MIN([CreatedAt]), MAX([CreatedAt])
+FROM [crs].[OrdersLogBuffer]
+GROUP BY CONVERT(DATETIME2(0), [CreatedAt])
 ORDER BY 1
 
 --Performance Load
-SELECT CONVERT(DATETIME2(0) , dt_update) [Time],  count(DISTINCT msg_id) [Messages], count(*) [Orders], min(dt_update), max(dt_update)
-FROM [crs].[orders_log_buffer]
-GROUP BY  CONVERT(DATETIME2(0), dt_update)
+SELECT CONVERT(DATETIME2(0), [UpdatedAt]) [Time], COUNT(DISTINCT [MessageId]) [Messages], COUNT(*) [Orders], MIN([UpdatedAt]), MAX([UpdatedAt])
+FROM [crs].[OrdersLogBuffer]
+GROUP BY CONVERT(DATETIME2(0), [UpdatedAt])
 ORDER BY 1
