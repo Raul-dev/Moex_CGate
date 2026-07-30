@@ -1,8 +1,8 @@
-﻿
+
 /*
 BEGIN TRAN
 DECLARE @LogID int 
-EXEC [audit].sp_log_Start @AuditEnable ='FullAuditEnabled', @LogID = @LogID output
+EXEC [audit].sp_LogStart @AuditEnable ='FullAuditEnabled', @LogID = @LogID output
 SELECT @LogID
 
 SELECT * FROM [audit].[LogProcedures]
@@ -10,7 +10,7 @@ ROLLBACk
 
 */
 
-CREATE   PROCEDURE [audit].[sp_log_Start]   
+CREATE   PROCEDURE [audit].[sp_LogStart]   
     @AuditEnable nvarchar(256) = NULL,
     @ProcedureName   varchar(512)  = NULL,
     @ProcedureParams varchar(MAX)  = NULL,
@@ -47,7 +47,7 @@ BEGIN
 
     IF @AuditTypeID = 1
     --SNAPSHOT ISOLATION LEVEL Remote access is not supported for transaction isolation level "SNAPSHOT".
-        EXEC [audit].sp_lnk_Insert
+        EXEC [audit].sp_LnkInsert
             @MainID           = @MainID,
             @ParentID         = @ParentID,
             @StartTime        = @StartTime,
@@ -62,7 +62,7 @@ BEGIN
             @LogID            = @LogID OUTPUT
     
     IF @AuditTypeID = 2
-        EXEC [LinkSRVLog].[Log].[audit].sp_lnk_Insert
+        EXEC [LinkSRVLog].[Log].[audit].sp_LnkInsert
             @MainID           = @MainID,
             @ParentID         = @ParentID,
             @StartTime        = @StartTime,

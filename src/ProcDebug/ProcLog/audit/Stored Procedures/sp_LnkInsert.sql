@@ -1,5 +1,5 @@
-﻿
-CREATE   PROCEDURE [audit].[sp_lnk_Insert](
+
+CREATE   PROCEDURE [audit].[sp_LnkInsert](
   @MainID           bigint = NULL,
   @ParentID         bigint = NULL,
   @StartTime        datetime2(4),

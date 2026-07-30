@@ -1,7 +1,7 @@
 ﻿CREATE TABLE [audit].[AuditTypeSP] (
-    [AuditTypeID] INT           NOT NULL,
-    [Code]        VARCHAR (50)  NOT NULL,
-    [Description] VARCHAR (256) NULL,
+    [AuditTypeID] int           NOT NULL,
+    [Code]        varchar (50)  NOT NULL,
+    [Description] varchar (256) NULL,
     CONSTRAINT [PK_AuditTypeSP] PRIMARY KEY CLUSTERED ([AuditTypeID] ASC)
 );
 

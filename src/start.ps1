@@ -5,7 +5,7 @@
 # Parameters:
 # $IsDockerSql=$true - Run docker MSSQL server container with database CGate from \images\mssql\dacpac\CGate.dacpac
 #
-# Send test messages FROM table [CGate].[dbo].[msgqueue] to Rabbit by command:
+# Send test messages FROM table [CGate].[mq].[MessageQueue] to Rabbit by command:
 # .\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -d CGate -t mssql
 
 Param (

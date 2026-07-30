@@ -10,14 +10,14 @@ def parse_qualified_name(qualified_name: str) -> tuple[str, str]:
     if "." in trimmed:
         schema, table = trimmed.split(".", 1)
         return _validate(schema), _validate(table)
-    return "dbo", _validate(trimmed)
+    return "mq", _validate(trimmed)
 
 
 def append_buffer_suffix(qualified_name: str) -> str:
     schema, table = parse_qualified_name(qualified_name)
-    if table.lower().endswith("_buffer"):
+    if table.lower().endswith("buffer"):
         return f"{schema}.{table}"
-    return f"{schema}.{table}_buffer"
+    return f"{schema}.{table}Buffer"
 
 
 def build_create_buffer_table_sql(schema: str, table: str) -> str:
@@ -31,16 +31,16 @@ IF NOT EXISTS (
 )
 BEGIN
     CREATE TABLE [{schema}].[{table}] (
-        [buffer_id] BIGINT IDENTITY(1,1) NOT NULL,
-        [session_id] BIGINT NOT NULL,
-        [msg_key] NVARCHAR(256) NOT NULL,
-        [msg_id] UNIQUEIDENTIFIER NOT NULL,
-        [msg] VARCHAR(MAX) NULL,
-        [msgtype_id] TINYINT NULL,
-        [is_error] BIT NOT NULL CONSTRAINT [DF_{schema}_{table}_is_error] DEFAULT (0),
-        [dt_create] DATETIME2(4) NOT NULL CONSTRAINT [DF_{schema}_{table}_dt_create] DEFAULT (SYSDATETIME()),
-        [dt_update] DATETIME2(4) NOT NULL CONSTRAINT [DF_{schema}_{table}_dt_update] DEFAULT ('1900-01-01'),
-        CONSTRAINT [{pk}] PRIMARY KEY CLUSTERED ([buffer_id] ASC)
+        [BufferId] BIGINT IDENTITY(1,1) NOT NULL,
+        [SessionId] BIGINT NOT NULL,
+        [MessageKey] NVARCHAR(256) NOT NULL,
+        [MessageId] UNIQUEIDENTIFIER NOT NULL,
+        [MessageBody] VARCHAR(MAX) NULL,
+        [MessageTypeId] TINYINT NULL,
+        [IsError] BIT NOT NULL CONSTRAINT [DF_{schema}_{table}_is_error] DEFAULT (0),
+        [CreatedAt] DATETIME2(4) NOT NULL CONSTRAINT [DF_{schema}_{table}_dt_create] DEFAULT (SYSDATETIME()),
+        [UpdatedAt] DATETIME2(4) NOT NULL CONSTRAINT [DF_{schema}_{table}_dt_update] DEFAULT ('1900-01-01'),
+        CONSTRAINT [{pk}] PRIMARY KEY CLUSTERED ([BufferId] ASC)
     );
 END
 """

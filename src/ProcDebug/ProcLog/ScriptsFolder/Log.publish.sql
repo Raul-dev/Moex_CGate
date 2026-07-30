@@ -389,12 +389,12 @@ SET ANSI_NULLS, QUOTED_IDENTIFIER ON;
 
 
 GO
-PRINT N'Creating Procedure [audit].[sp_lnk_Insert]...';
+PRINT N'Creating Procedure [audit].[sp_LnkInsert]...';
 
 
 GO
 
-CREATE   PROCEDURE [audit].[sp_lnk_Insert](
+CREATE   PROCEDURE [audit].[sp_LnkInsert](
   @MainID           bigint = NULL,
   @ParentID         bigint = NULL,
   @StartTime        datetime2(4),
@@ -449,12 +449,12 @@ BEGIN
                 
 END;
 GO
-PRINT N'Creating Procedure [audit].[sp_lnk_Update]...';
+PRINT N'Creating Procedure [audit].[sp_LnkUpdate]...';
 
 
 GO
 
-CREATE     PROCEDURE [audit].[sp_lnk_Update]
+CREATE     PROCEDURE [audit].[sp_LnkUpdate]
     @LogID          int,
     @EndTime        datetime2(4)  = NULL,
     @RowCount       int  = NULL,
@@ -487,11 +487,11 @@ AS
 
 RETURN 0
 GO
-PRINT N'Creating Procedure [audit].[sp_log_Info]...';
+PRINT N'Creating Procedure [audit].[sp_LogInfo]...';
 
 
 GO
-CREATE   PROCEDURE [audit].[sp_log_Info] 
+CREATE   PROCEDURE [audit].[sp_LogInfo]
     @LogID         int          = NULL,
     @ProcedureInfo varchar(max) = NULL
 AS 
@@ -502,25 +502,25 @@ BEGIN
     SELECT @AuditTypeID = [audit].[fn_GetAuditTypeSP](NULL)
     IF @AuditTypeID = 1
     --SNAPSHOT ISOLATION LEVEL Remote access is not supported for transaction isolation level "SNAPSHOT".
-        EXEC [audit].sp_lnk_Update
+        EXEC [audit].sp_LnkUpdate
             @LogID         = @LogID,
             @ProcedureInfo = @ProcedureInfo
 
     IF @AuditTypeID = 2
-        EXEC [LinkSRVLog].[Log].[audit].sp_lnk_Update
+        EXEC [LinkSRVLog].[Log].[audit].sp_LnkUpdate
             @LogID         = @LogID,
             @ProcedureInfo = @ProcedureInfo
 
     RETURN 0
 END
 GO
-PRINT N'Creating Procedure [audit].[sp_log_Finish]...';
+PRINT N'Creating Procedure [audit].[sp_LogFinish]...';
 
 
 GO
 
 
-CREATE     PROCEDURE [audit].[sp_log_Finish] 
+CREATE     PROCEDURE [audit].[sp_LogFinish]
     @LogID          int = NULL,    
     @RowCount       int = NULL,
     @ProcedureInfo  varchar(MAX) = NULL,
@@ -545,7 +545,7 @@ BEGIN
     IF @AuditTypeID = 1
     --SNAPSHOT ISOLATION LEVEL Remote access is not supported for transaction isolation level "SNAPSHOT".
 
-        EXEC [audit].sp_lnk_Update
+        EXEC [audit].sp_LnkUpdate
             @LogID         = @LogID,
             @EndTime       = @EndTime,
             @RowCount      = @RowCount,
@@ -554,7 +554,7 @@ BEGIN
             @ErrorMessage  = @ErrorMessage
     
     IF @AuditTypeID = 2
-        EXEC [LinkSRVLog].[Log].[audit].sp_lnk_Update
+        EXEC [LinkSRVLog].[Log].[audit].sp_LnkUpdate
             @LogID         = @LogID,
             @EndTime       = @EndTime,
             @RowCount      = @RowCount,
@@ -565,7 +565,7 @@ BEGIN
     DELETE FROM #LogProc WHERE LogID >= @LogID
 END
 GO
-PRINT N'Creating Procedure [audit].[sp_log_Start]...';
+PRINT N'Creating Procedure [audit].[sp_LogStart]...';
 
 
 GO
@@ -573,7 +573,7 @@ GO
 /*
 BEGIN TRAN
 DECLARE @LogID int 
-EXEC [audit].sp_log_Start @AuditEnable ='FullAuditEnabled', @LogID = @LogID output
+EXEC [audit].sp_LogStart @AuditEnable ='FullAuditEnabled', @LogID = @LogID output
 SELECT @LogID
 
 SELECT [dbo].[fn_GetSettingValue]('FullAuditEnabled')
@@ -582,7 +582,7 @@ ROLLBACk
 
 */
 
-CREATE   PROCEDURE [audit].[sp_log_Start]   
+CREATE   PROCEDURE [audit].[sp_LogStart]
     @AuditEnable nvarchar(256) = NULL,
     @ProcedureName   varchar(512)  = NULL,
     @ProcedureParams varchar(MAX)  = NULL,
@@ -619,7 +619,7 @@ BEGIN
 
     IF @AuditTypeID = 1
     --SNAPSHOT ISOLATION LEVEL Remote access is not supported for transaction isolation level "SNAPSHOT".
-        EXEC [audit].sp_lnk_Insert
+        EXEC [audit].sp_LnkInsert
             @MainID           = @MainID,
             @ParentID         = @ParentID,
             @StartTime        = @StartTime,
@@ -634,7 +634,7 @@ BEGIN
             @LogID            = @LogID OUTPUT
     
     IF @AuditTypeID = 2
-        EXEC [LinkSRVLog].[Log].[audit].sp_lnk_Insert
+        EXEC [LinkSRVLog].[Log].[audit].sp_LnkInsert
             @MainID           = @MainID,
             @ParentID         = @ParentID,
             @StartTime        = @StartTime,

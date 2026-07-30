@@ -16,7 +16,7 @@
   },
   "copy": {
     "max_messages": 0,
-    "target_table": "dbo.Upload",
+    "target_table": "mq.Upload",
     "use_metamap_routing": true,
     "meta_adapter_id": 1,
     "data_source_id": 1,

@@ -1,6 +1,6 @@
-﻿
 
-CREATE     PROCEDURE [audit].[sp_log_Finish] 
+
+CREATE     PROCEDURE [audit].[sp_LogFinish] 
     @LogID          int = NULL,    
     @RowCount       int = NULL,
     @ProcedureInfo  varchar(MAX) = NULL,
@@ -25,7 +25,7 @@ BEGIN
     IF @AuditTypeID = 1
     --SNAPSHOT ISOLATION LEVEL Remote access is not supported for transaction isolation level "SNAPSHOT".
 
-        EXEC [audit].sp_lnk_Update
+        EXEC [audit].sp_LnkUpdate
             @LogID         = @LogID,
             @EndTime       = @EndTime,
             @RowCount      = @RowCount,
@@ -34,7 +34,7 @@ BEGIN
             @ErrorMessage  = @ErrorMessage
     
     IF @AuditTypeID = 2
-        EXEC [LinkSRVLog].[Log].[audit].sp_lnk_Update
+        EXEC [LinkSRVLog].[Log].[audit].sp_LnkUpdate
             @LogID         = @LogID,
             @EndTime       = @EndTime,
             @RowCount      = @RowCount,

@@ -151,20 +151,20 @@ namespace ApplyProcLog
         }
 
 		/// <summary>
-		/// Вставляет EXEC audit.sp_log_... в начало и конец тела процедуры.
+		/// Вставляет EXEC audit.sp_Log... в начало и конец тела процедуры.
 		/// </summary>
 		public string WrapProcedureWithAudit(string body, string  schemaName, string procName, string procedureParams = "", string auditEnabledCode = "FullAuditEnabled")
         {
             if (string.IsNullOrWhiteSpace(body)) return body;
 
             // Если аудит-вызовы уже есть — не добавляем повторно
-            if (body.Contains("[audit].[sp_log_Start]") || body.Contains("[audit].[sp_log_Finish]"))
+            if (body.Contains("[audit].[sp_LogStart]") || body.Contains("[audit].[sp_LogFinish]"))
                 return body;
 
             string procNameSql = MakeProcSqlName(schemaName, procName);
-            string startAudit = $"\r\nDECLARE @AuditLogID int, @AuditProcedureName varchar(510), @AuditProcedureParams varchar(max), @AuditProcedureInfo varchar(max), @AuditErrorMessage varchar(max), @AuditRowCount int = 0, @AuditEnable nvarchar(256)\r\nSET @AuditEnable = [audit].[fn_GetAuditEnableSP]('{auditEnabledCode}')\r\nIF @AuditEnable IS NOT NULL \r\nBEGIN\r\n  SET @AuditProcedureName = '{procNameSql}'\r\n  IF OBJECT_ID('tempdb..#LogProc') IS NULL\r\n     SELECT * INTO #LogProc FROM [audit].[Template_LogProc]()\r\n  \r\n  SET @AuditProcedureParams = {procedureParams} \r\n  EXEC [audit].[sp_log_Start] @AuditEnable = @AuditEnable, @ProcedureName = @AuditProcedureName, @ProcedureParams = @AuditProcedureParams, @LogID = @AuditLogID OUTPUT\r\nEND\r\n";
-            string endAudit = $"\r\n    EXEC [audit].[sp_log_Finish] @LogID = @AuditLogID, @RowCount = @AuditRowCount;\r\n";
-            string endAuditErr = $"\r\n  SET @AuditErrorMessage = ERROR_MESSAGE() \r\n  EXEC [audit].[sp_log_Finish] @LogID = @AuditLogID, @RowCount = @AuditRowCount, @ErrorMessage = @AuditErrorMessage;\r\n";
+            string startAudit = $"\r\nDECLARE @AuditLogID int, @AuditProcedureName varchar(510), @AuditProcedureParams varchar(max), @AuditProcedureInfo varchar(max), @AuditErrorMessage varchar(max), @AuditRowCount int = 0, @AuditEnable nvarchar(256)\r\nSET @AuditEnable = [audit].[fn_GetAuditEnableSP]('{auditEnabledCode}')\r\nIF @AuditEnable IS NOT NULL \r\nBEGIN\r\n  SET @AuditProcedureName = '{procNameSql}'\r\n  IF OBJECT_ID('tempdb..#LogProc') IS NULL\r\n     SELECT * INTO #LogProc FROM [audit].[Template_LogProc]()\r\n  \r\n  SET @AuditProcedureParams = {procedureParams} \r\n  EXEC [audit].[sp_LogStart] @AuditEnable = @AuditEnable, @ProcedureName = @AuditProcedureName, @ProcedureParams = @AuditProcedureParams, @LogID = @AuditLogID OUTPUT\r\nEND\r\n";
+            string endAudit = $"\r\n    EXEC [audit].[sp_LogFinish] @LogID = @AuditLogID, @RowCount = @AuditRowCount;\r\n";
+            string endAuditErr = $"\r\n  SET @AuditErrorMessage = ERROR_MESSAGE() \r\n  EXEC [audit].[sp_LogFinish] @LogID = @AuditLogID, @RowCount = @AuditRowCount, @ErrorMessage = @AuditErrorMessage;\r\n";
 
             // Ищем ключевое слово AS (игнорируя регистр)
             // Если есть WITH EXECUTE AS — ищем AS только после него
@@ -593,7 +593,7 @@ namespace ApplyProcLog
                     result.Append("BEGIN");
                     result.Append('\n');
                     result.Append(indent);
-                    result.Append("EXEC [audit].[sp_log_Finish] @LogID = @AuditLogID, @RowCount = @AuditRowCount, @ProcedureInfo = 'Return line number: " + lineNumber + "';");
+                    result.Append("EXEC [audit].[sp_LogFinish] @LogID = @AuditLogID, @RowCount = @AuditRowCount, @ProcedureInfo = 'Return line number: " + lineNumber + "';");
                     result.Append('\n');
                     result.Append(indent);
                     result.Append("EXEC [audit].[sp_Print] 'Return line number: " + lineNumber + "'");

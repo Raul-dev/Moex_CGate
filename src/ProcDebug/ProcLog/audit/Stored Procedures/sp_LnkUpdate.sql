@@ -1,5 +1,5 @@
-﻿
-CREATE     PROCEDURE [audit].[sp_lnk_Update]
+
+CREATE     PROCEDURE [audit].[sp_LnkUpdate]
     @LogID          int,
     @EndTime        datetime2(4)  = NULL,
     @RowCount       int  = NULL,

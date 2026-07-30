@@ -69,14 +69,14 @@ ApplyProcLog.exe export-data [-s <сервер>] [-d <база>] [-t <табли
 
 **Обёртка аудита (WrapProcedureWithPrint):**
 
-При генерации каждая процедура оборачивается вызовами `audit.sp_log_Start` / `audit.sp_log_Finish`:
+При генерации каждая процедура оборачивается вызовами `audit.sp_LogStart` / `audit.sp_LogFinish`:
 
 - `DECLARE` переменные аудита вставляются после `AS`
-- `sp_log_Start` — после инициализации `@AuditEnable`
+- `sp_LogStart` — после инициализации `@AuditEnable`
 - `endPrint` — перед последним `END TRY` (без `END CATCH` сразу после); если `END TRY` нет — в конец тела
 - `endPrintErr` — в главном блоке `CATCH`:  перед `THROW`, или перед `END CATCH`
 
-Дубликаты не добавляются (проверяется наличие `[audit].[sp_log_Start]`).
+Дубликаты не добавляются (проверяется наличие `[audit].[sp_LogStart]`).
 
 ---
 
@@ -174,10 +174,10 @@ SSDT-проект (SQL Server Database Project) — схема БД аудита
 - `audit.fn_GetEstimatedStringLength` — оценка длины строки
 
 **Процедуры:**
-- `audit.sp_log_Start` — начало логирования (запись в LogProcedures, проверка типа аудита, линковка)
-- `audit.sp_log_Finish` — конец логирования (обновление Duration, RowCount, ErrorMessage)
-- `audit.sp_log_Info` — дополнительная информация
-- `audit.sp_lnk_Update / sp_lnk_Insert` — управление линками
+- `audit.sp_LogStart` — начало логирования (запись в LogProcedures, проверка типа аудита, линковка)
+- `audit.sp_LogFinish` — конец логирования (обновление Duration, RowCount, ErrorMessage)
+- `audit.sp_LogInfo` — дополнительная информация
+- `audit.sp_LnkUpdate / sp_LnkInsert` — управление линками
 - `audit.sp_Print` — вывод отладочной информации (с отключённым QuotedIdentifier)
 
 **Безопасность:** схема `audit`, пользователь `audit`

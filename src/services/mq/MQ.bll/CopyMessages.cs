@@ -377,7 +377,7 @@ public class CopyMessages
 
 
 
-        return "msgqueue";
+        return "mq.MessageQueue";
 
     }
 

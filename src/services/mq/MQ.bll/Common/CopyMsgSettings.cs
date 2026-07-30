@@ -29,7 +29,7 @@ public class CopyMsgSettings
     /// <summary>Create target buffer table if it does not exist.</summary>
     public bool EnsureBufferTable { get; set; } = true;
 
-    /// <summary>Append _buffer suffix to TargetTable (dbo.Upload -> dbo.Upload_buffer).</summary>
+    /// <summary>Append Buffer suffix to TargetTable (mq.Upload -> mq.UploadBuffer).</summary>
     public bool AppendBufferSuffix { get; set; } = true;
 
     /// <summary>TRUNCATE target table before copy.</summary>

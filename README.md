@@ -10,24 +10,24 @@
 
 ![простая архитектура сохранения ордеров moex в базе](./doc/schemaSimple.png)
 
-Эта архитектура пишет поступившие сообщения сразу в базу в конечную таблицу ордеров. Merge 1-го сообщения составляет 1–2 секунды в зависимости от размера конечной таблицы orders_log. Это в тысячи раз медленнее, чем в многопоточной архитектуре, в которой делается INSERT в BUFFER за 0.29 ms (пакетно 0.1 ms), а Merge выполняется отложенно и, что самое главное, не по одной записи, а пакетно по всем пришедшим за секунду и уже не влияет на общую скорость получения сообщений, которая происходит параллельно, не блокируя таблицу.
+Эта архитектура пишет поступившие сообщения сразу в базу в конечную таблицу ордеров. Merge 1-го сообщения составляет 1–2 секунды в зависимости от размера конечной таблицы crs.OrdersLog. Это в тысячи раз медленнее, чем в многопоточной архитектуре, в которой делается INSERT в BUFFER за 0.29 ms (пакетно 0.1 ms), а Merge выполняется отложенно и, что самое главное, не по одной записи, а пакетно по всем пришедшим за секунду и уже не влияет на общую скорость получения сообщений, которая происходит параллельно, не блокируя таблицу.
 
 Если детальнее рассмотреть процесс, то:
 
 - Запись в RabbitMQ 500 000 сообщений составляет 20 секунд.
 - Если использовать Message Queue (RabbitMQ или Kafka), то в случае отказа сервиса нет необходимости выгружать ордера с начала дня, а скорость записи в базу повышается в тысячи раз за счёт разделения записи на 2 независимых потока:
-  - 1-й поток пишет максимально быстро неразобранные сообщения в буферную таблицу `orders_log_buffer`.
-  - 2-й поток вызывает раз в секунду процедуру записи накопившихся сообщений в буфере, и весь пакет ордеров мержит в конечную таблицу `orders_log` по ключу `private_order_id`.
+  - 1-й поток пишет максимально быстро неразобранные сообщения в буферную таблицу `crs.OrdersLogBuffer`.
+  - 2-й поток вызывает раз в секунду процедуру записи накопившихся сообщений в буфере, и весь пакет ордеров мержит в конечную таблицу `crs.OrdersLog` по ключу `private_order_id`.
 
 Эти 2 потока не блокируют друг друга в SNAPSHOT isolation level. Наполнение буфера и перенос из него ордеров в целевую таблицу происходят параллельно. Скорость обработки снизится всего в 1.5 раза при использовании других isolation level.
 
-Количество загружаемых таблиц настраивается в таблице `metamap`; тестировал на 100+ параллельно загружаемых таблиц.
+Количество загружаемых таблиц настраивается в таблице `mq.MetaMap`; тестировал на 100+ параллельно загружаемых таблиц.
 
 Пример замера производительности: загрузка 517728 сообщений средней длины 6607 байт из RabbitMQ:
 
 ![Многопоточная архитектура сохранения ордеров на Rabbit](./doc/rabbit_perf.png)
 
-Из примера видно, что загрузка в буферную таблицу `orders_log_buffer` происходила со скоростью 7291 сообщений в секунду, параллельно запускалась процедура загрузки в конечную таблицу `orders_log`, которая успела смержить 179641 сообщений и вызовы которой завершились через минуту. В итоге из тестовых сообщений было загружено 2 раза 2963530 ордеров менее чем за 2 минуты на машине i9 с накопителем M.2 NVMe Samsung 970 EVO Plus.
+Из примера видно, что загрузка в буферную таблицу `crs.OrdersLogBuffer` происходила со скоростью 7291 сообщений в секунду, параллельно запускалась процедура загрузки в конечную таблицу `crs.OrdersLog`, которая успела смержить 179641 сообщений и вызовы которой завершились через минуту. В итоге из тестовых сообщений было загружено 2 раза 2963530 ордеров менее чем за 2 минуты на машине i9 с накопителем M.2 NVMe Samsung 970 EVO Plus.
 
 Kafka, настроенная как RabbitMQ в 1 partition с подтверждением сообщений (Acknowledge), работает чуть медленнее.
 
@@ -35,7 +35,7 @@ Kafka, настроенная как RabbitMQ в 1 partition с подтверж
 
 ![Многопоточная архитектура сохранения ордеров на Kafka](./doc/kafka_perf.png)
 
-Загрузка в буферную таблицу `orders_log_buffer` происходила со скоростью 6326 сообщений в секунду, параллельно запускалась процедура загрузки в конечную таблицу `orders_log`, которая загрузила 2 раза 2963530 ордеров менее чем за 2 минуты: с 12:35:41.6601 по 12:37:26.7767.
+Загрузка в буферную таблицу `crs.OrdersLogBuffer` происходила со скоростью 6326 сообщений в секунду, параллельно запускалась процедура загрузки в конечную таблицу `crs.OrdersLog`, которая загрузила 2 раза 2963530 ордеров менее чем за 2 минуты: с 12:35:41.6601 по 12:37:26.7767.
 
 ## CLR, отправляющий сообщения в RabbitMQ
 
@@ -104,7 +104,7 @@ dotnet build .\services\mq\MQ\MQ.csproj -c Release
 
 | Команда | Направление | Описание |
 |---------|-------------|----------|
-| `SendMsg` | SQL → RabbitMQ | Читает `msgqueue` и публикует в очередь |
+| `SendMsg` | SQL → RabbitMQ | Читает `mq.MessageQueue` и публикует в очередь |
 | `CopyMsg` | RabbitMQ → SQL | Копирует сообщения из очереди в указанную таблицу |
 | `GetMsg` | RabbitMQ → SQL | Непрерывный consumer с ETL (режим сервиса) |
 
@@ -114,25 +114,25 @@ dotnet build .\services\mq\MQ\MQ.csproj -c Release
 .\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -d CGate -t mssql
 ```
 
-**Копирование сообщений из RabbitMQ в buffer-таблицу SQL (например `dbo.Upload` → `dbo.Upload_buffer`):**
+**Копирование сообщений из RabbitMQ в buffer-таблицу SQL (например `mq.Upload` → `mq.UploadBuffer`):**
 
 ```powershell
-.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -q dbo.Upload
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -q mq.Upload
 ```
 
-Таблица создаётся автоматически, если её нет (схема buffer: `buffer_id`, `session_id`, `msg_key`, `msg_id`, `msg`, `msgtype_id`, `is_error`, `dt_create`, `dt_update`).
+Таблица создаётся автоматически, если её нет (схема buffer: `BufferId`, `SessionId`, `MessageKey`, `MessageId`, `MessageBody`, `MessageTypeId`, `IsError`, `CreatedAt`, `UpdatedAt`).
 
 С явным указанием сервера и учётных данных:
 
 ```powershell
-.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -q dbo.Upload
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -q mq.Upload
 ```
 
 Полезные параметры `CopyMsg`:
 
 | Параметр | Описание |
 |----------|----------|
-| `-q` | Базовое имя таблицы (`dbo.Upload` → `dbo.Upload_buffer`) |
+| `-q` | Базовое имя таблицы (`mq.Upload` → `mq.UploadBuffer`) |
 | `-f` | Очистить (`TRUNCATE`) таблицу перед загрузкой |
 | `-b` | Не создавать таблицу автоматически |
 | `-z` | Не добавлять суффикс `_buffer` к имени |
@@ -140,22 +140,22 @@ dotnet build .\services\mq\MQ\MQ.csproj -c Release
 | `-g` / `--clear-queue` | Очищать очередь Rabbit: удалять сообщение после записи (`true`/`false`, по умолчанию `true`) |
 | `-r` / `--ack` | То же, что `-g` (устаревший алиас) |
 | `-e` | Запустить ETL после копирования |
-| `-m` | `MetaAdapterId` для маршрутизации через `metamap` |
-| `-x` | Без `metamap`, писать в `msgqueue` |
+| `-m` | `MetaAdapterId` для маршрутизации через `mq.MetaMap` |
+| `-x` | Без `mq.MetaMap`, писать в `mq.MessageQueue` |
 
 Примеры:
 
 ```powershell
 # Скопировать 1000 сообщений с очисткой таблицы перед загрузкой
-.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -q dbo.Upload -n 1000 -f
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -q mq.Upload -n 1000 -f
 
 # Копировать без удаления из RabbitMQ (сообщения останутся в очереди)
-.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -q dbo.Upload -g false
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -q mq.Upload -g false
 
 # Точное имя таблицы без _buffer
-.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -q dbo.Upload_buffer -z
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -q mq.UploadBuffer -z
 
-# Маршрутизация по metamap (без -q)
+# Маршрутизация по mq.MetaMap (без -q)
 .\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -m 1
 ```
 
@@ -188,11 +188,11 @@ pip install -e .
 
 Параметры CLI **перекрывают** JSON. Пароль Rabbit можно передать из командной строки: **`--rabbit-password`**.
 
-**Копирование RabbitMQ → `dbo.Upload_buffer`:**
+**Копирование RabbitMQ → `mq.UploadBuffer`:**
 
 ```powershell
 cd Tools\mq-copy
-python -m mq_copy -c copy-config.json --rabbit-password admin -q dbo.Upload
+python -m mq_copy -c copy-config.json --rabbit-password admin -q mq.Upload
 ```
 
 Примеры:
@@ -203,13 +203,13 @@ python -m mq_copy `
   --rabbit-host localhost --rabbit-user admin --rabbit-password admin `
   --rabbit-queue Cgate_FORTS_TRADE_REPL `
   -s "localhost,54321" -d CGate -u CGateUser -w MyPassword321 `
-  -q dbo.Upload
+  -q mq.Upload
 
 # Очистить таблицу перед загрузкой
-python -m mq_copy -c copy-config.json --rabbit-password admin -q dbo.Upload -f true
+python -m mq_copy -c copy-config.json --rabbit-password admin -q mq.Upload -f true
 
 # Лимит 1000 сообщений
-python -m mq_copy -c copy-config.json --rabbit-password admin -q dbo.Upload -n 1000
+python -m mq_copy -c copy-config.json --rabbit-password admin -q mq.Upload -n 1000
 ```
 
 | Параметр | Описание |
@@ -217,7 +217,7 @@ python -m mq_copy -c copy-config.json --rabbit-password admin -q dbo.Upload -n 1
 | `-c` | Путь к JSON-конфигу |
 | `--rabbit-host`, `--rabbit-port`, `--rabbit-user`, `--rabbit-password`, `--rabbit-queue` | RabbitMQ |
 | `-s`, `-d`, `-u`, `-w` | SQL Server (как в `MQ.exe`) |
-| `-q` | Базовое имя таблицы (`dbo.Upload` → `dbo.Upload_buffer`) |
+| `-q` | Базовое имя таблицы (`mq.Upload` → `mq.UploadBuffer`) |
 | `-f true` | `TRUNCATE` перед копированием |
 | `-n` | Лимит сообщений |
 | `-g` / `--clear-queue true/false` | Очищать очередь Rabbit после записи (по умолчанию `true`) |
@@ -253,11 +253,11 @@ Invoke-RestMethod -Method Post -Uri http://localhost:8090/v1/mq/service/reset
 .\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 500
 
 # Копирование RabbitMQ → SQL (C#)
-.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -q dbo.Upload
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -q mq.Upload
 
 # Копирование RabbitMQ → SQL (Python)
 cd Tools\mq-copy
-python -m mq_copy -c copy-config.json --rabbit-password admin -q dbo.Upload
+python -m mq_copy -c copy-config.json --rabbit-password admin -q mq.Upload
 ```
 
 ### Подключение в SSMS

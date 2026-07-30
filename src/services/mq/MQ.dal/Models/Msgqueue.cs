@@ -5,27 +5,27 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MQ.dal.Models;
 
-[Table("msgqueue")]
+[Table("MessageQueue", Schema = "mq")]
 public partial class MsgQueue
 {
     [Key]
-    [Column("buffer_id")]
+    [Column("BufferId")]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public long BufferId { get; set; }
 
-    [Column("session_id")]
+    [Column("SessionId")]
     public long SessionId { get; set; }
 
-    [Column("msg_id")]
+    [Column("MessageId")]
     public Guid? MsgId { get; set; }
 
-    [Column("msg")]
+    [Column("MessageBody")]
     public string? Msg { get; set; }
 
-    [Column("msg_key")]
+    [Column("MessageKey")]
     [MaxLength(128)]
     public string? MsgKey { get; set; }
 
-    [Column("dt_create")]
+    [Column("CreatedAt")]
     public DateTime UpdateDate { get; set; }
 }

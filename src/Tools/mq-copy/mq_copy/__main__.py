@@ -41,7 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     copy = parser.add_argument_group("Copy options")
     copy.add_argument("-n", "--max-messages", type=int, help="Max messages to copy (0 = all).")
-    copy.add_argument("-q", "--target-table", help="Target table base name (dbo.Upload -> dbo.Upload_buffer).")
+    copy.add_argument("-q", "--target-table", help="Target table base name (mq.Upload -> mq.UploadBuffer).")
     copy.add_argument(
         "-r",
         "--ack",
@@ -64,7 +64,7 @@ def build_parser() -> argparse.ArgumentParser:
         "-x",
         "--no-metamap",
         action="store_true",
-        help="Disable metamap routing; use msgqueue table.",
+        help="Disable metamap routing; use mq.MessageQueue.",
     )
     copy.add_argument(
         "-b",
@@ -76,7 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
         "-z",
         "--no-buffer-suffix",
         action="store_true",
-        help="Do not append _buffer suffix to target table name.",
+        help="Do not append Buffer suffix to target table name.",
     )
     return parser
 
@@ -128,7 +128,7 @@ def apply_cli_overrides(config: AppConfig, args: argparse.Namespace) -> None:
     if args.no_metamap:
         config.copy.use_metamap_routing = False
         if not config.copy.target_table:
-            config.copy.target_table = "msgqueue"
+            config.copy.target_table = "mq.MessageQueue"
     if args.truncate is not None:
         config.copy.truncate_before_copy = args.truncate == "true"
     if args.no_create_table:

@@ -1,5 +1,5 @@
 ﻿CREATE FUNCTION [audit].[fn_log_IsLnk](
-)RETURNS BIT
+)RETURNS bit
 AS
 BEGIN
   RETURN IIF( EXISTS(SELECT * from sys.databases WITH(nolock) WHERE database_id = DB_ID() AND snapshot_isolation_state_desc = 'ON')  

@@ -77,11 +77,11 @@
     <Build Include="audit\Functions\fn_GetAuditTypeSP.sql" />
     <Build Include="audit\Functions\fn_log_IsLnk.sql" />
     <Build Include="audit\Functions\Template_LogProc.sql" />
-    <Build Include="audit\Stored Procedures\sp_log_Start.sql" />
-    <Build Include="audit\Stored Procedures\sp_log_Finish.sql" />
-    <Build Include="audit\Stored Procedures\sp_log_Info.sql" />
-    <Build Include="audit\Stored Procedures\sp_lnk_Update.sql" />
-    <Build Include="audit\Stored Procedures\sp_lnk_Insert.sql" />
+    <Build Include="audit\Stored Procedures\sp_LogStart.sql" />
+    <Build Include="audit\Stored Procedures\sp_LogFinish.sql" />
+    <Build Include="audit\Stored Procedures\sp_LogInfo.sql" />
+    <Build Include="audit\Stored Procedures\sp_LnkUpdate.sql" />
+    <Build Include="audit\Stored Procedures\sp_LnkInsert.sql" />
     <Build Include="audit\Stored Procedures\sp_Print.sql">
       <QuotedIdentifier>Off</QuotedIdentifier>
     </Build>

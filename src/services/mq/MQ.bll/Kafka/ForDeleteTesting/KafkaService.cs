@@ -29,7 +29,7 @@ public class KafkaService : IQueueService
     public IConfiguration Configuration { get; }
     public KafkaSettings KafkaSettings { get; }
 
-    public async Task GetAllMessages(CancellationTokenSource cts, string table = "msgqueue")
+    public async Task GetAllMessages(CancellationTokenSource cts, string table = "mq.MessageQueue")
     {
         var server = $"{KafkaSettings.Host}:{KafkaSettings.Port}";
 

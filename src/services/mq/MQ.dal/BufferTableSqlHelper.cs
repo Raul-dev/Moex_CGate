@@ -17,16 +17,16 @@ public static partial class BufferTableSqlHelper
                 ValidateIdentifier(trimmed[(dotIndex + 1)..]));
         }
 
-        return ("dbo", ValidateIdentifier(trimmed));
+        return ("mq", ValidateIdentifier(trimmed));
     }
 
     public static string AppendBufferSuffix(string qualifiedName)
     {
         var (schema, table) = ParseQualifiedName(qualifiedName);
-        if (table.EndsWith("_buffer", StringComparison.OrdinalIgnoreCase))
+        if (table.EndsWith("Buffer", StringComparison.OrdinalIgnoreCase))
             return $"{schema}.{table}";
 
-        return $"{schema}.{table}_buffer";
+        return $"{schema}.{table}Buffer";
     }
 
     public static string BuildCreateBufferTableSql(string schema, string table)
@@ -45,16 +45,16 @@ IF NOT EXISTS (
 )
 BEGIN
     CREATE TABLE [{schema}].[{table}] (
-        [buffer_id] BIGINT IDENTITY(1,1) NOT NULL,
-        [session_id] BIGINT NOT NULL,
-        [msg_key] NVARCHAR(256) NOT NULL,
-        [msg_id] UNIQUEIDENTIFIER NOT NULL,
-        [msg] VARCHAR(MAX) NULL,
-        [msgtype_id] TINYINT NULL,
-        [is_error] BIT NOT NULL CONSTRAINT [{dfError}] DEFAULT (0),
-        [dt_create] DATETIME2(4) NOT NULL CONSTRAINT [{dfCreate}] DEFAULT (SYSDATETIME()),
-        [dt_update] DATETIME2(4) NOT NULL CONSTRAINT [{dfUpdate}] DEFAULT ('1900-01-01'),
-        CONSTRAINT [{pkName}] PRIMARY KEY CLUSTERED ([buffer_id] ASC)
+        [BufferId] BIGINT IDENTITY(1,1) NOT NULL,
+        [SessionId] BIGINT NOT NULL,
+        [MessageKey] NVARCHAR(256) NOT NULL,
+        [MessageId] UNIQUEIDENTIFIER NOT NULL,
+        [MessageBody] VARCHAR(MAX) NULL,
+        [MessageTypeId] TINYINT NULL,
+        [IsError] BIT NOT NULL CONSTRAINT [{dfError}] DEFAULT (0),
+        [CreatedAt] DATETIME2(4) NOT NULL CONSTRAINT [{dfCreate}] DEFAULT (SYSDATETIME()),
+        [UpdatedAt] DATETIME2(4) NOT NULL CONSTRAINT [{dfUpdate}] DEFAULT ('1900-01-01'),
+        CONSTRAINT [{pkName}] PRIMARY KEY CLUSTERED ([BufferId] ASC)
     );
 END";
     }

@@ -18,7 +18,6 @@ services:
       - '15672:15672'
       
   mq.webservice:
-    image: raulamailru/moexcgate-mq:0.0.2
     build:
       context: ./services/mq
       dockerfile: MQ.WebService/Dockerfile
@@ -41,26 +40,26 @@ services:
       - ServiceWebMsgSettings__Workers__0__DataBaseServSettings__ServerName=${MQ_SERVER:-host.docker.internal}
       - ServiceWebMsgSettings__Workers__0__DataBaseServSettings__ClientName=${MQ_CLIENTNAME:-client1}
       - ServiceWebMsgSettings__Workers__0__DataBaseServSettings__DataBase=${MQ_DATABASE:-CGate}
-      - ServiceWebMsgSettings__Workers__0__DataBaseServSettings__User=${MQ_USER:-postgres}
-      - ServiceWebMsgSettings__Workers__0__DataBaseServSettings__Password=${MQ_PASSWORD:-postgres}
+      - ServiceWebMsgSettings__Workers__0__DataBaseServSettings__User=${MQ_USER:-CGateUser}
+      - ServiceWebMsgSettings__Workers__0__DataBaseServSettings__Password=${MQ_PASSWORD:-MyPassword321}
       - ServiceWebMsgSettings__Workers__1__DataBaseServSettings__ServerType=mssql 
       - ServiceWebMsgSettings__Workers__1__DataBaseServSettings__ServerName=${MQ_SERVER:-host.docker.internal}
       - ServiceWebMsgSettings__Workers__1__DataBaseServSettings__ClientName=${MQ_CLIENTNAME:-client1}
       - ServiceWebMsgSettings__Workers__1__DataBaseServSettings__DataBase=${MQ_DATABASE:-CGate}
-      - ServiceWebMsgSettings__Workers__1__DataBaseServSettings__User=${MQ_USER:-postgres}
-      - ServiceWebMsgSettings__Workers__1__DataBaseServSettings__Password=${MQ_PASSWORD:-postgres}
+      - ServiceWebMsgSettings__Workers__1__DataBaseServSettings__User=${MQ_USER:-CGateUser}
+      - ServiceWebMsgSettings__Workers__1__DataBaseServSettings__Password=${MQ_PASSWORD:-MyPassword321}
       - ServiceWebMsgSettings__Workers__2__DataBaseServSettings__ServerType=mssql 
       - ServiceWebMsgSettings__Workers__2__DataBaseServSettings__ServerName=${MQ_SERVER:-host.docker.internal}
       - ServiceWebMsgSettings__Workers__2__DataBaseServSettings__ClientName=${MQ_CLIENTNAME:-client1}
       - ServiceWebMsgSettings__Workers__2__DataBaseServSettings__DataBase=Log
-      - ServiceWebMsgSettings__Workers__2__DataBaseServSettings__User=${MQ_USER:-postgres}
-      - ServiceWebMsgSettings__Workers__2__DataBaseServSettings__Password=${MQ_PASSWORD:-postgres}
+      - ServiceWebMsgSettings__Workers__2__DataBaseServSettings__User=${MQ_USER:-CGateUser}
+      - ServiceWebMsgSettings__Workers__2__DataBaseServSettings__Password=${MQ_PASSWORD:-MyPassword321}
       - DataBaseSettings__ServerType=mssql 
       - DataBaseSettings__ServerName=${MQ_SERVER:-host.docker.internal}
       - DataBaseSettings__ClientName=${MQ_CLIENTNAME:-client1}
       - DataBaseSettings__DataBase=${MQ_DATABASE:-CGate}
-      - DataBaseSettings__User=${MQ_USER:-postgres}
-      - DataBaseSettings__Password=${MQ_PASSWORD:-postgres}
+      - DataBaseSettings__User=${MQ_USER:-CGateUser}
+      - DataBaseSettings__Password=${MQ_PASSWORD:-MyPassword321}
       - Serilog__MinimumLevel__Default=Debug
       #- Serilog__MinimumLevel__Default=Information
       #- Serilog__WriteTo__1__Args__formatter__template='[{@t:HH:mm:ss.ff}] [{@l:u3}] [{WorkerLogPrefix:3}] {@m}\n{NewLine}{@x}'

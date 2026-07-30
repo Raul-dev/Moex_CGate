@@ -111,7 +111,7 @@ namespace MQ.dal
 
             var v = from c in MetastorageDbContext.Metamaps
                     where c.IsEnable == true
-                    && c.MetamapId == metaAdapterId
+                    && c.MetaAdapterId == metaAdapterId
                     select new Metamap()
             {
                 MetamapId = c.MetamapId,
@@ -138,13 +138,13 @@ namespace MQ.dal
             long id = 0;
             if (ServerType == SqlServerType.mssql)
             {
-                var session_id = new SqlParameter("@session_id",System.Data.SqlDbType.BigInt);
+                var session_id = new SqlParameter("@SessionId", System.Data.SqlDbType.BigInt);
                 session_id.Value = (sessionid == null) ? DBNull.Value : (long)sessionid;
-                var data_source_id = new SqlParameter("@data_source_id", datasourceid);
-                var session_state_id = new SqlParameter("@session_state_id", stateid);
-                var error_message = new SqlParameter("@error_message", errormsg);
+                var data_source_id = new SqlParameter("@DataSourceId", datasourceid);
+                var session_state_id = new SqlParameter("@SessionStateId", stateid);
+                var error_message = new SqlParameter("@ErrorMessage", errormsg);
                 
-                var res = MetastorageDbContext.Database.SqlQueryRaw<Int64>($"EXEC sp_SaveSessionState @session_id, @data_source_id, @session_state_id, @error_message", session_id, data_source_id, session_state_id, error_message).ToList();
+                var res = MetastorageDbContext.Database.SqlQueryRaw<Int64>($"EXEC [mq].[sp_SaveSessionState] @SessionId, @DataSourceId, @SessionStateId, @ErrorMessage", session_id, data_source_id, session_state_id, error_message).ToList();
                 foreach (var s in res)
                 {
                     sessionid = s;
@@ -176,7 +176,7 @@ namespace MQ.dal
                 ORDER BY index_id desc
 */
                 string cmd = "";
-                if (tableName.Contains("msgqueue"))
+                if (tableName.Contains("MessageQueue", StringComparison.OrdinalIgnoreCase))
                     cmd = @$"SELECT @rescnt = ISNULL((SELECT top 1 CAST(1 AS BIGINT) FROM {tableName} ),0);";
                 else
                     cmd = @$"SELECT @rescnt = ISNULL((SELECT top 1 CAST(1 AS BIGINT) FROM {tableName} WHERE is_error = 0),0);";
@@ -188,7 +188,7 @@ namespace MQ.dal
             } else if (ServerType == SqlServerType.psql)
             {
                 string cmd = "";
-                if (tableName.Contains("msgqueue"))
+                if (tableName.Contains("MessageQueue", StringComparison.OrdinalIgnoreCase))
                     cmd = @$"SELECT reltuples::bigint  FROM pg_class    
                         WHERE  oid = '{{tableName}}'::regclass;";
                 else
@@ -318,11 +318,11 @@ END CATCH
                 if (ServerType == SqlServerType.mssql)
                 {//4100 msg в сек c удалением в одну таблицу 
 
-                    if (tableName.Contains("msgqueue"))
-                        cmd = @$"INSERT {tableName} ([session_id], [msg_id], [msg], [msg_key])
+                    if (tableName.Contains("MessageQueue", StringComparison.OrdinalIgnoreCase))
+                        cmd = @$"INSERT {tableName} ([SessionId], [MessageId], [MessageBody], [MessageKey])
                                         VALUES ({sessionId}, @msg_id, @msg, @msgKey);";
                     else
-                        cmd = @$"INSERT {tableName} ([session_id],[msg_id],[msg], [msgtype_id])
+                        cmd = @$"INSERT {tableName} ([SessionId], [MessageId], [MessageBody], [MessageTypeId])
                                         VALUES ({sessionId}, @msg_id, @msg, @msgtype_id);";
 
                     var msgId = new SqlParameter("@msg_id", new Guid(messageId));
@@ -368,16 +368,16 @@ END CATCH
                 //var g = new Guid(messageId);
                 var msgId = new SqlParameter("@msg_id", ((messageId == null) ? Guid.NewGuid() : new Guid(messageId)));
                 var msg = new SqlParameter("@msg", body);
-                if (tableName.Contains("msgqueue"))
+                if (tableName.Contains("MessageQueue", StringComparison.OrdinalIgnoreCase))
                 {
-                    cmd = @$"INSERT {tableName} ([session_id], [msg_id], [msg], [msg_key])
+                    cmd = @$"INSERT {tableName} ([SessionId], [MessageId], [MessageBody], [MessageKey])
                                         VALUES ({sessionId}, @msg_id, @msg, @msgKey);";
                     var msgKey = new SqlParameter("@msgKey", messageKey ?? "Unknown");
                     await MetastorageDbContext.Database.ExecuteSqlRawAsync(cmd, new object[] { msgId, msg, msgKey } , cancellationToken);
                 }
                 else
                 {
-                    cmd = @$"INSERT {tableName} ([session_id],[msg_id],[msg], [msgtype_id])
+                    cmd = @$"INSERT {tableName} ([SessionId], [MessageId], [MessageBody], [MessageTypeId])
                                         VALUES ({sessionId}, @msg_id, @msg, @msgtype_id);";
                     var msgtype_id = new SqlParameter("@msgtype_id", messageTypeId);
                     await MetastorageDbContext.Database.ExecuteSqlRawAsync(cmd, new object[] { msgId, msg, msgtype_id }, cancellationToken: cancellationToken);
@@ -398,11 +398,11 @@ END CATCH
             if (ServerType == SqlServerType.mssql)
             {   //900 msg в сек без удаления и в одну таблицу
                 //600 msg в сек
-                if (tableName.Contains("msgqueue"))
-                    cmd = @$"INSERT {tableName} ([session_id], [msg_id], [msg], [msg_key])
+                if (tableName.Contains("MessageQueue", StringComparison.OrdinalIgnoreCase))
+                    cmd = @$"INSERT {tableName} ([SessionId], [MessageId], [MessageBody], [MessageKey])
                                         VALUES ({sessionId}, @msg_id, @msg, @msgKey);";
                 else
-                    cmd = @$"INSERT {tableName} ([session_id],[msg_id],[msg])
+                    cmd = @$"INSERT {tableName} ([SessionId], [MessageId], [MessageBody])
                                         VALUES ({sessionId}, @msg_id, @msg);";
 
                 var msgId = new SqlParameter("@msg_id", mqmsg.BasicProperties.MessageId);
@@ -600,13 +600,13 @@ END CATCH
             var msgId = new SqlParameter("@msg_id", messageId is null ? Guid.NewGuid() : new Guid(messageId));
             var msg = new SqlParameter("@msg", body);
             var msgKey = new SqlParameter("@msg_key", messageKey);
-            var msgTypeId = new SqlParameter("@msgtype_id", messageTypeId);
-            var session = new SqlParameter("@session_id", sessionId);
+            var msgTypeId = new SqlParameter("@MessageTypeId", messageTypeId);
+            var session = new SqlParameter("@SessionId", sessionId);
 
             var cmd = $@"
 INSERT INTO [{schema}].[{table}]
-    ([session_id], [msg_key], [msg_id], [msg], [msgtype_id])
-VALUES (@session_id, @msg_key, @msg_id, @msg, @msgtype_id);";
+    ([SessionId], [MessageKey], [MessageId], [MessageBody], [MessageTypeId])
+VALUES (@SessionId, @msg_key, @msg_id, @msg, @MessageTypeId);";
 
             await MetastorageDbContext.Database.ExecuteSqlRawAsync(
                 cmd,

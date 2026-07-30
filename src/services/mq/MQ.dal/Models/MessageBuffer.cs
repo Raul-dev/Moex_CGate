@@ -8,29 +8,29 @@ namespace MQ.dal.Models;
 public partial class MessageBuffer
 {
     [Key]
-    [Column("buffer_id")]
+    [Column("BufferId")]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public long BufferId { get; set; }
 
-    [Column("session_id")]
+    [Column("SessionId")]
     public long SessionId { get; set; }
 
-    [Column("msg_id")]
+    [Column("MessageId")]
     public Guid? MsgId { get; set; }
 
-    [Column("msg")]
+    [Column("MessageBody")]
     public string? Msg { get; set; }
 
-    [Column("msgtype_id")]
+    [Column("MessageTypeId")]
     public int? MsgTypeId { get; set; }
 
-    [Column("is_error")]
+    [Column("IsError")]
     public bool IsError { get; set; }
 
-    [Column("dt_create")]
+    [Column("CreatedAt")]
     public DateTime CreateDate { get; set; }
 
-    [Column("dt_update")]
+    [Column("UpdatedAt")]
     [DatabaseGenerated(DatabaseGeneratedOption.Computed)]
     public DateTime UpdateDate { get; set; }
 

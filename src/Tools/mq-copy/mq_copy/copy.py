@@ -120,22 +120,22 @@ class MqCopier:
 
     def _resolve_metamap_table(self, msg_key: str) -> str:
         if self._config.copy.use_metamap_routing:
-            return self._metamap.get(msg_key, self._metamap.get("Unknown", "msgqueue"))
-        return "msgqueue"
+            return self._metamap.get(msg_key, self._metamap.get("Unknown", "mq.MessageQueue"))
+        return "mq.MessageQueue"
 
     @staticmethod
     def _load_metamap(conn: pyodbc.Connection, meta_adapter_id: int) -> dict[str, str]:
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT msg_key, table_name
-            FROM metamap
-            WHERE is_enable = 1 AND metamap_id = ?
+            SELECT [MessageKey], [TableName]
+            FROM [mq].[MetaMap]
+            WHERE [IsEnabled] = 1 AND [MetaMapId] = ?
             """,
             meta_adapter_id,
         )
         rows = cursor.fetchall()
-        mapping = {row.msg_key: row.table_name for row in rows}
+        mapping = {row.MessageKey: row.TableName for row in rows}
         if "Unknown" not in mapping:
             raise RuntimeError(
                 f"metamap for adapter {meta_adapter_id} has no 'Unknown' key; configure routing first."
@@ -155,11 +155,11 @@ class MqCopier:
         cursor = conn.cursor()
         cursor.execute(
             """
-            EXEC dbo.sp_SaveSessionState
-                @session_id = NULL,
-                @data_source_id = ?,
-                @session_state_id = 1,
-                @error_message = NULL
+            EXEC [mq].[sp_SaveSessionState]
+                @SessionId = NULL,
+                @DataSourceId = ?,
+                @SessionStateId = 1,
+                @ErrorMessage = NULL
             """,
             data_source_id,
         )
@@ -173,11 +173,11 @@ class MqCopier:
         cursor = conn.cursor()
         cursor.execute(
             """
-            EXEC dbo.sp_SaveSessionState
-                @session_id = ?,
-                @data_source_id = ?,
-                @session_state_id = 2,
-                @error_message = NULL
+            EXEC [mq].[sp_SaveSessionState]
+                @SessionId = ?,
+                @DataSourceId = ?,
+                @SessionStateId = 2,
+                @ErrorMessage = NULL
             """,
             session_id,
             data_source_id,
@@ -198,7 +198,7 @@ class MqCopier:
         cursor.execute(
             f"""
             INSERT INTO [{schema}].[{table}]
-                ([session_id], [msg_key], [msg_id], [msg], [msgtype_id])
+                ([SessionId], [MessageKey], [MessageId], [MessageBody], [MessageTypeId])
             VALUES (?, ?, ?, ?, ?)
             """,
             session_id,
@@ -219,9 +219,9 @@ class MqCopier:
         message_type_id: int,
     ) -> None:
         cursor = conn.cursor()
-        if "msgqueue" in table_name.lower():
+        if "messagequeue" in table_name.lower():
             cursor.execute(
-                f"INSERT INTO {table_name} ([session_id], [msg_id], [msg], [msg_key]) VALUES (?, ?, ?, ?)",
+                f"INSERT INTO {table_name} ([SessionId], [MessageId], [MessageBody], [MessageKey]) VALUES (?, ?, ?, ?)",
                 session_id,
                 uuid.UUID(msg_id),
                 body,
@@ -229,7 +229,7 @@ class MqCopier:
             )
         else:
             cursor.execute(
-                f"INSERT INTO {table_name} ([session_id], [msg_id], [msg], [msgtype_id]) VALUES (?, ?, ?, ?)",
+                f"INSERT INTO {table_name} ([SessionId], [MessageId], [MessageBody], [MessageTypeId]) VALUES (?, ?, ?, ?)",
                 session_id,
                 uuid.UUID(msg_id),
                 body,

@@ -55,7 +55,7 @@ copy copy-config.example.json copy-config.json
     "driver": "ODBC Driver 18 for SQL Server"
   },
   "copy": {
-    "target_table": "dbo.Upload",
+    "target_table": "mq.Upload",
     "truncate_before_copy": false
   }
 }
@@ -117,7 +117,7 @@ copy copy-config.example.json copy-config.json
 
 ```powershell
 # Конфиг + переопределить пароль Rabbit из командной строки
-python -m mq_copy -c copy-config.json --rabbit-password admin -q dbo.Upload
+python -m mq_copy -c copy-config.json --rabbit-password admin -q mq.Upload
 
 # Без файла конфига — все параметры в CLI
 python -m mq_copy `
@@ -130,19 +130,19 @@ python -m mq_copy `
   -d CGate `
   -u CGateUser `
   -w MyPassword321 `
-  -q dbo.Upload
+  -q mq.Upload
 
 # Копировать без удаления из RabbitMQ
-python -m mq_copy -c copy-config.json --rabbit-password admin -q dbo.Upload -g false
+python -m mq_copy -c copy-config.json --rabbit-password admin -q mq.Upload -g false
 
 # Очистить buffer-таблицу перед загрузкой
-python -m mq_copy -c copy-config.json --rabbit-password admin -q dbo.Upload -f true
+python -m mq_copy -c copy-config.json --rabbit-password admin -q mq.Upload -f true
 ```
 
 ## C# аналог
 
 ```powershell
-.\MQ.exe CopyMsg -t mssql -s "localhost,1433" -d CGate -u CGateUser -w MyPassword321 -q dbo.Upload
+.\MQ.exe CopyMsg -t mssql -s "localhost,1433" -d CGate -u CGateUser -w MyPassword321 -q mq.Upload
 ```
 
 ## SQL Server не запущен / connection refused

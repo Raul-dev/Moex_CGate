@@ -10,7 +10,7 @@ public class CopyMsgOptions : BaseOptions
     [Option('n', "max-messages", Required = false, Default = null, HelpText = "Max messages to copy. 0 = until queue empty.")]
     public int? MaxMessages { get; set; }
 
-    [Option('q', "target-table", Required = false, Default = null, HelpText = "Target SQL table (e.g. msgqueue, crs.orders_log_buffer). Empty = metamap routing.")]
+    [Option('q', "target-table", Required = false, Default = null, HelpText = "Target SQL table (e.g. mq.Upload, crs.OrdersLog). Empty = metamap routing.")]
     public string? TargetTable { get; set; }
 
     [Option('r', "ack", Required = false, Default = null, HelpText = "Same as --clear-queue: ACK and remove message from RabbitMQ after save.")]
@@ -31,7 +31,7 @@ public class CopyMsgOptions : BaseOptions
     [Option('y', "empty-polls", Required = false, Default = null, HelpText = "Stop after N consecutive empty polls.")]
     public int? EmptyPollAttempts { get; set; }
 
-    [Option('x', "no-metamap", Required = false, Default = false, HelpText = "Disable metamap routing; use msgqueue table.")]
+    [Option('x', "no-metamap", Required = false, Default = false, HelpText = "Disable metamap routing; use mq.MessageQueue.")]
     public bool DisableMetamapRouting { get; set; }
 
     [Option('f', "truncate", Required = false, Default = null, HelpText = "Truncate target buffer table before copy.")]
@@ -40,7 +40,7 @@ public class CopyMsgOptions : BaseOptions
     [Option('b', "no-create-table", Required = false, Default = false, HelpText = "Do not auto-create buffer table.")]
     public bool SkipEnsureBufferTable { get; set; }
 
-    [Option('z', "no-buffer-suffix", Required = false, Default = false, HelpText = "Do not append _buffer to target table name.")]
+    [Option('z', "no-buffer-suffix", Required = false, Default = false, HelpText = "Do not append Buffer to target table name.")]
     public bool SkipBufferSuffix { get; set; }
 
     public override void InitBllOption(BllOption blloption, IConfiguration configuration)
@@ -75,7 +75,7 @@ public class CopyMsgOptions : BaseOptions
         {
             settings.UseMetamapRouting = false;
             if (string.IsNullOrWhiteSpace(settings.TargetTable))
-                settings.TargetTable = "msgqueue";
+                settings.TargetTable = "mq.MessageQueue";
         }
 
         blloption.RabbitMQServSettings = configuration.GetRequiredSection(nameof(RabbitMQSettings)).Get<RabbitMQSettings>()

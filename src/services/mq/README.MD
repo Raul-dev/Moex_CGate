@@ -23,9 +23,9 @@ http://localhost:9021
 .\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -d CGate -t mssql
 .\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 500
 
-// RabbitMQ → SQL (buffer-таблица, dbo.Upload -> dbo.Upload_buffer)
-.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -q dbo.Upload
-.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -q dbo.Upload -f -n 1000
+// RabbitMQ → SQL (buffer-таблица, mq.Upload -> mq.UploadBuffer)
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -q mq.Upload
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -q mq.Upload -f -n 1000
 
 // RabbitMQ → SQL (непрерывный consumer + ETL)
 .\services\mq\MQ\bin\Release\net10.0\MQ.exe GetMsg -d CGate -t mssql
@@ -47,17 +47,17 @@ Ent:
 http://localhost:8090/swagger
 http://localhost:8090/v1/mq/service/status
 docker-compose -f docker-compose.sqldacpac.yml down -v
- SELECT * FROM [dbo].[msgqueue]  
- TRUNCATE TABLE [dbo].[msgqueue]  
-TRUNCATE TABLE [CGate].[crs].[orders_log_buffer]
+ SELECT * FROM [mq].[MessageQueue]  
+ TRUNCATE TABLE [mq].[MessageQueue]  
+TRUNCATE TABLE [CGate].[crs].[OrdersLogBuffer]
 SELECT 
-  [Message per second] = COUNT(*) / DATEDIFF(ss,MIN(dt_create), MAX(dt_create)),
+  [Message per second] = COUNT(*) / DATEDIFF(ss, MIN([CreatedAt]), MAX([CreatedAt])),
   [Message Count]      = COUNT(*),
-  [Message Start]      = MIN(dt_create), 
-  [Message Finish]     = MAX(dt_create),
-  [Message Avg Length byte] = AVG(LEN(msg)),
-  [Load proc Finish]   = MAX([dt_update])
-FROM [CGate].[crs].[orders_log_buffer]  
+  [Message Start]      = MIN([CreatedAt]), 
+  [Message Finish]     = MAX([CreatedAt]),
+  [Message Avg Length byte] = AVG(LEN([MessageBody])),
+  [Load proc Finish]   = MAX([UpdatedAt])
+FROM [CGate].[crs].[OrdersLogBuffer]
 '''
 
 C# confluent-kafka-dotnet

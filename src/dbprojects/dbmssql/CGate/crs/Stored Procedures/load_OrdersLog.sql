@@ -183,7 +183,7 @@ BEGIN TRY
           ,[ReplRev]
           ,[ReplAct]
           ,[PublicOrderId]
-          ,[SessionId]
+          ,OL.[SessionId]
           ,[IsinId]
           ,[PublicAmount]
           ,[PublicAmountRest]
@@ -431,7 +431,7 @@ BEGIN CATCH
     [UpdatedAt]  = ISNULL(@UpdateDate, GetDate())
   FROM [crs].[OrdersLogBuffer] b
   INNER JOIN #LockedList l ON b.[BufferId] = l.[BufferId]
-  WHERE [IsError] = 0
+  WHERE b.[IsError] = 0
 
   EXEC [audit].[sp_LogFinish] @LogID = @LogID, @RowCount = @RowCount, @ErrorMessage = @ErrorMessage
   EXEC [audit].[sp_Print] @StrPrint = @ErrorMessage
