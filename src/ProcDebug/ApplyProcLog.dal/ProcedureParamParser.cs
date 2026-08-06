@@ -66,6 +66,12 @@ ORDER BY p.parameter_id;";
         Parameters = ctx.Database
             .SqlQueryRaw<ProcedureParameter>(sql, new SqlParameter("@objectId", objectId))
             .ToList();
+
+        foreach (var p in Parameters)
+        {
+            if (AuditExceptSqlTypes.IsExcept(p.TypeName))
+                p.IsIgnore = 1;
+        }
     }
 
     /// <summary>
@@ -124,7 +130,7 @@ ORDER BY p.parameter_id;";
                 IsOutput = isOutput,
                 IsUserDefined = !isBuiltIn,
                 IsNullable = DefaultSqlTypes.IsNullableByDefault(typeName),
-                IsIgnore = isBuiltIn ? (byte)0 : (byte)1
+                IsIgnore = (!isBuiltIn || AuditExceptSqlTypes.IsExcept(typeName)) ? 1 : 0
             });
         }
     }
@@ -250,14 +256,15 @@ ORDER BY p.parameter_id;";
     /// Возвращает строку параметров в формате для fn_BuildProcedureParams / аудита.
     /// Для string-типов (varchar/nvarchar/char/nchar/text/ntext): с кавычками.
     /// Для остальных built-in: без кавычек.
-    /// Для IsIgnore (неизвестные типы): оборачивается в /*typename @param = @param*/.
-    /// Для OUTPUT: '@param=@param OUTPUT' (known) или /*typename @param = @param*/ (IsIgnore).
+    /// Для AuditExceptSqlTypes и неизвестных UDT: '@param=NULL'+' /*type*/' (без CAST).
+    /// Для OUTPUT (known): '/*type*/@param=@param OUTPUT'; except/UDT OUTPUT — NULL + комментарий.
+    /// Даты / bit / tinyint / uniqueidentifier — значение в кавычках.
     /// </summary>
     public string GetParametersForAudit()
     {
         if (Parameters.Count == 0)
             return "";
-        int i = 0 ;
+        int i = 0;
         string spaces = "";
         var parts = new List<string>();
         foreach (var p in Parameters)
@@ -265,26 +272,27 @@ ORDER BY p.parameter_id;";
             if (i > 0)
                 spaces = "    ";
             i++;
-            if (p.IsOutput)
+
+            if (ShouldSkipVarcharCast(p))
             {
-                if (p.IsIgnore == 1)
-                    parts.Add($"{spaces}'/*{p.TypeName} {p.Name} = {p.Name}*/'");
+                // Нет CAST: значение как NULL + закомментированное имя типа (image/geography/UDT)
+                if (p.IsOutput)
+                    parts.Add($"{spaces}'{p.Name}=NULL OUTPUT'+' /*{p.TypeName}*/'");
                 else
-                    parts.Add($"{spaces}'/*{p.TypeName}*/{p.Name}={p.Name} OUTPUT'");
+                    parts.Add($"{spaces}'{p.Name}=NULL'+' /*{p.TypeName}*/'");
             }
-            else if (p.IsIgnore == 1)
+            else if (p.IsOutput)
             {
-                parts.Add($"{spaces}'/*{p.TypeName} {p.Name} = {p.Name}*/'");
+                parts.Add($"{spaces}'/*{p.TypeName}*/{p.Name}={p.Name} OUTPUT'");
             }
             else
             {
                 int strLen = GetEstimatedStringLength(p);
                 string castType = strLen > 0 ? $"varchar({strLen})" : "varchar(max)";
 
-                if (IsStringType(p.TypeName))
+                // Строки / даты / bit / tinyint / uniqueidentifier — значение в кавычках
+                if (IsStringType(p.TypeName) || NeedsQuotedAuditValue(p.TypeName))
                     parts.Add($"{spaces}'{p.Name}='+ISNULL(''''+LTRIM(CAST({p.Name} AS {castType}))+'''','NULL')");
-                else if (IsDateType(p.TypeName))
-                        parts.Add($"{spaces}'{p.Name}='+ISNULL(''''+LTRIM(CAST({p.Name} AS {castType}))+'''','NULL')");
                 else
                     parts.Add($"{spaces}'{p.Name}='+ISNULL(LTRIM(CAST({p.Name} AS {castType})),'NULL')");
             }
@@ -377,7 +385,7 @@ ORDER BY p.parameter_id;";
             "INT" => 11,
             "SMALLINT" => 6,
             "TINYINT" => 3,
-            "BIT" => 1,
+            "BIT" => 27,
             "FLOAT" => 53,
             "REAL" => 24,
             "UNIQUEIDENTIFIER" => 36,
@@ -419,16 +427,23 @@ ORDER BY p.parameter_id;";
     }
 
     /// <summary>
-    /// Возвращает true для типов которые нужно оборачивать в кавычки в GetParametersForAudit.
-    /// Точное совпадение с fn_BuildProcedureParams: is "smalldatetime" or "date" or "datetime" or "datetime2"    or "datetimeoffset"
+    /// Типы из AuditExceptSqlTypes и неизвестные UDT (IsIgnore) — без CAST в varchar.
     /// </summary>
-    private static bool IsDateType(string typeName)
+    private static bool ShouldSkipVarcharCast(ProcedureParameter p)
+        => p.IsIgnore == 1 || AuditExceptSqlTypes.IsExcept(p.TypeName);
+
+    /// <summary>
+    /// Типы (не string), чьё строковое представление в audit-параметрах оборачивается в кавычки:
+    /// даты, bit, tinyint, uniqueidentifier.
+    /// </summary>
+    private static bool NeedsQuotedAuditValue(string typeName)
     {
         if (string.IsNullOrEmpty(typeName))
             return false;
         string upper = typeName.ToUpperInvariant();
         return upper is "SMALLDATETIME" or "DATE" or "DATETIME" or "DATETIME2"
-                   or "DATETIMEOFFSET";
+                   or "DATETIMEOFFSET"
+                   or "BIT" or "TINYINT" or "UNIQUEIDENTIFIER";
     }
     
     private static string RemoveSqlComments(string s)
