@@ -18,3 +18,4 @@ rootCA
 *.jfm
 *.dbmdl
 GenTestOutput.xml
+appsettings_local.json

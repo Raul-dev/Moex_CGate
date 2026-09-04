@@ -1,0 +1,17 @@
+{
+  "profiles": {
+    "ImportFilePerformance": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    },
+    "Local (appsettings_local.json)": {
+      "commandName": "Project",
+      "commandLineArgs": "--file=XmlMedium",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Local"
+      }
+    }
+  }
+}
