@@ -64,3 +64,8 @@ CREATE TABLE IF NOT EXISTS stg_futures_xml (
 
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "CGateUser";
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "CGateUser";
+
+-- TradeResult (message-buffer). Also run after this script:
+--   sql/postgres/stg_trade_result.sql
+--   sql/postgres/load_trade_result_from_buffer.sql
+--   sql/postgres/load_trade_result_from_buffer_short.sql

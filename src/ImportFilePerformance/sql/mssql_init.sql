@@ -80,3 +80,11 @@ CREATE TABLE dbo.stg_futures_xml (
     current_price    decimal(28,8) NULL
 );
 GO
+
+-- ---------------------------------------------------------------------------
+-- TradeResult CSV (SPB) — message-buffer path + StreamingBulk staging
+-- Source files (run after this script, or use .\sql\init-mssql.ps1):
+--   sql\mssql\stg_trade_result.sql
+--   sql\mssql\load_trade_result_from_buffer.sql
+--   sql\mssql\load_trade_result_from_buffer_short.sql
+-- ---------------------------------------------------------------------------

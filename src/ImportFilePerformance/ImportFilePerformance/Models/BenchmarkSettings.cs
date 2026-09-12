@@ -9,6 +9,8 @@ public sealed class BenchmarkSettings
     public int InvocationCount { get; set; } = 1;
     public int WarmupCount { get; set; } = 1;
     public int BatchSize { get; set; } = 50_000;
+    /// <summary>Rows per JSON message in MessageBuffer* strategies (publicdwh Imp chunk size).</summary>
+    public int ChunkRowSize { get; set; } = 100;
     public int RepeatCount { get; set; } = 3;
     public bool TruncateBeforeRun { get; set; } = true;
     public string MsSqlConnectionString { get; set; } = string.Empty;
@@ -121,12 +123,38 @@ public enum ImportDataset
 
 public enum LoadStrategy
 {
-    /// <summary>XmlReader/StreamReader → IDataReader → SqlBulkCopy / COPY (recommended).</summary>
+    /// <summary>XmlReader/StreamReader → IDataReader → SqlBulkCopy / COPY (all nvarchar staging).</summary>
     StreamingBulk,
-    /// <summary>Parse only, discard values (parser throughput baseline).</summary>
+    /// <summary>Same streaming bulk into typed staging (date/decimal/bigint/nvarchar×2).</summary>
+    StreamingBulkTyped,
+    /// <summary>Expands to ParseOnly_* baselines; no DB write.</summary>
     ParseOnly,
+    /// <summary>CSV stream read only (parser for StreamingBulk / StreamingBulkTyped).</summary>
+    ParseOnly_StreamingBulk,
+    /// <summary>Same as ParseOnly_StreamingBulk (alias baseline for StreamingBulkTyped).</summary>
+    ParseOnly_StreamingBulkTyped,
+    /// <summary>CSV → named JSON chunks, discard (parser for MessageBufferThenLoad).</summary>
+    ParseOnly_MessageBufferThenLoad,
+    /// <summary>CSV → positional JSON arrays, discard (parser for MessageBufferShort*ThenLoad).</summary>
+    ParseOnly_MessageBufferShortThenLoad,
+    /// <summary>Same parser as Short (positional JSON), for ShortTyped full load.</summary>
+    ParseOnly_MessageBufferShortTypedThenLoad,
+    /// <summary>CSV stream read (parser for MessageStringBufferThenLoad — same as StreamingBulk parse).</summary>
+    ParseOnly_MessageStringBufferThenLoad,
     /// <summary>Materialize all rows into List then bulk (anti-pattern, small files only).</summary>
-    MaterializeThenBulk
+    MaterializeThenBulk,
+    /// <summary>CSV → JSON object chunks (~ChunkRowSize) → msg_buffer only (TradeResultCsv).</summary>
+    MessageBufferChunks,
+    /// <summary>MessageBufferChunks + EXEC load_* into nvarchar target (TradeResultCsv).</summary>
+    MessageBufferThenLoad,
+    /// <summary>Same as MessageBufferChunks but MessageBody is array-of-arrays (no field names).</summary>
+    MessageBufferShortChunks,
+    /// <summary>MessageBufferShortChunks + EXEC load_*_short → nvarchar target.</summary>
+    MessageBufferShortThenLoad,
+    /// <summary>Same short JSON buffer + EXEC load_*_short_typed → typed target (TRY_CONVERT).</summary>
+    MessageBufferShortTypedThenLoad,
+    /// <summary>CSV → SqlBulkCopy into all-string buffer (nvarchar ×3) → load proc CONVERT → typed target.</summary>
+    MessageStringBufferThenLoad
 }
 
 public sealed class RunResult
@@ -138,7 +166,16 @@ public sealed class RunResult
     public long FileBytes { get; init; }
     public long Rows { get; init; }
     public double ElapsedSeconds { get; init; }
+    /// <summary>Final table where rows land for this strategy (e.g. stg_trade_result_typed_target).</summary>
+    public string? DestinationTable { get; init; }
+    /// <summary>
+    /// Time of DB load procedure only (OPENJSON/CONVERT EXEC).
+    /// null = N/A (ParseOnly / Chunks); 0 = no separate load (StreamingBulk).
+    /// </summary>
+    public double? LoadProcedureSeconds { get; init; }
     public long PeakWorkingSetBytes { get; init; }
     public double RowsPerSecond => ElapsedSeconds > 0 ? Rows / ElapsedSeconds : 0;
     public double MbPerSecond => ElapsedSeconds > 0 ? FileBytes / 1024d / 1024d / ElapsedSeconds : 0;
+    public double? LoadProcedureRowsPerSecond =>
+        LoadProcedureSeconds is > 0 ? Rows / LoadProcedureSeconds.Value : LoadProcedureSeconds is 0 ? null : null;
 }

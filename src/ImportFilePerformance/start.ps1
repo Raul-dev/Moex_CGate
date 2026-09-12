@@ -2,7 +2,7 @@ param(
     [string]$Mode = "e2e",
     [string]$Db = "mssql",
     [string]$File = "CsvTradeResult",
-    [string]$Strategy = "ParseOnly,StreamingBulk",
+    [string]$Strategy = "ParseOnly,StreamingBulk,StreamingBulkTyped,MessageBufferThenLoad,MessageBufferShortThenLoad,MessageBufferShortTypedThenLoad,MessageStringBufferThenLoad",
     [string]$Configuration = "Release",
     [switch]$Local
 )
