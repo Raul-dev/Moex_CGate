@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ContextSync.dal/ContextSync.dal.csproj" />
+  <Project Path="ContextSync.Tests/ContextSync.Tests.csproj" />
+</Solution>

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Структура таблицы: {{ table_name | string.upcase }}</title>
+    <!-- Подключаем современный Bootstrap 5 для красивого грида -->
+    <link href="https://jsdelivr.net" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; padding: 2rem; font-family: sans-serif; }
+        .table-container { background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .fk-badge { font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+<div class="container table-container">
+    <h2 class="mb-4 text-secondary">
+        Таблица: <strong class="text-dark">{{ table_name }}</strong>
+    </h2>
+
+    <!-- Адаптивный грид (Таблица) -->
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th scope="col" style="width: 8%">ID</th>
+                    <th scope="col">Название колонки (sys.columns)</th>
+                    <th scope="col" style="width: 15%">Тип данных</th>
+                    <th scope="col" style="width: 12%">Nullable</th>
+                    <th scope="col">Связи (Foreign Keys)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ if columns.size == 0 }}
+                <tr>
+                    <td colspan="5" class="text-center text-muted">Колонки не найдены</td>
+                </tr>
+                {{ end }}
+                {{ for col in columns }}
+                <tr>
+                    <th scope="row" class="text-muted">{{ col.column_id }}</th>
+                    <td>
+                        <code class="fw-bold text-primary">{{ col.name }}</code>
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary">{{ col.data_type | string.downcase }}</span>
+                    </td>
+                    <td>
+                        {{ if col.is_nullable }}
+                        <span class="text-success">YES</span>
+                        {{ else }}
+                        <span class="text-danger fw-bold">NO</span>
+                        {{ end }}
+                    </td>
+                    <td>
+                        {{ if col.is_foreign_key }}
+                        <a href="#table-{{ col.referenced_table }}" class="btn btn-sm btn-outline-info fk-badge">
+                            FK -> {{ col.referenced_table }}.{{ col.referenced_column }}
+                        </a>
+                        {{ else }}
+                        <span class="text-muted italic">-</span>
+                        {{ end }}
+                    </td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</body>
+</html>
