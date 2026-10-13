@@ -1,7 +1,7 @@
-
+﻿
 Param (
     [parameter(Mandatory=$false)][string]$TargetServerName="localhost",
-    [parameter(Mandatory=$false)][string]$TargetDBname="cgate_uts_tmp", 
+    [parameter(Mandatory=$false)][string]$TargetDBname="CGate", 
     [parameter(Mandatory=$false)][ValidateSet('Build','Deploy','DeployOnly')][string]$PublishMode='DeployOnly',
     [parameter(Mandatory=$false)][bool]$IsRebuild=$true,
     [parameter(Mandatory=$false)][string]$SqlPassword=""
@@ -21,6 +21,7 @@ try{
         break
     }
     $vsLocation = $obj.InstallationPath
+	$vsVersion = $obj.InstallationVersion 
     Write-Host "Visual Studio Location:"
     Write-Host $vsLocation
             
@@ -56,6 +57,12 @@ try{
             Write-Host " -t:rebuild -p:WarningLevel=0 -p:NoWarn=SQL71562 -p:Configuration=Release "$Projectpath\$Project
 
             & "$msbuildLocation" -restore:false -t:rebuild -p:WarningLevel=0 -p:NoWarn=SQL71562 -p:Configuration=Release -p:RestoreEnabled=false -p:ResolveNuGetPackages=false $Projectpath\$Project
+            
+			# Вычисляем версию Студии для переопределения путей (например, 17.0 или 18.0)
+            $majorVersion = $vsVersion.Major
+            $vsVersionProp = "${majorVersion}.0"
+
+            & "$msbuildLocation" -restore:false -t:rebuild -p:WarningLevel=0 -p:NoWarn=SQL71562 -p:Configuration=Release -p:RestoreEnabled=false -p:ResolveNuGetPackages=false -p:VisualStudioVersion=$vsVersionProp $Projectpath\$Project
 
             IF ($LASTEXITCODE -ne 0){
                 throw "Build failed."

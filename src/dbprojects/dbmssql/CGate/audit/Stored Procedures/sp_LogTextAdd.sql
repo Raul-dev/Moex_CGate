@@ -37,8 +37,8 @@ BEGIN
         @SysHostName varchar(128)  = CAST(@@SERVERNAME as varchar(100)),
         @SysAppName  varchar(128)  = app_name()
 
+    -- [Тип 1]: Локальная таблица
     IF @AuditTypeID = 1
-    --SNAPSHOT ISOLATION LEVEL Remote access is not supported for transaction isolation level "SNAPSHOT".
         EXEC [audit].sp_LnkLtInsert
             @ObjectId         = @ObjectId,
             @KeyField         = @KeyField,
@@ -53,7 +53,9 @@ BEGIN
             @SysAppName       = @SysAppName,
             @SPID             = @@SPID
 
+    -- [Тип 2]: Линкед сервер
     IF @AuditTypeID = 2
+        --SNAPSHOT ISOLATION LEVEL Remote access is not supported for transaction isolation level "SNAPSHOT".
         EXEC [$(LinkSRVLog)].[$(DatabaseName)].[audit].sp_LnkLtInsert
             @ObjectId         = @ObjectId,
             @KeyField         = @KeyField,
@@ -67,7 +69,8 @@ BEGIN
             @SysHostName      = @SysHostName,
             @SysAppName       = @SysAppName,
             @SPID             = @@SPID
-
+    
+    -- [Тип 3]: Очередь RabbitMQ
     IF @AuditTypeID = 3
         EXEC [audit].sp_RmqPostLt
             @ObjectId         = @ObjectId,
@@ -82,5 +85,21 @@ BEGIN
             @SysHostName      = @SysHostName,
             @SysAppName       = @SysAppName,
             @SPID             = @@SPID
+
+    -- ?? [НОВЫЙ Тип 4]: In-Memory Таблица (Lock-Free RAM)
+    IF @AuditTypeID = 4
+        EXEC [audit].sp_InMemoryLtInsert
+            @ObjectId         = @ObjectId, @KeyField = @KeyField, @KeyValue = @KeyValue,
+            @MessageCode      = @MessageCode, @Message = @Message, @TransactionCount = @@TRANCOUNT,
+            @DateCreate       = @DateCreate, @SysDbName = @SysDbName, @SysUserName = @SysUserName,
+            @SysHostName      = @SysHostName, @SysAppName = @SysAppName, @SPID = @@SPID
+
+    -- ?? [НОВЫЙ Тип 5]: Оптимизированный дисковый лог (Sequential Key)
+    IF @AuditTypeID = 5
+        EXEC [audit].sp_SeqDiskLtInsert
+            @ObjectId         = @ObjectId, @KeyField = @KeyField, @KeyValue = @KeyValue,
+            @MessageCode      = @MessageCode, @Message = @Message, @TransactionCount = @@TRANCOUNT,
+            @DateCreate       = @DateCreate, @SysDbName = @SysDbName, @SysUserName = @SysUserName,
+            @SysHostName      = @SysHostName, @SysAppName = @SysAppName, @SPID = @@SPID
 
 END

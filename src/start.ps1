@@ -10,8 +10,8 @@
 
 Param (
     [parameter(Mandatory=$false)][bool]$IsUpdate=$false,
-	[parameter(Mandatory=$false)][bool]$IsDockerSql=$false,
-	[parameter(Mandatory=$false)][bool]$IsRecreateDockerContainer=$true
+    [parameter(Mandatory=$false)][bool]$IsDockerSql=$false,
+    [parameter(Mandatory=$false)][bool]$IsRecreateDockerContainer=$true
   )
   
 function Test-Administrator  
@@ -28,11 +28,11 @@ function Test-Docker
 {  
     [OutputType([bool])]
     param()
-	if((docker ps 2>&1) -match '^(?!error)'){
+    if((docker ps 2>&1) -match '^(?!error)'){
      Write-Host "Docker is running"
-	 return $true
+     return $true
     }
-	return $false
+    return $false
 }
 
 function MergeUser
@@ -63,112 +63,123 @@ function MergeUser
 }
 
 try{
-	$CurrentPath = Get-Location
+    $CurrentPath = Get-Location
 
-	$TargetServerName="localhost";
+    $TargetServerName="localhost";
     $TargetDBname="CGate";
-	$ErrorActionPreference = "Stop";
-	
+    $ErrorActionPreference = "Stop";
+    
+    # === БЛОК ПРОВЕРКИ И УСТАНОВКИ SSDT ДЛЯ MSBUILD ===
+    Write-Host "Проверка окружения Visual Studio перед сборкой..." -ForegroundColor Cyan
+    
+    # Запускаем скрипт установки SSDT
+    & .\Install-Ssdt.ps1
+    
+    # Проверяем код возврата скрипта установки. Если он вернул ошибку, прерываем выполнение start.ps1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Сборка остановлена: компонент SSDT отсутствует, а его автоматическая установка завершилась ошибкой."
+        exit 1
+    }
+    # =================================================
+    if($IsUpdate -eq $true){
+        try{
+            Invoke-RestMethod -Method Post -Uri http://localhost:8090/v1/mq/service/stop -ErrorAction SilentlyContinue
+        } catch {
+        }
+    }
 
-	if($IsUpdate -eq $true){
-		try{
-			Invoke-RestMethod -Method Post -Uri http://localhost:8090/v1/mq/service/stop -ErrorAction SilentlyContinue
-		} catch {
-		}
-	}
-
-	Set-Location $CurrentPath
-	if(-Not (Test-Path  .\services\mq\MQ\bin\Release\net9.0\MQ.exe)){
-		dotnet build .\services\mq\MQ\MQ.csproj -c Release
-	}
-	if ($IsDockerSql ){
-	  [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    Set-Location $CurrentPath
+    if(-Not (Test-Path  .\services\mq\MQ\bin\Release\net9.0\MQ.exe)){
+        dotnet build .\services\mq\MQ\MQ.csproj -c Release
+    }
+    if ($IsDockerSql ){
+      [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
       Write-Host "UNSAVE CLR не создать на LINUX MS-SQL2022. В бранче basic база без Rabbit CLR.
 Используйте бранч Basic для создания и тестирования контейнера LINUX MS-SQL2022." -ForegroundColor Red
-	  exit
-	}
+      exit
+    }
 
     #Deploy DB CGate
-	Set-Location "./dbprojects/dbmssql/CGate/ScriptsFolder"
+    Set-Location "./dbprojects/dbmssql/CGate/ScriptsFolder"
 
-	if ($IsDockerSql ) {
-		./dbdeploy -TargetServerName $TargetServerName -TargetDBname $TargetDBname -PublishMode "Build" -IsRebuild $true
-	} else {
-	    ./dbdeploy -TargetServerName $TargetServerName -TargetDBname $TargetDBname -PublishMode "DeployOnly" -IsRebuild $true
-	}
-	
-	if ($LASTEXITCODE -eq -1)
-	{
-	  Set-Location $CurrentPath
-	  exit
-	}
-	Set-Location $CurrentPath
-	Copy-Item -Path .\dbprojects\dbmssql\CGate\bin\Release\*.* -Destination .\images\mssql\dacpac\ -Force
-	if (-Not $IsDockerSql ) {
-		$res = MergeUser $TargetServerName $TargetDBname "CGateUser" "MyPassword321"
-		IF ($LASTEXITCODE -ne 0 -or $res -ne 0){
-			throw "Create user CGateUser failed."
-		}
-		Set-Location $CurrentPath
-	}
-	
+    if ($IsDockerSql ) {
+        ./dbdeploy -TargetServerName $TargetServerName -TargetDBname $TargetDBname -PublishMode "Build" -IsRebuild $true
+    } else {
+        ./dbdeploy -TargetServerName $TargetServerName -TargetDBname $TargetDBname -PublishMode "DeployOnly" -IsRebuild $true
+    }
+    
+    if ($LASTEXITCODE -eq -1)
+    {
+      Set-Location $CurrentPath
+      exit
+    }
+    Set-Location $CurrentPath
+    Copy-Item -Path .\dbprojects\dbmssql\CGate\bin\Release\*.* -Destination .\images\mssql\dacpac\ -Force
+    if (-Not $IsDockerSql ) {
+        $res = MergeUser $TargetServerName $TargetDBname "CGateUser" "MyPassword321"
+        IF ($LASTEXITCODE -ne 0 -or $res -ne 0){
+            throw "Create user CGateUser failed."
+        }
+        Set-Location $CurrentPath
+    }
+    
     #Deploy DB Log
-	Set-Location "./dbprojects/dbmssql/Log/ScriptsFolder"
+    Set-Location "./dbprojects/dbmssql/Log/ScriptsFolder"
     $LogDBname = "Log"
-	if ($IsDockerSql ) {
-		./dbdeploy -TargetServerName $TargetServerName -TargetDBname $LogDBname -PublishMode "Build" -IsRebuild $true
-	} else {
-	    ./dbdeploy -TargetServerName $TargetServerName -TargetDBname $LogDBname -PublishMode "DeployOnly" -IsRebuild $true
-	}
-	
-	if ($LASTEXITCODE -eq -1)
-	{
-	  Set-Location $CurrentPath
-	  exit
-	}
-	Set-Location $CurrentPath
-	Copy-Item -Path .\dbprojects\dbmssql\Log\bin\Release\*.* -Destination .\images\mssql\dacpac\ -Force
-	if (-Not $IsDockerSql ) {
-		$res = MergeUser $TargetServerName $LogDBname "CGateUser" "MyPassword321"
-		IF ($LASTEXITCODE -ne 0 -or $res -ne 0){
-			throw "Create user CGateUser failed."
-		}
-		Set-Location $CurrentPath
-	}
-	dotnet dev-certs https --trust
-	if($IsUpdate -eq $true){
-		try{
-			Invoke-RestMethod -Method Post -Uri http://localhost:8090/v1/mq/service/start -ErrorAction SilentlyContinue
-		} catch {
-		}
-		exit
-	}
-	if(-Not (Test-Docker)){
-		throw "DOCKER is not running. Visit and download https://docs.docker.com/docker-for-windows/install/ "
-	}
-	Set-Location $CurrentPath
-	if ($IsRecreateDockerContainer){
-	    docker compose -f docker-compose.sqldacpac.yml down -v
-		docker compose down -v
-	}
-	if (-Not $IsDockerSql ) {
-		
-		docker compose up
-	} else {
-		
-		docker compose -f docker-compose.sqldacpac.yml up -d
-		Start-Sleep -Seconds 5
-		docker inspect -f '{{.State.Health.Status}}' cgatemssql
-		do {
-			Start-Sleep -Seconds 10
-			docker logs --tail 20 cgatemssql
-		} while((docker inspect -f '{{.State.Health.Status}}' cgatemssql) -eq "unhealthy" )
-		#MSSQL server IP
-		#docker inspect -f "{{.NetworkSettings.IPAddress}}" cgatemssql
-		
-		docker compose --env-file .env.sqlimage up 
-	
-	}
+    if ($IsDockerSql ) {
+        ./dbdeploy -TargetServerName $TargetServerName -TargetDBname $LogDBname -PublishMode "Build" -IsRebuild $true
+    } else {
+        ./dbdeploy -TargetServerName $TargetServerName -TargetDBname $LogDBname -PublishMode "DeployOnly" -IsRebuild $true
+    }
+    
+    if ($LASTEXITCODE -eq -1)
+    {
+      Set-Location $CurrentPath
+      exit
+    }
+    Set-Location $CurrentPath
+    Copy-Item -Path .\dbprojects\dbmssql\Log\bin\Release\*.* -Destination .\images\mssql\dacpac\ -Force
+    if (-Not $IsDockerSql ) {
+        $res = MergeUser $TargetServerName $LogDBname "CGateUser" "MyPassword321"
+        IF ($LASTEXITCODE -ne 0 -or $res -ne 0){
+            throw "Create user CGateUser failed."
+        }
+        Set-Location $CurrentPath
+    }
+    dotnet dev-certs https --trust
+    if($IsUpdate -eq $true){
+        try{
+            Invoke-RestMethod -Method Post -Uri http://localhost:8090/v1/mq/service/start -ErrorAction SilentlyContinue
+        } catch {
+        }
+        exit
+    }
+    if(-Not (Test-Docker)){
+        throw "DOCKER is not running. Visit and download https://docs.docker.com/docker-for-windows/install/ "
+    }
+    Set-Location $CurrentPath
+    if ($IsRecreateDockerContainer){
+        docker compose -f docker-compose.sqldacpac.yml down -v
+        docker compose down -v
+    }
+    if (-Not $IsDockerSql ) {
+        
+        docker compose up
+    } else {
+        
+        docker compose -f docker-compose.sqldacpac.yml up -d
+        Start-Sleep -Seconds 5
+        docker inspect -f '{{.State.Health.Status}}' cgatemssql
+        do {
+            Start-Sleep -Seconds 10
+            docker logs --tail 20 cgatemssql
+        } while((docker inspect -f '{{.State.Health.Status}}' cgatemssql) -eq "unhealthy" )
+        #MSSQL server IP
+        #docker inspect -f "{{.NetworkSettings.IPAddress}}" cgatemssql
+        
+        docker compose --env-file .env.sqlimage up 
+    
+    }
 } catch {
   
   Write-Host "An error occurred:" -fore red
@@ -178,6 +189,6 @@ try{
   $ExitCode = -1
 }
 finally {
-	Set-Location -Path $CurrentPath
-	exit $ExitCode
-}	
+    Set-Location -Path $CurrentPath
+    exit $ExitCode
+}    

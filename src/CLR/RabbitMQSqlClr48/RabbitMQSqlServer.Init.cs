@@ -118,7 +118,7 @@ namespace RabbitMQSqlClr
           {
             foreach(var id in removedEndpoints)
             {
-              RemoteEndpoint e1;
+              //RemoteEndpoint e1;
               RabbitPublisher rp1;
               if(_rabbitPublishers.TryGetValue(id, out rp1))
               {

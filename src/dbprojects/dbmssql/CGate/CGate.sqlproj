@@ -58,13 +58,17 @@
   </PropertyGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">11.0</VisualStudioVersion>
-    <!-- Default to the v11.0 targets path if the targets file for the current VS version is not found -->
     <SSDTExists Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.SqlTasks.targets')">True</SSDTExists>
-    <VisualStudioVersion Condition="'$(SSDTExists)' == ''">11.0</VisualStudioVersion>
+    <!-- Если по дефолту targets не найдены, то динамически определяем мажорную версию через MSBuildVersion -->
+    <VisualStudioVersion Condition="'$(SSDTExists)' == '' AND '$(MSBuildVersion)' != ''">$(MSBuildVersion.Substring(0, $(MSBuildVersion.IndexOf('.')))).0</VisualStudioVersion>
+    <!-- Если и это не помогло, проверяем современный путь MSBuild\Current -->
+    <HasCurrentFolder Condition="Exists('$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v17.0\SSDT\Microsoft.Data.Tools.Schema.SqlTasks.targets')">True</HasCurrentFolder>
+    <VisualStudioVersion Condition="'$(SSDTExists)' == '' AND '$(HasCurrentFolder)' == 'True'">17.0</VisualStudioVersion>
   </PropertyGroup>
+  <!-- Оставляем только те импорты, которые у вас уже были ниже -->
+  <Import Condition="'$(NetCoreBuild)' != 'true'" Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
   <Import Condition="'$(NetCoreBuild)' == 'true'" Project="$(NETCoreTargetsPath)\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
   <Import Condition="'$(NetCoreBuild)' != 'true' AND '$(SQLDBExtensionsRefPath)' != ''" Project="$(SQLDBExtensionsRefPath)\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
-  <Import Condition="'$(NetCoreBuild)' != 'true' AND '$(SQLDBExtensionsRefPath)' == ''" Project="$(MSBuildExtensionsPath)\Microsoft\VisualStudio\v$(VisualStudioVersion)\SSDT\Microsoft.Data.Tools.Schema.SqlTasks.targets" />
   <ItemGroup>
     <Folder Include="Properties" />
     <Folder Include="dbo\" />
@@ -88,6 +92,8 @@
     <Folder Include="mq\Tables\" />
     <Folder Include="mq\Stored Procedures\" />
     <Folder Include="ScriptsFolder" />
+    <Folder Include="Storage\" />
+    <Folder Include="Service Broker\" />
   </ItemGroup>
   <ItemGroup>
     <Build Include="dbo\Tables\Setting.sql" />
@@ -161,6 +167,17 @@
     <Build Include="audit\Tables\LogTextBuffer.sql" />
     <Build Include="audit\Tables\LogErrorBuffer.sql" />
     <Build Include="audit\Stored Procedures\load_LogError.sql" />
+    <Build Include="audit\Tables\SequentialDiskLogTable.sql" />
+    <Build Include="Storage\CGate_InMemory_FG.sql" />
+    <Build Include="audit\Stored Procedures\sp_SeqDiskLtInsert.sql" />
+    <Build Include="audit\Stored Procedures\sp_InMemoryLtInsert.sql" />
+    <Build Include="audit\Tables\InMemoryLogTable.sql" />
+    <None Include="Dictionaries\ServiceBroker.sql" />
+    <Build Include="audit\Stored Procedures\sp_ServiceBrokerLogQueueProcessor.sql" />
+    <Build Include="Service Broker\__CGate_Audit_LogContract.sql" />
+    <Build Include="Service Broker\__CGate_Audit_LogMessage.sql" />
+    <Build Include="Service Broker\LogQueue.sql" />
+    <Build Include="Service Broker\__CGate_Audit_LogService.sql" />
   </ItemGroup>
   <ItemGroup>
     <SqlCmdVariable Include="LinkSRVLog">
@@ -183,11 +200,9 @@
     <None Include="Dictionaries\assembly.sql" />
     <None Include="Assemblies\RabbitMQSqlClr4.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  
     </None>
     <None Include="Assemblies\RabbitMQ.Client.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-	  
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -207,8 +222,5 @@
       <SqlOwnerName>rmq</SqlOwnerName>
       <SqlPermissionSet>UNSAFE</SqlPermissionSet>
     </Reference>
-  </ItemGroup>
-  <ItemGroup>
-    <RefactorLog Include="CGate.refactorlog" />
   </ItemGroup>
 </Project>

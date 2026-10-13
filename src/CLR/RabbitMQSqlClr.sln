@@ -5,9 +5,12 @@ VisualStudioVersion = 17.14.36811.4
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMQTestApp", "RabbitMQTestApp\RabbitMQTestApp.csproj", "{66CEB622-0C11-4F0C-829D-BE3245D42DEC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMQSqlClr48", "RabbitMQSqlClr3.5\RabbitMQSqlClr48.csproj", "{89E3AF65-A011-4FA0-961A-264507C3EEDA}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
+	ProjectSection(SolutionItems) = preProject
+		RabbitMQSqlClr48\Installscripts\System.Threading.sql2k5-12.sql = RabbitMQSqlClr48\Installscripts\System.Threading.sql2k5-12.sql
+	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMQSqlClr4", "RabbitMQSqlClr4\RabbitMQSqlClr4.csproj", "{514E56CE-9098-47AA-9C5D-436316737CA0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RabbitMQSqlClr48", "RabbitMQSqlClr48\RabbitMQSqlClr48.csproj", "{89E3AF65-A011-4FA0-961A-264507C3EEDA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,12 +26,11 @@ Global
 		{89E3AF65-A011-4FA0-961A-264507C3EEDA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{89E3AF65-A011-4FA0-961A-264507C3EEDA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{89E3AF65-A011-4FA0-961A-264507C3EEDA}.Release|Any CPU.Build.0 = Release|Any CPU
-		{514E56CE-9098-47AA-9C5D-436316737CA0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{514E56CE-9098-47AA-9C5D-436316737CA0}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{514E56CE-9098-47AA-9C5D-436316737CA0}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{514E56CE-9098-47AA-9C5D-436316737CA0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {CD1460D3-5099-4627-9AD8-B76FC1ED0AE5}
 	EndGlobalSection
 EndGlobal

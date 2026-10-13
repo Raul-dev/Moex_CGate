@@ -21,7 +21,7 @@ namespace RabbitMQSqlClr
         }
 
       }
-      catch(Exception ex)
+      catch(Exception)
       {
         throw;
       }

@@ -1,1 +1,0 @@
-.\TestPerformance\bin\Release\net9.0\TestPerformance.exe

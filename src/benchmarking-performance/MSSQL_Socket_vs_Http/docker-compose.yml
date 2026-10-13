@@ -1,0 +1,40 @@
+name: mssql-socket-http-perf
+
+services:
+  # TCP-сервис: постоянные сокеты, 4Б-запрос -> 5КБ-ответ (для SQL CLR SqlClr.Socket)
+  perf-tcp:
+    build:
+      context: .
+      dockerfile: PositionTcpService/Dockerfile
+    image: perf-tcp:latest
+    container_name: perf-tcp
+    ports:
+      - "8888:8888"
+    restart: unless-stopped
+
+  # HTTP-сервис: Kestrel аналог (для SQL CLR SqlClr.Http и сравнения по HTTP)
+  perf-http:
+    build:
+      context: .
+      dockerfile: PositionHttpService/Dockerfile
+    image: perf-http:latest
+    container_name: perf-http
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+# ---------------------------------------------------------------------------
+# Пример Windows-службы (Windows-контейнер, запускается только на Windows-хосте).
+# Проще и надёжнее: сборка собирается локально и установка как Windows-сервис
+# выполняется скриптом install-windows-service.ps1 (см. README). Пример ниже —
+# если нужен именно контейнер с Windows-базой:
+#
+#  perf-tcp-winsvc:
+#    build:
+#      context: .
+#      dockerfile: PositionTcpService/Dockerfile.windows
+#    image: perf-tcp-winsvc:latest
+#    ports:
+#      - "8889:8888"
+#    platform: windows
+#    restart: unless-stopped

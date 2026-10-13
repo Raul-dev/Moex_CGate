@@ -1,0 +1,4 @@
+﻿CREATE MESSAGE TYPE [//CGate/Audit/LogMessage]
+    AUTHORIZATION [dbo]
+    VALIDATION = WELL_FORMED_XML;
+

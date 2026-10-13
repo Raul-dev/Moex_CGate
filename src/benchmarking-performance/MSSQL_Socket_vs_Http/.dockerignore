@@ -1,0 +1,16 @@
+# Артефакты сборки и IDE
+**/bin/
+**/obj/
+**/out/
+**/artifacts/
+**/.vs/
+**/BenchmarkDotNet.Artifacts/
+
+# Measure docs и вспомогательные файлы не загружаются в образ
+benchmark.sql
+*.md
+
+# Решение и скрипты не нужны внутри контекста сборки
+MSSQL_Socket_Http_Performance.sln
+docker-compose*.yml
+install-windows-service.ps1

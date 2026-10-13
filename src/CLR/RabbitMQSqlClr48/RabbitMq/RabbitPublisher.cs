@@ -33,7 +33,7 @@ namespace RabbitMQSqlClr
       try
       {
         _connFactory = new ConnectionFactory();
-        _connFactory.Uri = _connString;
+        _connFactory.Uri = new Uri(_connString); 
         _connFactory.AutomaticRecoveryEnabled = true;
         _connFactory.TopologyRecoveryEnabled = true;
         RabbitConn = _connFactory.CreateConnection();
@@ -47,7 +47,7 @@ namespace RabbitMQSqlClr
 
         return true;
       }
-      catch(Exception ex)
+      catch(Exception)
       {
         return false;
       }
@@ -65,7 +65,8 @@ namespace RabbitMQSqlClr
         while ((!_rabbitChannels.TryPop(out value)) && channelTryCount < 100)
         {
           channelTryCount += 1;
-          Thread.Sleep(50);
+          //  Thread.Yield();       
+          Thread.SpinWait(20);
         }
 
         if (channelTryCount == 100)
@@ -81,7 +82,7 @@ namespace RabbitMQSqlClr
       }
 
      
-      catch (Exception ex)
+      catch (Exception )
       {
         if (value != null)
         {
