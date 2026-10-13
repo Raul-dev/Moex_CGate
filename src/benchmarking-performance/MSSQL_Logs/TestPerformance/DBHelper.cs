@@ -100,7 +100,7 @@ namespace TestPerformance
             if (sMessage == null)
                 message.Value = DBNull.Value;
             
-            AudiTestDBContext.Database.ExecuteSqlRaw($"EXEC [audit].[sp_LogText_Add] 'FullAuditEnabled', @KeyField, @KeyValue, @MessageCode, @Message", keyField, keyValue, messageCode, message);
+            AudiTestDBContext.Database.ExecuteSqlRaw($"EXEC [audit].[sp_LogTextAdd] 'FullAuditEnabled', @KeyField, @KeyValue, @MessageCode, @Message", keyField, keyValue, messageCode, message);
 
         }
         

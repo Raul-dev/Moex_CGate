@@ -89,7 +89,10 @@ try{
         $sourceFile =$Projectpath+"\bin\Release\"+$Projectname+".dacpac"
         Write-Host $sourceFile
         Write-Host $vsLocation
-        $SqlPackagePath = $env:Path -split ';'|?{$_ -and ((Test-Path -Path (Join-Path -Path $_ -ChildPath SqlPackage.exe) -PathType leaf))}
+        
+        # Ищем в PATH и берем строго ОДИН первый попавшийся путь
+        $SqlPackagePath = $env:Path -split ';' | Where-Object {$_ -and ((Test-Path -Path (Join-Path -Path $_ -ChildPath SqlPackage.exe) -PathType leaf))} | Select-Object -First 1
+
         if($SqlPackagePath){
             $SqlPackagePath = Join-Path -Path $SqlPackagePath -ChildPath SqlPackage.exe
         }else {

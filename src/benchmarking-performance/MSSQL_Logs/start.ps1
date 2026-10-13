@@ -1,7 +1,7 @@
 ﻿
 param (
     [string]$SqlServer = "localhost",
-    [string]$DbName = "MoexData"
+    [string]$DbName = "CGate"
 )
 # Принудительно включаем UTF-8 для красивых эмодзи и русского текста
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -69,4 +69,4 @@ if ($LASTEXITCODE -ne 0) {
 
 # 4. Запуск бенчмарка
 Write-Host "[ЗАПУСК] Инициализация BenchmarkDotNet..." -ForegroundColor Yellow
-dotnet .\bin\Release\net9.0\TestPerformance.dll
+.\TestPerformance\bin\Release\net9.0\TestPerformance.exe
