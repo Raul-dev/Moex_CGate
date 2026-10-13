@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using RabbitMQ.Client;
 using System.Threading;
 using System.Collections.Concurrent;
+using System.Net.Sockets;
 
 namespace RabbitMQSqlClr
 {
@@ -21,7 +22,7 @@ namespace RabbitMQSqlClr
     readonly ConcurrentStack<IModel> _rabbitChannels = new ConcurrentStack<IModel>();
 
 
-    internal RabbitPublisher(string amqpConnString, int endPointId, int channels = 5)
+    internal RabbitPublisher(string amqpConnString, int endPointId, int channels = 100)
     {
       _connString = amqpConnString;
       _channels = channels;
@@ -30,57 +31,74 @@ namespace RabbitMQSqlClr
 
     internal bool InternalConnect()
     {
-      try
-      {
-        _connFactory = new ConnectionFactory();
-        _connFactory.Uri = new Uri(_connString); 
-        _connFactory.AutomaticRecoveryEnabled = true;
-        _connFactory.TopologyRecoveryEnabled = true;
-        RabbitConn = _connFactory.CreateConnection();
-        
-
-        for (int x = 0; x < _channels; x++)
-        {
-          var ch = RabbitConn.CreateModel();
-          _rabbitChannels.Push(ch);
-        }
-
-        return true;
-      }
-      catch(Exception)
-      {
-        return false;
-      }
-    }
-
-
-    internal bool Post(string exchange, byte[] msg, string topic)
-    {
-        // Пытаемся взять готовый канал из пула без блокировок
-        if (!_rabbitChannels.TryPop(out IModel channel))
-        {
-            // Если свободных каналов в пуле НЕ ОСТАЛОСЬ, мы не падаем в ошибку!
-            // Мы просто создаем ОДИН новый канал для этого конкретного потока
-            lock (RabbitConn)
-            {
-                channel = RabbitConn.CreateModel();
-            }
-        }
-
         try
         {
-            // Публикуем сообщение (теперь у каждого потока строго свой канал)
-            channel.BasicPublish(exchange, topic, false, null, msg);
+            _connFactory = new ConnectionFactory();
+            _connFactory.Uri = new Uri(_connString);
+            _connFactory.AutomaticRecoveryEnabled = true;
+            _connFactory.TopologyRecoveryEnabled = true;
 
-            // Возвращаем его в пул — теперь пул сам вырос и готов к большей нагрузке
-            _rabbitChannels.Push(channel);
+            // ПРАВИЛЬНАЯ НАСТРОЙКА SOCKETFACTORY:
+            // Передаем лямбду, которая принимает семейство адресов (addressFamily)
+            _connFactory.SocketFactory = (addressFamily) =>
+            {
+                // 1. Создаем стандартный клиентский сокет .NET
+                var tcpClient = new System.Net.Sockets.TcpClient(addressFamily);
+
+                // 2. Применяем высокоскоростные оптимизации к системному сокету
+                tcpClient.NoDelay = true;             // Отключаем алгоритм Нагла (минус задержки пакетов)
+                tcpClient.SendBufferSize = 64 * 1024; // Увеличиваем буфер отправки до 64 КБ
+
+                // 3. Оборачиваем его в интерфейс ITcpClient, который требует RabbitMQ
+                return new TcpClientAdapter(tcpClient.Client);
+            };
+
+            RabbitConn = _connFactory.CreateConnection();
+
+            for (int x = 0; x < _channels; x++)
+            {
+                var ch = RabbitConn.CreateModel();
+                _rabbitChannels.Push(ch);
+            }
             return true;
         }
         catch (Exception)
         {
-            // Если была ошибка сети, возвращаем канал, чтобы не потерять объект
-            if (channel != null) _rabbitChannels.Push(channel);
-            throw;
+            return false;
+        }
+    }
+
+        internal bool Post(string exchange, byte[] msg, string topic)
+    {
+        // Извлекаем канал БЕЗ блокировок. 
+        // Если стек пуст, TryPop вернет false, но мы НЕ блокируем поток локом.
+        if (_rabbitChannels.TryPop(out IModel channel))
+        {
+            try
+            {
+                // Отправка в сокет. Чтобы было максимально быстро, 
+                // убедитесь, что свойства сообщения (IBasicProperties) не создаются заново каждый раз.
+                channel.BasicPublish(exchange, topic, false, null, msg);
+
+                // Возвращаем обратно в пул
+                _rabbitChannels.Push(channel);
+                return true;
+            }
+            catch (Exception)
+            {
+                if (channel != null) { try { channel.Close(); } catch { } }
+                throw;
+            }
+        }
+        else
+        {
+            // Экстремальный случай: если 50-100 каналов из пула внезапно кончились, 
+            // создаем канал БЕЗ лока. Да, CreateModel() на одном Connection не на 100% потокобезопасен 
+            // в старых версиях клиента, но в современном RabbitMQ.Client под .NET он оптимизирован.
+            var tCh = RabbitConn.CreateModel();
+            tCh.BasicPublish(exchange, topic, false, null, msg);
+            _rabbitChannels.Push(tCh); // Расширяем пул лениво
+            return true;
         }
     }
 

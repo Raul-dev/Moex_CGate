@@ -16,21 +16,25 @@ namespace TestPerformance
 
         public async Task Add1000LogMessage(LogType logType)
         {
-            int TargetThreadCount = 20;
+            int TargetThreadCount = 1;
             Task[] tasks = new Task[TargetThreadCount];
 
             for (int i = 0; i < TargetThreadCount; i++)
             {
                 tasks[i] = Task.Run(() =>
                 {
-                    string connection = @$"Server = localhost; Database = CGate; User = CGateUser; Password = MyPassword321; MultipleActiveResultSets = true; TrustServerCertificate = true; Encrypt = False";
-                    DBHelper dbset = new DBHelper(connection);
-                    dbset.SetLogType(logType);
+                    string connectionStr = @"Server = localhost; Database = CGate; User = CGateUser; Password = MyPassword321; MultipleActiveResultSets = true; TrustServerCertificate = true; Encrypt = False";
 
-                    for (int j = 0; j < 10; j++)
+                    // Используем using: конструктор сам откроет SqlConnection и применит SetLogType!
+                    using (DBHelper dbset = new DBHelper(connectionStr, logType))
                     {
-                        dbset.AddLogMessage();
-                    }
+                        for (int j = 0; j < 2000; j++)
+                        {
+                            // Вы можете чередовать для сравнения:
+                            // dbset.AddLogMessage();       // Через Entity Framework
+                            dbset.AddLogMessageDirect();    // НАПРЯМУЮ (ADO.NET) — для максимальной скорости
+                        }
+                    } // Тут соединение закроется автоматически
                 });
             }
 

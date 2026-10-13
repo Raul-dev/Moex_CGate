@@ -137,7 +137,7 @@ namespace RabbitMQSqlClr
             foreach(var id in newEndpoints)
             {
              var rep = _remoteEndpoints.Where(ex => ex.Key == id).Select(r => r.Value).FirstOrDefault();
-              var rp = new RabbitPublisher(rep.ConnectionString, id);
+              var rp = new RabbitPublisher(rep.ConnectionString, id, channels: 100);
               _rabbitPublishers.Add(id, rp);
               rp.InternalConnect();
             }
