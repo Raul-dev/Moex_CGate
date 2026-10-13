@@ -17,7 +17,7 @@
     <ModelCollation>1049,CI</ModelCollation>
     <DefaultFileStructure>BySchemaAndSchemaType</DefaultFileStructure>
     <DeployToDatabase>True</DeployToDatabase>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <TargetLanguage>CS</TargetLanguage>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <SqlServerVerification>False</SqlServerVerification>
@@ -180,6 +180,10 @@
     <Build Include="Service Broker\__CGate_Audit_LogService.sql" />
   </ItemGroup>
   <ItemGroup>
+    <SqlCmdVariable Include="KeyPath">
+      <DefaultValue>.\Dictionaries\SqlClrKey.snk</DefaultValue>
+      <Value>$(SqlCmdVar__3)</Value>
+    </SqlCmdVariable>
     <SqlCmdVariable Include="LinkSRVLog">
       <DefaultValue>LinkSRVLog</DefaultValue>
       <Value>$(SqlCmdVar__2)</Value>
@@ -198,12 +202,10 @@
     <None Include="ScriptsFolder\MSqlDeploymentFunc.psm1" />
     <None Include="Dictionaries\AuditSetup.sql" />
     <None Include="Dictionaries\assembly.sql" />
-    <None Include="Assemblies\RabbitMQSqlClr4.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="Assemblies\RabbitMQ.Client.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <None Include="Assemblies\RabbitMQSqlClr48.dll" />
+    <None Include="Assemblies\RabbitMQ.Client.dll" />
+    <None Include="Assemblies\Microsoft.Diagnostics.Tracing.EventSource.dll" />
+    <None Include="Dictionaries\SqlClrKey.snk" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="RabbitMQ.Client">
@@ -214,13 +216,22 @@
       <SqlOwnerName>rmq</SqlOwnerName>
       <SqlPermissionSet>UNSAFE</SqlPermissionSet>
     </Reference>
-    <Reference Include="RabbitMQSqlClr4">
-      <HintPath>Assemblies\RabbitMQSqlClr4.dll</HintPath>
-      <SqlAssemblyName>RabbitMQSqlClr4</SqlAssemblyName>
+    <Reference Include="RabbitMQSqlClr48">
+      <HintPath>Assemblies\RabbitMQSqlClr48.dll</HintPath>
+      <SqlAssemblyName>RabbitMQSqlClr48</SqlAssemblyName>
       <IsModelAware>True</IsModelAware>
       <GenerateSqlClrDdl>False</GenerateSqlClrDdl>
       <SqlOwnerName>rmq</SqlOwnerName>
       <SqlPermissionSet>UNSAFE</SqlPermissionSet>
+    </Reference>
+    <Reference Include="Microsoft.Diagnostics.Tracing.EventSource">
+      <HintPath>Assemblies\Microsoft.Diagnostics.Tracing.EventSource.dll</HintPath>
+      <SqlAssemblyName>Microsoft.Diagnostics.Tracing.EventSource</SqlAssemblyName>
+      <IsModelAware>True</IsModelAware>
+      <GenerateSqlClrDdl>False</GenerateSqlClrDdl>
+      <SqlOwnerName>rmq</SqlOwnerName>
+      <SqlPermissionSet>UNSAFE</SqlPermissionSet>
+      <IsVisible>False</IsVisible>
     </Reference>
   </ItemGroup>
 </Project>

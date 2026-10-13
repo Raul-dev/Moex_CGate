@@ -56,41 +56,32 @@ namespace RabbitMQSqlClr
 
     internal bool Post(string exchange, byte[] msg, string topic)
     {
-      IModel value = null;
-      int channelTryCount = 0;
-      try
-      {
-   
-
-        while ((!_rabbitChannels.TryPop(out value)) && channelTryCount < 100)
+        // Пытаемся взять готовый канал из пула без блокировок
+        if (!_rabbitChannels.TryPop(out IModel channel))
         {
-          channelTryCount += 1;
-          //  Thread.Yield();       
-          Thread.SpinWait(20);
+            // Если свободных каналов в пуле НЕ ОСТАЛОСЬ, мы не падаем в ошибку!
+            // Мы просто создаем ОДИН новый канал для этого конкретного потока
+            lock (RabbitConn)
+            {
+                channel = RabbitConn.CreateModel();
+            }
         }
 
-        if (channelTryCount == 100)
+        try
         {
-          var errMsg = $"Channel pool blocked when trying to post message to Exchange: {exchange}.";
-          throw new ApplicationException(errMsg);
-          }
+            // Публикуем сообщение (теперь у каждого потока строго свой канал)
+            channel.BasicPublish(exchange, topic, false, null, msg);
 
-        value.BasicPublish(exchange, topic, false, null, msg);
-        _rabbitChannels.Push(value);
-        return true;
-
-      }
-
-     
-      catch (Exception )
-      {
-        if (value != null)
-        {
-          _rabbitChannels.Push(value);
+            // Возвращаем его в пул — теперь пул сам вырос и готов к большей нагрузке
+            _rabbitChannels.Push(channel);
+            return true;
         }
-        throw;
-      }
-
+        catch (Exception)
+        {
+            // Если была ошибка сети, возвращаем канал, чтобы не потерять объект
+            if (channel != null) _rabbitChannels.Push(channel);
+            throw;
+        }
     }
 
     internal void Shutdown()

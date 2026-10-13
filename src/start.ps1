@@ -163,7 +163,7 @@ try{
         docker compose down -v
     }
     if (-Not $IsDockerSql ) {
-        
+        docker compose down -v
         docker compose up
     } else {
         

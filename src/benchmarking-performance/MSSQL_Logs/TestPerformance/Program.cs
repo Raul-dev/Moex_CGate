@@ -45,6 +45,7 @@ namespace benchmarkdotnetdemo
                                 .WithUnrollFactor(10)
                                 .WithIterationCount(benchmarkSettings.IterationCount)
                                 .WithInvocationCount(benchmarkSettings.InvocationCount)
+     
                 );
 
                 // Example usage

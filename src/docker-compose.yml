@@ -60,8 +60,10 @@ services:
       - DataBaseSettings__DataBase=${MQ_DATABASE:-CGate}
       - DataBaseSettings__User=${MQ_USER:-CGateUser}
       - DataBaseSettings__Password=${MQ_PASSWORD:-MyPassword321}
-      - Serilog__MinimumLevel__Default=Debug
-      #- Serilog__MinimumLevel__Default=Information
+      - Logging__LogLevel__Default=Warning
+      - Serilog__MinimumLevel__Default=Warning
+      - Serilog__MinimumLevel__Override__Microsoft=Warning
+      - Serilog__MinimumLevel__Override__System=Warning
       #- Serilog__WriteTo__1__Args__formatter__template='[{@t:HH:mm:ss.ff}] [{@l:u3}] [{WorkerLogPrefix:3}] {@m}\n{NewLine}{@x}'
       #- Serilog__WriteTo__1__Args__formatter__template={Timestamp:yyyy-MM-dd HH:mm:ss} [{Level:u3}] {Message:lj}{NewLine}{Exception}
     ports:

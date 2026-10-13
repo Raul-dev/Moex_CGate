@@ -14,39 +14,66 @@ namespace TestPerformance
     public class AuditParserBenchmarks
     {
 
-        public void Add1000LogMessage(LogType logType)
+        public async Task Add1000LogMessage(LogType logType)
         {
-            string connection = @$"Server = localhost; Database = CGate; User = CGateUser; Password = MyPassword321; MultipleActiveResultSets = true; TrustServerCertificate = true; Encrypt = False";
-            DBHelper dbset = new DBHelper(connection);
-            dbset.SetLogType(logType);
-            //Parallel.For(0, 10, i =>
-            //{
-            //    DBHelper dbHelper = new DBHelper(connection);
+            int TargetThreadCount = 20;
+            Task[] tasks = new Task[TargetThreadCount];
 
-                for (int j = 0; j < 100; j++)
+            for (int i = 0; i < TargetThreadCount; i++)
+            {
+                tasks[i] = Task.Run(() =>
                 {
-                   dbset.AddLogMessage();
-                }
+                    string connection = @$"Server = localhost; Database = CGate; User = CGateUser; Password = MyPassword321; MultipleActiveResultSets = true; TrustServerCertificate = true; Encrypt = False";
+                    DBHelper dbset = new DBHelper(connection);
+                    dbset.SetLogType(logType);
 
-            //});
+                    for (int j = 0; j < 10; j++)
+                    {
+                        dbset.AddLogMessage();
+                    }
+                });
+            }
+
+            // Ждем, пока все потоки завершат работу. 
+            // Этот суммарный "залп" и будет измерен как 1 Invocation.
+            await Task.WhenAll(tasks);
         }
 
         [Benchmark]
-        public void LogLocalTable()
+        public async Task LogLocalTable()
         {
-            Add1000LogMessage(LogType.LocalTable);
+            await Add1000LogMessage(LogType.LocalTable);
         }
 
         [Benchmark]
-        public void LogLinkedServerTable()
+        public async Task LogLinkedServerTable()
         {
-            Add1000LogMessage(LogType.LinkedServerTable);
+            await Add1000LogMessage(LogType.LinkedServerTable);
         }
 
         [Benchmark(Baseline = true)]
-        public void LogRabbitMQPost()
+        public async Task LogRabbitMQPost()
         {
-            Add1000LogMessage(LogType.RabbitMQPost);
+            await Add1000LogMessage(LogType.RabbitMQPost);
+        }
+
+
+        [Benchmark]
+        public async Task LogInMemoryTableTable()
+        {
+            await Add1000LogMessage(LogType.InMemoryTable);
+        }
+
+        [Benchmark]
+        public async Task LogSequentialDiskTable()
+        {
+            await Add1000LogMessage(LogType.SequentialDiskTable);
+        }
+
+        [Benchmark]
+        public async Task LogServiceBrokerTable()
+        {
+            await Add1000LogMessage(LogType.ServiceBroker);
         }
 
         public void LogRabbitMQPostDebug()
