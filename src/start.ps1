@@ -28,6 +28,38 @@ function Test-Docker
 {  
     [OutputType([bool])]
     param()
+    # ==============================================================================
+    # ПРОВЕРКА И ПЕРЕЗАПУСК DOCKER (ЕСЛИ СВЯЗЬ СЛОМАНА)
+    # ==============================================================================
+
+    Write-Host "Проверка связи с Docker..." -ForegroundColor Cyan
+
+    # Проверяем, отвечает ли Docker-демон
+    $dockerCheck = docker ps 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Ошибка: Связь с Docker потеряна (канал закрыт)." -ForegroundColor Red
+        Write-Host "Попытка перезапуска служб Docker..." -ForegroundColor Yellow
+
+        # Принудительно перезапускаем все службы Windows, связанные с Docker
+        Restart-Service *docker* -Force
+
+        # Ждем, пока Docker полностью поднимется (обычно требуется время)
+        Write-Host "Ожидание запуска Docker-демона (30 секунд)..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 30
+        
+        # Вторая проверка после перезапуска
+        docker info > $null 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Критическая ошибка: Не удалось восстановить связь с Docker." -ForegroundColor Red
+            Write-Host "Пожалуйста, перезапустите Docker Desktop вручную." -ForegroundColor Red
+            Read-Host "Нажмите Enter для выхода..."
+            exit
+        }
+        Write-Host "Связь с Docker успешно восстановлена!" -ForegroundColor Green
+    } else {
+        Write-Host "Docker работает нормально, продолжаем..." -ForegroundColor Green
+    }
+
     if((docker ps 2>&1) -match '^(?!error)'){
      Write-Host "Docker is running"
      return $true
@@ -116,7 +148,7 @@ try{
     Set-Location $CurrentPath
     Copy-Item -Path .\dbprojects\dbmssql\CGate\bin\Release\*.* -Destination .\images\mssql\dacpac\ -Force
     if (-Not $IsDockerSql ) {
-        $res = MergeUser $TargetServerName $TargetDBname "CGateUser" "MyPassword321"
+        $res = MergeUser $TargetServerName $TargetDBname "CGateUser" "MyPassword321!"
         IF ($LASTEXITCODE -ne 0 -or $res -ne 0){
             throw "Create user CGateUser failed."
         }
@@ -140,13 +172,45 @@ try{
     Set-Location $CurrentPath
     Copy-Item -Path .\dbprojects\dbmssql\Log\bin\Release\*.* -Destination .\images\mssql\dacpac\ -Force
     if (-Not $IsDockerSql ) {
-        $res = MergeUser $TargetServerName $LogDBname "CGateUser" "MyPassword321"
+        $res = MergeUser $TargetServerName $LogDBname "CGateUser" "MyPassword321!"
         IF ($LASTEXITCODE -ne 0 -or $res -ne 0){
             throw "Create user CGateUser failed."
         }
         Set-Location $CurrentPath
     }
-    dotnet dev-certs https --trust
+
+    #dotnet dev-certs https --trust  -Эта штука просит нажать Yes, меняем её
+    # ==============================================================================
+    # БЕСШУМНАЯ ГЕНЕРАЦИЯ И ИМПОРТ HTTPS СЕРТИФИКАТА РАЗРАБОТЧИКА
+    # ==============================================================================
+    Write-Host "Проверка HTTPS сертификата разработчика..." -ForegroundColor Cyan
+    
+    # 1. Проверяем, есть ли уже валидный сертификат
+    $certCheck = dotnet dev-certs https --check
+    if ($certCheck -match "A valid certificate was found") {
+        Write-Host "Валидный сертификат уже существует." -ForegroundColor Green
+    } else {
+        Write-Host "Генерация нового сертификата..." -ForegroundColor Cyan
+        $tempCertPath = "$env:TEMP\localhost_dev.crt"
+        
+        # 2. ИСПРАВЛЕНИЕ: Добавляем --format PEM. Теперь команда отрабатывает БЕЗ ОКОН И ПАРОЛЕЙ!
+        & dotnet dev-certs https -ep $tempCertPath --format PEM -np
+        
+        Write-Host "Принудительный бесшумный импорт сертификата в Root..." -ForegroundColor Cyan
+        
+        # 3. Импортируем полученный PEM-сертификат в доверенные корневые центры
+        if (Test-Path $tempCertPath) {
+            & certutil.exe -user -addstore Root $tempCertPath > $null
+            
+            # Чистим временный файл
+            Remove-Item $tempCertPath -Force
+            Write-Host "УСПЕШНО: Сертификат разработки .NET импортирован полностью молча!" -ForegroundColor Green
+        } else {
+            Write-Warning "Не удалось экспортировать сертификат во временный файл."
+        }
+    }
+    # ==============================================================================
+
     if($IsUpdate -eq $true){
         try{
             Invoke-RestMethod -Method Post -Uri http://localhost:8090/v1/mq/service/start -ErrorAction SilentlyContinue

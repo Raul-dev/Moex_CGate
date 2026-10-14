@@ -87,6 +87,7 @@ try{
 			
         Write-Host "Publish $($Projectname).dacpac"
         $sourceFile =$Projectpath+"\bin\Release\"+$Projectname+".dacpac"
+        $AbsoluteKeyPath = "$Projectpath\bin\Release\Dictionaries\SqlClrKey.snk"
         Write-Host $sourceFile
         Write-Host $vsLocation
         
@@ -100,13 +101,29 @@ try{
                 #For VS2019
                 $SqlPackagePath = "$vsLocation\Common7\IDE\Extensions\Microsoft\SQLDB\DAC\150\sqlpackage.exe"
             } else {
-                #For VS2022
+                #For VS2022 VS2026
                 $SqlPackagePath = "$vsLocation\Common7\IDE\Extensions\Microsoft\SQLDB\DAC\sqlpackage.exe"
             }
         }
 
-		Write-Host "$SqlPackagePath /Action:Publish /SourceFile:$sourceFile /TargetServerName:$TargetServerName /TargetDatabaseName:$TargetDBname /TargetEncryptConnection:False /p:BlockOnPossibleDataLoss=False /p:IgnorePermissions=True /v:LinkSRVLog=$LinkSRVLog"
-		& $SqlPackagePath /Action:Publish /SourceFile:$sourceFile /TargetServerName:$TargetServerName /TargetDatabaseName:$TargetDBname /TargetEncryptConnection:False /p:BlockOnPossibleDataLoss=False /p:IgnorePermissions=True /v:LinkSRVLog=$LinkSRVLog 
+        # Вычисляем реальные имена хостов, если передано локальное имя
+        $ResolvedDbServer = $TargetServerName
+        $ResolvedRabbitServer = $TargetServerName
+
+        # Список локальных псевдонимов
+        $LocalAliases = @("localhost", ".", "127.0.0.1", "::1")
+
+        if ($LocalAliases -contains $TargetServerName.ToLower().Trim()) {
+            # Получаем официальное сетевое имя текущего компьютера
+            $RealHostName = [System.Net.Dns]::GetHostName()
+            $ResolvedDbServer = $RealHostName
+            $ResolvedRabbitServer = $RealHostName
+            Write-Host "Заменено локальное имя сервера '$TargetServerName' на реальный хост: $RealHostName" -ForegroundColor Cyan
+        }
+		#Write-Host "$SqlPackagePath /Action:Publish /SourceFile:$sourceFile /TargetServerName:$TargetServerName /TargetDatabaseName:$TargetDBname /TargetEncryptConnection:False /p:BlockOnPossibleDataLoss=False /p:IgnorePermissions=True /v:LinkSRVLog=$LinkSRVLog"
+		#& $SqlPackagePath /Action:Publish /SourceFile:$sourceFile /TargetServerName:$TargetServerName /TargetDatabaseName:$TargetDBname /TargetEncryptConnection:False /p:BlockOnPossibleDataLoss=False /p:IgnorePermissions=True /v:LinkSRVLog=$LinkSRVLog 
+        Write-Host "\$SqlPackagePath /Action:Publish /SourceFile:$sourceFile /TargetServerName:TargetServerName /TargetDatabaseName:TargetDBname /TargetEncryptConnection:False /p:BlockOnPossibleDataLoss=False /p:IgnorePermissions=True /v:LinkSRVLog=$LinkSRVLog /v:KeyPath=`"$AbsoluteKeyPath`" /v:DbServerName=`"$ResolvedDbServer`" /v:RabbitServerName=`"$ResolvedRabbitServer`""
+        & $SqlPackagePath /Action:Publish /SourceFile:$sourceFile /TargetServerName:$TargetServerName /TargetDatabaseName:$TargetDBname /TargetEncryptConnection:False /p:BlockOnPossibleDataLoss=False /p:IgnorePermissions=True /v:LinkSRVLog=$LinkSRVLog /v:KeyPath="$AbsoluteKeyPath" /v:DbServerName="$ResolvedDbServer" /v:RabbitServerName="$ResolvedRabbitServer"
         IF ($LASTEXITCODE -ne 0){
             throw "Publish failed."
         }

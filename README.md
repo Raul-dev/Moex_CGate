@@ -125,7 +125,7 @@ dotnet build .\services\mq\MQ\MQ.csproj -c Release
 С явным указанием сервера и учётных данных:
 
 ```powershell
-.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -q mq.Upload
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321! -q mq.Upload
 ```
 
 Полезные параметры `CopyMsg`:
@@ -202,7 +202,7 @@ python -m mq_copy -c copy-config.json --rabbit-password admin -q mq.Upload
 python -m mq_copy `
   --rabbit-host localhost --rabbit-user admin --rabbit-password admin `
   --rabbit-queue Cgate_FORTS_TRADE_REPL `
-  -s "localhost,54321" -d CGate -u CGateUser -w MyPassword321 `
+  -s "localhost,54321" -d CGate -u CGateUser -w MyPassword321! `
   -q mq.Upload
 
 # Очистить таблицу перед загрузкой
@@ -250,10 +250,10 @@ docker-compose -f docker-compose.rabbit.yml up
 Invoke-RestMethod -Method Post -Uri http://localhost:8090/v1/mq/service/reset
 
 # Отправка сообщений DB → RabbitMQ
-.\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 500
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321! -i 10 -a 500
 
 # Копирование RabbitMQ → SQL (C#)
-.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -q mq.Upload
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321! -q mq.Upload
 
 # Копирование RabbitMQ → SQL (Python)
 cd Tools\mq-copy
@@ -264,7 +264,7 @@ python -m mq_copy -c copy-config.json --rabbit-password admin -q mq.Upload
 
 - server: `localhost,1434`
 - user: `CGateUser`
-- password: `MyPassword321`
+- password: `MyPassword321!`
 
 ### REST API MQ WebService
 

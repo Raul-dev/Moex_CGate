@@ -1,15 +1,4 @@
-﻿-- Security/PostDeploy/EnableUsers.sql
-IF NOT EXISTS (SELECT * FROM sys.server_principals WHERE name = 'CGateUser')
-BEGIN
-    -- Если логина нет, создаем (на случай, если DACPAC пропустил)
-    CREATE LOGIN [CGateUser] WITH PASSWORD = 'MyPassword321!';
-	
-END
-ELSE
-BEGIN
-    -- Если есть, просто включаем
-    ALTER LOGIN [CGateUser] ENABLE;
-END
+﻿
 IF USER_ID('CGateUser') IS NULL
 	CREATE USER [CGateUser] FOR LOGIN [CGateUser];
 
@@ -52,12 +41,12 @@ VALUES
   (6,'RabbitPackage', 'Лог добавляется пакетом в sp_LogFinish')
 
 DECLARE @database VARCHAR(200) = DB_NAME(),
-    @Dbserver NVARCHAR(200) = 'HOMEST', --  '$(LinkSRVLog)' --- TODO Addres variable
-    @RabbitServer NVARCHAR(200) = 'HOMEST', --  '$(LinkSRVLog)' --- TODO Addres variable
+    @Dbserver NVARCHAR(200) = N'$(DbServerName)', 
+    @RabbitServer NVARCHAR(200) = N'$(RabbitServerName)', 
 	@DbName NVARCHAR(200) = DB_NAME(),
     @SqlStr  NVARCHAR(MAX);
 
-SET @SqlStr = 'server=' + @Dbserver + '; database=' + @DbName + '; uid=CGateUser; pwd=MyPassword321'
+SET @SqlStr = 'server=' + @Dbserver + '; database=' + @DbName + '; uid=CGateUser; pwd=MyPassword321!'
 IF NOT EXISTS(SELECT * FROM [rmq].[RabbitSetting])
      INSERT [rmq].[RabbitSetting] (SettingID, SettingIntValue, SettingStringValue)
      VALUES (1,	NULL, @SqlStr)

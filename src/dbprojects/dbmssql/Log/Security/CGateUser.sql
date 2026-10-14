@@ -1,5 +1,5 @@
 ﻿
-CREATE LOGIN [CGateUser] WITH PASSWORD = 'MyPassword321'
+CREATE LOGIN [CGateUser] WITH PASSWORD = 'MyPassword321!'
 GO
 
 CREATE USER [CGateUser]

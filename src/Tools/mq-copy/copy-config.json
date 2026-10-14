@@ -11,7 +11,7 @@
     "server": "localhost,1433",
     "database": "CGate",
     "user": "CGateUser",
-    "password": "MyPassword321",
+    "password": "MyPassword321!",
     "driver": ""
   },
   "copy": {

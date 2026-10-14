@@ -11,14 +11,14 @@ services:
     restart: always
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=MyPassword321
+      - MSSQL_SA_PASSWORD=MyPassword321!
       - MSSQL_PID=Developer      
     ports:
       - 1434:1433
     volumes:
       - ccgatemssql:/var/opt/mssql      
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P MyPassword321 -C -Q 'SELECT 1' || exit 1"]
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P MyPassword321! -C -Q 'SELECT 1' || exit 1"]
       interval: 10s
       retries: 10
       start_period: 10s
@@ -34,7 +34,7 @@ services:
         condition: service_healthy
     command: >
       bash -c '
-      /opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P MyPassword321 -C -d master -i docker-entrypoint-initdb.d/init.sql;
+      /opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P MyPassword321! -C -d master -i docker-entrypoint-initdb.d/init.sql;
       echo "All done!";
       '
 volumes:

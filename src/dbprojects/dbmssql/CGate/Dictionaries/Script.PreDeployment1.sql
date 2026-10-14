@@ -59,12 +59,13 @@ BEGIN
 END
 GO
 
+
 -- 2. Создаем асимметричный ключ безопасности, используя относительную переменную SQLCMD
 IF NOT EXISTS (SELECT * FROM sys.asymmetric_keys WHERE name = 'TaxLotManagerAsymKey')
 BEGIN
-    -- Конструкция $(KeyPath) автоматически развернется в полный путь во время публикации
     CREATE ASYMMETRIC KEY TaxLotManagerAsymKey 
     FROM FILE = '$(KeyPath)'; 
+
 END
 GO
 

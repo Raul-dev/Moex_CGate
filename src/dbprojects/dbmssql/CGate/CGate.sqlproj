@@ -180,6 +180,10 @@
     <Build Include="Service Broker\__CGate_Audit_LogService.sql" />
   </ItemGroup>
   <ItemGroup>
+    <SqlCmdVariable Include="DbServerName">
+      <DefaultValue>localhost</DefaultValue>
+      <Value>$(SqlCmdVar__4)</Value>
+    </SqlCmdVariable>
     <SqlCmdVariable Include="KeyPath">
       <DefaultValue>.\Dictionaries\SqlClrKey.snk</DefaultValue>
       <Value>$(SqlCmdVar__3)</Value>
@@ -187,6 +191,10 @@
     <SqlCmdVariable Include="LinkSRVLog">
       <DefaultValue>LinkSRVLog</DefaultValue>
       <Value>$(SqlCmdVar__2)</Value>
+    </SqlCmdVariable>
+    <SqlCmdVariable Include="RabbitServerName">
+      <DefaultValue>localhost</DefaultValue>
+      <Value>$(SqlCmdVar__5)</Value>
     </SqlCmdVariable>
   </ItemGroup>
   <ItemGroup>
@@ -205,7 +213,9 @@
     <None Include="Assemblies\RabbitMQSqlClr48.dll" />
     <None Include="Assemblies\RabbitMQ.Client.dll" />
     <None Include="Assemblies\Microsoft.Diagnostics.Tracing.EventSource.dll" />
-    <None Include="Dictionaries\SqlClrKey.snk" />
+    <None Include="Dictionaries\SqlClrKey.snk">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Reference Include="RabbitMQ.Client">

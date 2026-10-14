@@ -32,7 +32,7 @@ services:
       - LOGSTASH_JDBC_DRIVER=com.microsoft.sqlserver.jdbc.SQLServerDriver
       - LOGSTASH_JDBC_DRIVER_JAR_LOCATION=/usr/share/logstash/logstash-core/lib/jars/mssql-jdbc.jar
       - LOGSTASH_JDBC_USERNAME=CGateUser
-      - LOGSTASH_JDBC_PASSWORD=MyPassword321
+      - LOGSTASH_JDBC_PASSWORD=MyPassword321!
       - LOGSTASH_ELASTICSEARCH_HOST=http://elasticsearch:9200      
     ports:
 #      - 5001:5001

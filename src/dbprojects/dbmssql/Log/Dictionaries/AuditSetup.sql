@@ -1,16 +1,4 @@
-﻿-- Security/PostDeploy/EnableUsers.sql
-IF NOT EXISTS (SELECT * FROM sys.server_principals WHERE name = 'CGateUser')
-BEGIN
-    -- Если логина нет, создаем (на случай, если DACPAC пропустил)
-    CREATE LOGIN [CGateUser] WITH PASSWORD = 'MyPassword321!';
-	
-END
-ELSE
-BEGIN
-    -- Если есть, просто включаем
-    ALTER LOGIN [CGateUser] ENABLE;
-END
-IF USER_ID('CGateUser') IS NULL
+﻿IF USER_ID('CGateUser') IS NULL
 	CREATE USER [CGateUser] FOR LOGIN [CGateUser];
 
 ALTER ROLE db_owner ADD MEMBER [CGateUser];
@@ -26,58 +14,26 @@ VALUES
   (1,'LocalTable', 'Лог добавляется в локальную таблицу'),
   (2,'LinkedServer', 'Лог добавляется добавляется в таблицу линкед сервера'),
   (3,'Rabbit', 'Лог отправляется в очередь RabbitMQ')
-  
+
+
+IF NOT EXISTS(SELECT 1 FROM [audit].[AuditTypeLT] WHERE [AuditTypeID] = 4)
+    INSERT [audit].[AuditTypeLT]([AuditTypeID], [Code], [Description])
+    VALUES (4, 'InMemoryTable', 'Лог добавляется в ультрабыструю таблицу в оперативной памяти');
+
+IF NOT EXISTS(SELECT 1 FROM [audit].[AuditTypeLT] WHERE [AuditTypeID] = 5)
+    INSERT [audit].[AuditTypeLT]([AuditTypeID], [Code], [Description])
+    VALUES (5, 'SequentialDisk', 'Лог добавляется в дисковую таблицу с оптимизацией последовательного ключа');
+
+IF NOT EXISTS(SELECT 1 FROM [audit].[AuditTypeLT] WHERE [AuditTypeID] = 6)
+    INSERT [audit].[AuditTypeLT]([AuditTypeID], [Code], [Description])
+    VALUES (6, 'ServiceBroker', 'Лог асинхронно отправляется во внутреннюю очередь Service Broker');
+
 IF NOT EXISTS(SELECT * FROM [audit].[AuditTypeSP] )
 INSERT [audit].[AuditTypeSP]([AuditTypeID],[Code],[Description])
 VALUES 
-  (1,'LocalTable','Лог добавляется/меняется построчтно sp_log_Start sp_log_Info sp_log_Finish'),
-  (2,'LinkedServer', 'Лог добавляется/меняется построчтно sp_log_Start sp_log_Info sp_log_Finish'),
-  (3,'Rabbit','Лог добавляется только в sp_log_Start, режим отладки'),
-  (4,'LocalTablePackage', 'Лог добавляется пакетом в sp_log_Finish'),
-  (5,'LinkedServerPackage', 'Лог добавляется пакетом в sp_log_Finish'),
-  (6,'RabbitPackage', 'Лог добавляется пакетом в sp_log_Finish')
-
-DECLARE @database VARCHAR(200) = DB_NAME(),
-    @Dbserver NVARCHAR(200) = 'HOMEST', --  '$(LinkSRVLog)' --- TODO Addres variable
-    @RabbitServer NVARCHAR(200) = 'HOMEST', --  '$(LinkSRVLog)' --- TODO Addres variable
-	@DbName NVARCHAR(200) = DB_NAME(),
-    @SqlStr  NVARCHAR(MAX);
-
-SET @SqlStr = 'server=' + @Dbserver + '; database=' + @DbName + '; uid=CGateUser; pwd=MyPassword321'
-IF NOT EXISTS(SELECT * FROM [rmq].[RabbitSetting])
-     INSERT [rmq].[RabbitSetting] (SettingID, SettingIntValue, SettingStringValue)
-     VALUES (1,	NULL, @SqlStr)
-
-EXEC rmq.sp_UpsertRabbitEndpoint @Alias = 'CGateAuditSP',
-								 @ServerName = @RabbitServer,   --- TODO Addres of Rabbitserver
-								 @Port = 5672,
-								 @VHost = '/',
-								 @LoginName = 'admin',
-								 @LoginPassword = 'admin',
-								 @Exchange = 'amq.direct',
-								 @RoutingKey = 'Audit.SP.CGate',
-								 @ConnectionChannels = 1,
-								 @IsEnabled = 1
-
-EXEC rmq.sp_UpsertRabbitEndpoint @Alias = 'CGateAuditLT',
-								 @ServerName = @RabbitServer,   --- TODO Addres of Rabbitserver
-								 @Port = 5672,
-								 @VHost = '/',
-								 @LoginName = 'admin',
-								 @LoginPassword = 'admin',
-								 @Exchange = 'amq.direct',
-								 @RoutingKey = 'Audit.LT.CGate',
-								 @ConnectionChannels = 1,
-								 @IsEnabled = 1
-EXEC rmq.sp_UpsertRabbitEndpoint @Alias = 'CGateAuditErr',
-								 @ServerName = @RabbitServer,   --- TODO Addres of Rabbitserver
-								 @Port = 5672,
-								 @VHost = '/',
-								 @LoginName = 'admin',
-								 @LoginPassword = 'admin',
-								 @Exchange = 'amq.direct',
-								 @RoutingKey = 'Audit.Err.CGate',
-								 @ConnectionChannels = 1,
-								 @IsEnabled = 1
-
-EXEC audit.sp_Initialise @AuditType = 'Table'
+  (1,'LocalTable','Лог добавляется/меняется построчтно sp_LogStart sp_LogInfo sp_LogFinish'),
+  (2,'LinkedServer', 'Лог добавляется/меняется построчтно sp_LogStart sp_LogInfo sp_LogFinish'),
+  (3,'Rabbit','Лог добавляется только в sp_LogStart, режим отладки'),
+  (4,'LocalTablePackage', 'Лог добавляется пакетом в sp_LogFinish'),
+  (5,'LinkedServerPackage', 'Лог добавляется пакетом в sp_LogFinish'),
+  (6,'RabbitPackage', 'Лог добавляется пакетом в sp_LogFinish')

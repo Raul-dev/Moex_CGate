@@ -1,13 +1,13 @@
 -- Create database ImportFile on PostgreSQL (run as superuser / postgres)
--- Role password matches Moex_CGate default (MyPassword321)
+-- Role password matches Moex_CGate default (MyPassword321!)
 
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'CGateUser') THEN
-        CREATE ROLE "CGateUser" WITH LOGIN PASSWORD 'MyPassword321';
+        CREATE ROLE "CGateUser" WITH LOGIN PASSWORD 'MyPassword321!';
         RAISE NOTICE 'Created ROLE CGateUser.';
     ELSE
-        ALTER ROLE "CGateUser" WITH LOGIN PASSWORD 'MyPassword321';
+        ALTER ROLE "CGateUser" WITH LOGIN PASSWORD 'MyPassword321!';
         RAISE NOTICE 'ROLE CGateUser already exists — password refreshed.';
     END IF;
 END

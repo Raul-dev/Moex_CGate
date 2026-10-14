@@ -21,7 +21,7 @@ http://localhost:9021
 
 // DB → RabbitMQ
 .\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -d CGate -t mssql
-.\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321 -i 10 -a 500
+.\services\mq\MQ\bin\Release\net10.0\MQ.exe SendMsg -t mssql -s "localhost,1434" -d CGate -u CGateUser -w MyPassword321! -i 10 -a 500
 
 // RabbitMQ → SQL (buffer-таблица, mq.Upload -> mq.UploadBuffer)
 .\services\mq\MQ\bin\Release\net10.0\MQ.exe CopyMsg -d CGate -t mssql -q mq.Upload

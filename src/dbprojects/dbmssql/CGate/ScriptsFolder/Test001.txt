@@ -8,7 +8,7 @@ SELECT * FROM [rmq].[RabbitSetting]
 SELECT * FROM [rmq].[RabbitEndpoint]
 SELECT * FROM [audit].[Setting] 
 UPDATE [rmq].[RabbitSetting]
- SET SettingStringValue = 'server=localhost; database=CGate; uid=CGateUser; pwd=MyPassword321'
+ SET SettingStringValue = 'server=localhost; database=CGate; uid=CGateUser; pwd=MyPassword321!'
 WHERE SettingID = 1
 
 UPDATE [audit].[Setting] SET 

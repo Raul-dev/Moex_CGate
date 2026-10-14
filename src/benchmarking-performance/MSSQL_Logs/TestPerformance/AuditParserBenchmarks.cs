@@ -13,26 +13,32 @@ namespace TestPerformance
     [MemoryDiagnoser]
     public class AuditParserBenchmarks
     {
+        [Params(1, 20)]
+        public int ThreadCount { get; set; }
+        [Params(1, 2)]
+        public int IsADO { get; set; }
 
         public async Task Add1000LogMessage(LogType logType)
         {
-            int TargetThreadCount = 1;
-            Task[] tasks = new Task[TargetThreadCount];
+            
+            int TargetRecordCount = Program.TotalCount / ThreadCount;
+            Task[] tasks = new Task[ThreadCount];
 
-            for (int i = 0; i < TargetThreadCount; i++)
+            for (int i = 0; i < ThreadCount; i++)
             {
                 tasks[i] = Task.Run(() =>
                 {
-                    string connectionStr = @"Server = localhost; Database = CGate; User = CGateUser; Password = MyPassword321; MultipleActiveResultSets = true; TrustServerCertificate = true; Encrypt = False";
+                    string connectionStr = @"Server = localhost; Database = CGate; User = CGateUser; Password = MyPassword321!; MultipleActiveResultSets = true; TrustServerCertificate = true; Encrypt = False";
 
                     // Используем using: конструктор сам откроет SqlConnection и применит SetLogType!
                     using (DBHelper dbset = new DBHelper(connectionStr, logType))
                     {
-                        for (int j = 0; j < 2000; j++)
+                        for (int j = 0; j < TargetRecordCount; j++)
                         {
-                            // Вы можете чередовать для сравнения:
-                            // dbset.AddLogMessage();       // Через Entity Framework
-                            dbset.AddLogMessageDirect();    // НАПРЯМУЮ (ADO.NET) — для максимальной скорости
+                            if(IsADO ==1 )
+                              dbset.AddLogMessageDirect();    // НАПРЯМУЮ (ADO.NET) — для максимальной скорости
+                            else 
+                               dbset.AddLogMessage();       // Через Entity Framework
                         }
                     } // Тут соединение закроется автоматически
                 });
@@ -43,7 +49,7 @@ namespace TestPerformance
             await Task.WhenAll(tasks);
         }
 
-        [Benchmark]
+        [Benchmark(Baseline = true)]
         public async Task LogLocalTable()
         {
             await Add1000LogMessage(LogType.LocalTable);
@@ -55,7 +61,7 @@ namespace TestPerformance
             await Add1000LogMessage(LogType.LinkedServerTable);
         }
 
-        [Benchmark(Baseline = true)]
+        [Benchmark]
         public async Task LogRabbitMQPost()
         {
             await Add1000LogMessage(LogType.RabbitMQPost);
@@ -82,7 +88,7 @@ namespace TestPerformance
 
         public void LogRabbitMQPostDebug()
         {
-            DBHelper dbHelper = new DBHelper(@$"Server = localhost; Database = CGate; User = CGateUser; Password = MyPassword321; MultipleActiveResultSets = true; TrustServerCertificate = true; Encrypt = False");
+            DBHelper dbHelper = new DBHelper(@$"Server = localhost; Database = CGate; User = CGateUser; Password = MyPassword321!; MultipleActiveResultSets = true; TrustServerCertificate = true; Encrypt = False");
             dbHelper.SetLogType(LogType.RabbitMQPost);
             dbHelper.AddLogMessage();
         }

@@ -1,9 +1,9 @@
 -- Create database ImportFile on MS SQL Server (run as sa / admin)
--- Login/user password matches appsettings.json (MyPassword321)
+-- Login/user password matches appsettings.json (MyPassword321!)
 
 IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'CGateUser')
 BEGIN
-    CREATE LOGIN [CGateUser] WITH PASSWORD = N'MyPassword321', CHECK_POLICY = OFF, CHECK_EXPIRATION = OFF;
+    CREATE LOGIN [CGateUser] WITH PASSWORD = N'MyPassword321!', CHECK_POLICY = OFF, CHECK_EXPIRATION = OFF;
     PRINT N'Created LOGIN [CGateUser].';
 END
 ELSE

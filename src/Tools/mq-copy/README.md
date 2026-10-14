@@ -51,7 +51,7 @@ copy copy-config.example.json copy-config.json
     "server": "localhost,1433",
     "database": "CGate",
     "user": "CGateUser",
-    "password": "MyPassword321",
+    "password": "MyPassword321!",
     "driver": "ODBC Driver 18 for SQL Server"
   },
   "copy": {
@@ -129,7 +129,7 @@ python -m mq_copy `
   -s "localhost,1433" `
   -d CGate `
   -u CGateUser `
-  -w MyPassword321 `
+  -w MyPassword321! `
   -q mq.Upload
 
 # Копировать без удаления из RabbitMQ
@@ -142,7 +142,7 @@ python -m mq_copy -c copy-config.json --rabbit-password admin -q mq.Upload -f tr
 ## C# аналог
 
 ```powershell
-.\MQ.exe CopyMsg -t mssql -s "localhost,1433" -d CGate -u CGateUser -w MyPassword321 -q mq.Upload
+.\MQ.exe CopyMsg -t mssql -s "localhost,1433" -d CGate -u CGateUser -w MyPassword321! -q mq.Upload
 ```
 
 ## SQL Server не запущен / connection refused
@@ -155,8 +155,8 @@ python -m mq_copy -c copy-config.json --rabbit-password admin -q mq.Upload -f tr
 
 ```powershell
 # проверка — какой порт отвечает:
-sqlcmd -S localhost,1433 -U CGateUser -P MyPassword321 -d CGate -Q "SELECT 1" -C
-sqlcmd -S localhost,1434 -U CGateUser -P MyPassword321 -d CGate -Q "SELECT 1" -C
+sqlcmd -S localhost,1433 -U CGateUser -P MyPassword321! -d CGate -Q "SELECT 1" -C
+sqlcmd -S localhost,1434 -U CGateUser -P MyPassword321! -d CGate -Q "SELECT 1" -C
 ```
 
 Запуск Docker SQL:
