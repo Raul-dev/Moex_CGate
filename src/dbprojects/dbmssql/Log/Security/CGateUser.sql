@@ -1,7 +1,0 @@
-﻿
-CREATE LOGIN [CGateUser] WITH PASSWORD = 'MyPassword321!'
-GO
-
-CREATE USER [CGateUser]
-FROM LOGIN [CGateUser]
-WITH DEFAULT_SCHEMA = dbo

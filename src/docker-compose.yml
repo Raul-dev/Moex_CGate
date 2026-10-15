@@ -72,6 +72,7 @@ services:
     volumes:
       #- ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
       #- ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
+      - ${USERPROFILE}/.nuget/packages:/root/.nuget/packages:ro
       - ./logs:/logs   
     depends_on:
       rabbit:

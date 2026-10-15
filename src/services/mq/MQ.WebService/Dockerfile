@@ -15,7 +15,12 @@ WORKDIR /src
 COPY ["MQ.WebService/MQ.WebService.csproj", "MQ.WebService/"]
 COPY ["MQ.bll/MQ.bll.csproj", "MQ.bll/"]
 COPY ["MQ.dal/MQ.dal.csproj", "MQ.dal/"]
+
+#RUN --mount=type=cache,target=/root/.nuget/packages \
+#    dotnet restore "./MQ.WebService/MQ.WebService.csproj"
+
 RUN dotnet restore "./MQ.WebService/MQ.WebService.csproj"
+
 COPY . .
 WORKDIR "/src/MQ.WebService"
 RUN dotnet build "./MQ.WebService.csproj" -c $BUILD_CONFIGURATION -o /app/build

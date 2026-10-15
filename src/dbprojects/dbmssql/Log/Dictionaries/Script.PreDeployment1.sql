@@ -9,4 +9,12 @@
                SELECT * FROM [$(TableName)]					
 --------------------------------------------------------------------------------------
 */
+USE [$(DatabaseName)];
+GO
+
+IF EXISTS (SELECT * FROM sys.database_principals WHERE name = 'CGateUser')
+BEGIN
+    -- Принудительно сшиваем SID логина и пользователя до начала деплоя схемы
+    ALTER USER [CGateUser] WITH LOGIN = [CGateUser];
+END
 :r .\LinkedServ.sql

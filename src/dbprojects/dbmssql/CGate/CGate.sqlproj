@@ -55,6 +55,7 @@
     <DefineTrace>true</DefineTrace>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <SuppressTSqlWarnings>71562</SuppressTSqlWarnings>
   </PropertyGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">11.0</VisualStudioVersion>
@@ -133,7 +134,6 @@
     <None Include="Dictionaries\metamap.sql" />
     <None Include="Dictionaries\session_state.sql" />
     <Build Include="Security\mq.sql" />
-    <Build Include="Security\CGateUser.sql" />
     <Build Include="dbo\Functions\fn_GetBufferingDays.sql" />
     <Build Include="dbo\Functions\fn_GetSettingInt.sql" />
     <Build Include="audit\Functions\fn_log_IsLnk.sql" />
@@ -243,5 +243,12 @@
       <SqlPermissionSet>UNSAFE</SqlPermissionSet>
       <IsVisible>False</IsVisible>
     </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ArtifactReference Include="$(DacPacRootPath)\Extensions\Microsoft\SQLDB\Extensions\SqlServer\160\SqlSchemas\master.dacpac">
+      <HintPath>$(DacPacRootPath)\Extensions\Microsoft\SQLDB\Extensions\SqlServer\160\SqlSchemas\master.dacpac</HintPath>
+      <SuppressMissingDependenciesErrors>False</SuppressMissingDependenciesErrors>
+      <DatabaseVariableLiteralValue>master</DatabaseVariableLiteralValue>
+    </ArtifactReference>
   </ItemGroup>
 </Project>
